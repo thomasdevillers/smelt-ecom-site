@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { COLORS, FONT_STACK, absoluteUrl, escapeHtml } from "./theme";
+import { COLORS, absoluteUrl, escapeHtml } from "./theme";
 
 describe("email theme", () => {
   it("exposes brand colors", () => {
