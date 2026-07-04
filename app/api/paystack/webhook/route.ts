@@ -1,6 +1,8 @@
 import crypto from "node:crypto";
 import { recordOrder, type OrderItem } from "@/lib/orders";
-import { sendOrderEmails } from "@/lib/email";
+import { sendOrderEmails, sendPaymentFailedEmail } from "@/lib/email";
+import { markCartConverted } from "@/lib/carts";
+import { type ShippingAddress } from "@/lib/address";
 
 // pg and node:crypto require the Node.js runtime, not edge.
 export const runtime = "nodejs";
@@ -47,7 +49,12 @@ export async function POST(request: Request) {
       currency?: string;
       paid_at?: string | null;
       customer?: { email?: string };
-      metadata?: { items?: OrderItem[]; amountRand?: number };
+      metadata?: {
+        items?: OrderItem[];
+        amountRand?: number;
+        customerName?: string | null;
+        shippingAddress?: ShippingAddress | null;
+      };
     };
   };
   try {
@@ -68,6 +75,8 @@ export async function POST(request: Request) {
         status: d.status ?? "success",
         items: d.metadata?.items ?? [],
         paidAt: d.paid_at ?? null,
+        customerName: d.metadata?.customerName ?? null,
+        shippingAddress: d.metadata?.shippingAddress ?? null,
       });
 
       if (newlyPaid) {
@@ -80,13 +89,24 @@ export async function POST(request: Request) {
           email: d.customer?.email ?? "",
           amountRand: d.metadata?.amountRand ?? Math.round((d.amount ?? 0) / 100),
           items: d.metadata?.items ?? [],
+          customerName: d.metadata?.customerName ?? null,
+          shippingAddress: d.metadata?.shippingAddress ?? null,
         });
+        await markCartConverted(d.customer?.email ?? "");
       }
     } catch (err) {
       // Return 500 so Paystack retries; we haven't persisted the order.
       console.error("Webhook persist error:", err);
       return new Response("persist failed", { status: 500 });
     }
+  }
+
+  if (event.event === "charge.failed" && event.data) {
+    const d = event.data;
+    await sendPaymentFailedEmail({
+      email: d.customer?.email ?? "",
+      items: d.metadata?.items ?? [],
+    });
   }
 
   // Acknowledge all other events so Paystack stops retrying them.

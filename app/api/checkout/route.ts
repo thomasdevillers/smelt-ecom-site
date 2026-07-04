@@ -2,11 +2,12 @@ import { cartSubtotal, type CartState } from "@/lib/cartReducer";
 import { PRODUCT } from "@/lib/product";
 import { initializeTransaction, isPaystackConfigured } from "@/lib/paystack";
 import { sanitizeCart } from "@/lib/checkoutShared";
+import { sanitizeAddress } from "@/lib/address";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
-  let body: { email?: unknown; cart?: unknown };
+  let body: { email?: unknown; cart?: unknown; name?: unknown; address?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -17,6 +18,9 @@ export async function POST(request: Request) {
   if (!EMAIL_RE.test(email)) {
     return Response.json({ error: "A valid email is required." }, { status: 400 });
   }
+
+  const customerName = typeof body.name === "string" ? body.name.trim() : "";
+  const shippingAddress = sanitizeAddress(body.address);
 
   const cart = sanitizeCart(body.cart);
   const amount = cartSubtotal(cart);
@@ -39,7 +43,7 @@ export async function POST(request: Request) {
       email,
       amount,
       callbackUrl: `${origin}/checkout/success`,
-      metadata: { items, amountRand: amount },
+      metadata: { items, amountRand: amount, customerName, shippingAddress },
     });
     return Response.json({ configured: true, authorizationUrl, reference });
   } catch (err) {
