@@ -1,6 +1,8 @@
 import { isPaystackConfigured, verifyTransaction } from "@/lib/paystack";
 import { recordOrder, type OrderItem } from "@/lib/orders";
 import { sendOrderEmails } from "@/lib/email";
+import { markCartConverted } from "@/lib/carts";
+import { type ShippingAddress } from "@/lib/address";
 
 // pg requires the Node.js runtime.
 export const runtime = "nodejs";
@@ -29,6 +31,10 @@ export async function GET(request: Request) {
       const amountRand =
         (typeof meta.amountRand === "number" ? meta.amountRand : null) ??
         Math.round(result.amount / 100);
+      const customerName =
+        typeof meta.customerName === "string" ? meta.customerName : null;
+      const shippingAddress =
+        (meta.shippingAddress as ShippingAddress | undefined) ?? null;
       try {
         const newlyPaid = await recordOrder({
           reference: result.reference,
@@ -38,6 +44,8 @@ export async function GET(request: Request) {
           status: result.status,
           items,
           paidAt: result.paidAt,
+          customerName,
+          shippingAddress,
         });
         // recordOrder returns true only for whichever path (this or the webhook)
         // records the payment first, so the emails fire exactly once.
@@ -47,7 +55,10 @@ export async function GET(request: Request) {
             email: result.customerEmail ?? "",
             amountRand,
             items,
+            customerName,
+            shippingAddress,
           });
+          await markCartConverted(result.customerEmail ?? "");
         }
       } catch (err) {
         // Non-fatal: the customer still gets confirmation; the webhook will

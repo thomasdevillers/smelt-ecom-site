@@ -6,11 +6,20 @@
 //                      which can only deliver to your own Resend account email.
 //                      Set to "Smelt <orders@saunahat.co.za>" once the domain
 //                      is verified in Resend.
-//   ORDER_NOTIFY_EMAIL – where the "new order" alert goes (you). Defaults to
-//                        the account owner via the sandbox.
+//   ORDER_NOTIFY_EMAIL – where the "new order" alert goes (you). Accepts a
+//                        comma-separated list for multiple recipients.
 import { Resend } from "resend";
 import { formatMoney } from "./pricing";
 import type { OrderItem } from "./orders";
+import type { ShippingAddress } from "./address";
+import { orderConfirmationEmail } from "./emails/orderConfirmation";
+import { ownerAlertEmail } from "./emails/ownerAlert";
+import { paymentFailedEmail } from "./emails/paymentFailed";
+import { abandonedCartEmail } from "./emails/abandonedCart";
+import { shippingEmail } from "./emails/shipping";
+import { deliveredEmail } from "./emails/delivered";
+import { welcomeEmail } from "./emails/welcome";
+import { absoluteUrl } from "./emails/theme";
 
 export function isEmailConfigured(): boolean {
   return Boolean(process.env.RESEND_API_KEY);
@@ -26,21 +35,31 @@ function resend(): Resend {
   return client;
 }
 
+/**
+ * Send a single email best-effort: no-op when unconfigured, errors swallowed
+ * (logged) so email problems never break the caller.
+ */
+async function send(
+  to: string | string[],
+  subject: string,
+  html: string,
+  text: string,
+): Promise<void> {
+  if (!isEmailConfigured()) return;
+  try {
+    await resend().emails.send({ from: fromAddress(), to, subject, html, text });
+  } catch (err) {
+    console.error(`Email failed (${subject}):`, err);
+  }
+}
+
 export interface OrderEmailData {
   reference: string;
   email: string;
   amountRand: number;
   items: OrderItem[];
-}
-
-function itemsText(items: OrderItem[]): string {
-  if (!items.length) return "  (no line items recorded)";
-  return items.map((i) => `  • ${i.name} × ${i.qty}`).join("\n");
-}
-
-function itemsHtml(items: OrderItem[]): string {
-  if (!items.length) return "<li>(no line items recorded)</li>";
-  return items.map((i) => `<li>${i.name} × ${i.qty}</li>`).join("");
+  customerName?: string | null;
+  shippingAddress?: ShippingAddress | null;
 }
 
 /**
@@ -51,57 +70,95 @@ export async function sendOrderEmails(data: OrderEmailData): Promise<void> {
   if (!isEmailConfigured()) return;
 
   const total = formatMoney(data.amountRand);
-  const notifyTo = process.env.ORDER_NOTIFY_EMAIL;
+  // ORDER_NOTIFY_EMAIL may hold a comma-separated list of recipients.
+  const notifyTo = (process.env.ORDER_NOTIFY_EMAIL || "")
+    .split(",")
+    .map((addr) => addr.trim())
+    .filter(Boolean);
 
-  const tasks: Promise<unknown>[] = [];
+  const tasks: Promise<void>[] = [];
 
   // Customer receipt.
   if (data.email) {
-    tasks.push(
-      resend().emails.send({
-        from: fromAddress(),
-        to: data.email,
-        subject: "Your Smelt pre-order is confirmed. Warm regards.",
-        text:
-          `Thanks for pre-ordering a Smelt sauna hat.\n\n` +
-          `Order reference: ${data.reference}\n` +
-          `Total paid: ${total}\n\n` +
-          `What you ordered:\n${itemsText(data.items)}\n\n` +
-          `Every hat is hand-felted to order, so your pre-order ships with the ` +
-          `founding batch, roughly four to six weeks out. We'll be in touch when ` +
-          `it's on its way.\n\nWarm regards,\nTom & Marc`,
-        html:
-          `<h2>Your Smelt pre-order is confirmed</h2>` +
-          `<p>Thanks for pre-ordering a Smelt sauna hat.</p>` +
-          `<p><strong>Order reference:</strong> ${data.reference}<br/>` +
-          `<strong>Total paid:</strong> ${total}</p>` +
-          `<p><strong>What you ordered:</strong></p><ul>${itemsHtml(data.items)}</ul>` +
-          `<p>Every hat is hand-felted to order, so your pre-order ships with the ` +
-          `founding batch, roughly four to six weeks out. We'll be in touch when ` +
-          `it's on its way.</p><p>Warm regards,<br/>Tom &amp; Marc</p>`,
-      }),
-    );
+    const e = orderConfirmationEmail({
+      reference: data.reference,
+      total,
+      items: data.items,
+      address: data.shippingAddress ?? null,
+    });
+    tasks.push(send(data.email, e.subject, e.html, e.text));
   }
 
   // Owner notification.
-  if (notifyTo) {
-    tasks.push(
-      resend().emails.send({
-        from: fromAddress(),
-        to: notifyTo,
-        subject: `New Smelt order: ${total} (${data.reference})`,
-        text:
-          `New paid order.\n\n` +
-          `Reference: ${data.reference}\n` +
-          `Customer: ${data.email}\n` +
-          `Total: ${total}\n\n` +
-          `Items:\n${itemsText(data.items)}`,
-      }),
-    );
+  if (notifyTo.length) {
+    const e = ownerAlertEmail({
+      reference: data.reference,
+      email: data.email,
+      total,
+      items: data.items,
+      address: data.shippingAddress ?? null,
+    });
+    tasks.push(send(notifyTo, e.subject, e.html, e.text));
   }
 
-  const results = await Promise.allSettled(tasks);
-  for (const r of results) {
-    if (r.status === "rejected") console.error("Order email failed:", r.reason);
-  }
+  await Promise.all(tasks);
+}
+
+export async function sendPaymentFailedEmail(d: {
+  email: string;
+  items: OrderItem[];
+}): Promise<void> {
+  if (!d.email) return;
+  const e = paymentFailedEmail({ items: d.items, retryUrl: absoluteUrl("/checkout") });
+  await send(d.email, e.subject, e.html, e.text);
+}
+
+export async function sendAbandonedCartEmail(d: {
+  email: string;
+  name?: string | null;
+  items: OrderItem[];
+  total: string;
+}): Promise<void> {
+  if (!d.email) return;
+  const e = abandonedCartEmail({
+    name: d.name,
+    items: d.items,
+    total: d.total,
+    cartUrl: absoluteUrl("/cart"),
+  });
+  await send(d.email, e.subject, e.html, e.text);
+}
+
+export async function sendShippingEmail(d: {
+  email: string;
+  name?: string | null;
+  carrier: string;
+  trackingNumber: string;
+  trackingUrl?: string;
+  items: OrderItem[];
+}): Promise<void> {
+  if (!d.email) return;
+  const e = shippingEmail({
+    name: d.name,
+    carrier: d.carrier,
+    trackingNumber: d.trackingNumber,
+    trackingUrl: d.trackingUrl,
+    items: d.items,
+  });
+  await send(d.email, e.subject, e.html, e.text);
+}
+
+export async function sendDeliveredEmail(d: {
+  email: string;
+  name?: string | null;
+}): Promise<void> {
+  if (!d.email) return;
+  const e = deliveredEmail({ name: d.name });
+  await send(d.email, e.subject, e.html, e.text);
+}
+
+export async function sendWelcomeEmail(email: string): Promise<void> {
+  if (!email) return;
+  const e = welcomeEmail();
+  await send(email, e.subject, e.html, e.text);
 }
