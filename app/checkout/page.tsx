@@ -95,7 +95,17 @@ export default function CheckoutPage() {
       email,
       amount: Math.round(subtotal * 100),
       currency: "ZAR",
+      // @paystack/inline-js's shipped types only declare `custom_fields` here
+      // (its module uses `export =`, which can't be augmented). The flat
+      // fields below are what our server actually reads back (see
+      // app/api/checkout/verify and app/api/paystack/webhook); custom_fields
+      // is purely for Paystack's own dashboard/receipt display.
       metadata: {
+        cart,
+        items,
+        amountRand: subtotal,
+        customerName: name,
+        shippingAddress: address,
         custom_fields: [
           {
             display_name: "Cart",
@@ -123,7 +133,8 @@ export default function CheckoutPage() {
             value: JSON.stringify(address),
           },
         ],
-      },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any,
       onSuccess,
       onCancel: () => {
         setStatus("idle");

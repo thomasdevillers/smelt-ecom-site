@@ -3,6 +3,8 @@ import { recordOrder, type OrderItem } from "@/lib/orders";
 import { sendOrderEmails, sendPaymentFailedEmail } from "@/lib/email";
 import { markCartConverted } from "@/lib/carts";
 import { type ShippingAddress } from "@/lib/address";
+import { sanitizeCart } from "@/lib/checkoutShared";
+import { cartSubtotal } from "@/lib/cartReducer";
 
 // pg and node:crypto require the Node.js runtime, not edge.
 export const runtime = "nodejs";
@@ -50,6 +52,7 @@ export async function POST(request: Request) {
       paid_at?: string | null;
       customer?: { email?: string };
       metadata?: {
+        cart?: unknown;
         items?: OrderItem[];
         amountRand?: number;
         customerName?: string | null;
@@ -65,18 +68,51 @@ export async function POST(request: Request) {
 
   if (event.event === "charge.success" && event.data) {
     const d = event.data;
+    const paidAmountRand = Math.round((d.amount ?? 0) / 100);
+    const items = d.metadata?.items ?? [];
+    const customerName = d.metadata?.customerName ?? null;
+    const shippingAddress = d.metadata?.shippingAddress ?? null;
+
+    // `metadata` came from the browser when it opened the Paystack widget, so
+    // it's untrusted. Recompute the expected total from the cart with the
+    // same pricing logic the UI uses, and compare against the amount
+    // Paystack actually confirms was charged (`d.amount`) rather than
+    // whatever amountRand the client claims in metadata.
+    const cart = sanitizeCart(d.metadata?.cart);
+    const expectedAmountRand = cartSubtotal(cart);
+    const amountMatches = expectedAmountRand === paidAmountRand;
+
     try {
+      if (!amountMatches) {
+        console.error(
+          `Paystack webhook amount mismatch for ${d.reference}: paid R${paidAmountRand}, cart totals R${expectedAmountRand}`,
+        );
+        await recordOrder({
+          reference: d.reference ?? "",
+          email: d.customer?.email ?? "",
+          amountRand: paidAmountRand,
+          currency: d.currency ?? "ZAR",
+          status: "amount_mismatch",
+          items,
+          paidAt: d.paid_at ?? null,
+          customerName,
+          shippingAddress,
+        });
+        // Acknowledge so Paystack doesn't retry; a human needs to review this,
+        // not a webhook retry loop.
+        return new Response("ok", { status: 200 });
+      }
+
       const newlyPaid = await recordOrder({
         reference: d.reference ?? "",
         email: d.customer?.email ?? "",
-        // Prefer the Rand amount we stored in metadata; fall back to cents/100.
-        amountRand: d.metadata?.amountRand ?? Math.round((d.amount ?? 0) / 100),
+        amountRand: paidAmountRand,
         currency: d.currency ?? "ZAR",
         status: d.status ?? "success",
-        items: d.metadata?.items ?? [],
+        items,
         paidAt: d.paid_at ?? null,
-        customerName: d.metadata?.customerName ?? null,
-        shippingAddress: d.metadata?.shippingAddress ?? null,
+        customerName,
+        shippingAddress,
       });
 
       if (newlyPaid) {
@@ -87,10 +123,10 @@ export async function POST(request: Request) {
         await sendOrderEmails({
           reference: d.reference ?? "",
           email: d.customer?.email ?? "",
-          amountRand: d.metadata?.amountRand ?? Math.round((d.amount ?? 0) / 100),
-          items: d.metadata?.items ?? [],
-          customerName: d.metadata?.customerName ?? null,
-          shippingAddress: d.metadata?.shippingAddress ?? null,
+          amountRand: paidAmountRand,
+          items,
+          customerName,
+          shippingAddress,
         });
         await markCartConverted(d.customer?.email ?? "");
       }
