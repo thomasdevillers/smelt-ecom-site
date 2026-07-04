@@ -9,6 +9,14 @@ export interface AbandonedCart {
   amountRand: number;
 }
 
+// Carts are keyed by email, so normalize casing here — the checkout/track path
+// and the payment path (Paystack echoes back the customer email) may present
+// the same address with different casing. Lowercasing at every entry point
+// keeps the "upsert" and "mark converted" operations hitting the same row.
+function normEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
 /** Upsert a cart by email. New/changed content clears any prior reminder. */
 export async function trackCart(input: {
   email: string; name?: string | null; items: OrderItem[]; amountRand: number;
@@ -22,7 +30,7 @@ export async function trackCart(input: {
        SET name=EXCLUDED.name, items=EXCLUDED.items, amount_rand=EXCLUDED.amount_rand,
            updated_at=now(), reminded_at=NULL
        WHERE abandoned_carts.converted_at IS NULL`,
-    [input.email, input.name ?? null, JSON.stringify(input.items), input.amountRand],
+    [normEmail(input.email), input.name ?? null, JSON.stringify(input.items), input.amountRand],
   );
 }
 
@@ -31,7 +39,7 @@ export async function markCartConverted(email: string): Promise<void> {
   await ensureSchema();
   await getPool().query(
     `UPDATE abandoned_carts SET converted_at=now() WHERE email=$1 AND converted_at IS NULL`,
-    [email],
+    [normEmail(email)],
   );
 }
 
@@ -55,6 +63,6 @@ export async function stampReminded(email: string): Promise<void> {
   if (!isDbConfigured()) return;
   await ensureSchema();
   await getPool().query(
-    `UPDATE abandoned_carts SET reminded_at=now() WHERE email=$1`, [email],
+    `UPDATE abandoned_carts SET reminded_at=now() WHERE email=$1`, [normEmail(email)],
   );
 }

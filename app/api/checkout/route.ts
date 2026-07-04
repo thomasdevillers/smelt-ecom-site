@@ -14,7 +14,9 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const email = typeof body.email === "string" ? body.email.trim() : "";
+  // Lowercase so the order + the abandoned-cart row + the Paystack round-trip
+  // all key on the same address regardless of how the customer typed it.
+  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   if (!EMAIL_RE.test(email)) {
     return Response.json({ error: "A valid email is required." }, { status: 400 });
   }
