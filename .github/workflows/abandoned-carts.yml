@@ -1,0 +1,37 @@
+name: Abandoned cart reminders
+
+# Hourly ping of the abandoned-cart endpoint. Replaces Vercel Cron (Pro-only)
+# with free GitHub-hosted scheduling. The endpoint itself does the work; this
+# just calls it on a schedule with the shared bearer secret.
+#
+# Required setup (one-time):
+#   1. Repo → Settings → Secrets and variables → Actions → New repository secret:
+#        CRON_SECRET  = same value as CRON_SECRET in your Vercel env
+#   2. Repo → Settings → Secrets and variables → Actions → Variables → New variable:
+#        SITE_URL     = https://your-production-domain  (no trailing slash)
+#      (or hardcode the URL in the curl below if you prefer)
+
+on:
+  schedule:
+    # Every hour, on the hour (UTC). GitHub may delay runs under load; the
+    # 4-hour age filter lives in the endpoint, so slight jitter is harmless.
+    - cron: "0 * * * *"
+  workflow_dispatch: {} # allows manual "Run workflow" from the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger abandoned-cart reminders
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$SITE_URL" ]; then
+            echo "CRON_SECRET secret and SITE_URL variable must both be set." >&2
+            exit 1
+          fi
+          # -f: fail (non-zero) on HTTP >= 400 so a broken endpoint fails the run.
+          curl -fsS -X GET \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$SITE_URL/api/cron/abandoned-carts"
