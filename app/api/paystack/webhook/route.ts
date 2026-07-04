@@ -103,10 +103,14 @@ export async function POST(request: Request) {
 
   if (event.event === "charge.failed" && event.data) {
     const d = event.data;
-    await sendPaymentFailedEmail({
-      email: d.customer?.email ?? "",
-      items: d.metadata?.items ?? [],
-    });
+    try {
+      await sendPaymentFailedEmail({
+        email: d.customer?.email ?? "",
+        items: d.metadata?.items ?? [],
+      });
+    } catch (err) {
+      console.error("Payment-failed email error:", err);
+    }
   }
 
   // Acknowledge all other events so Paystack stops retrying them.
