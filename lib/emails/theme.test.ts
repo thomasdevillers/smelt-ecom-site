@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { COLORS, FONT_STACK, absoluteUrl } from "./theme";
+import { COLORS, FONT_STACK, absoluteUrl, escapeHtml } from "./theme";
 
 describe("email theme", () => {
   it("exposes brand colors", () => {
@@ -16,5 +16,15 @@ describe("email theme", () => {
 
   it("strips a trailing slash on the base", () => {
     expect(absoluteUrl("/a", "https://x.co/")).toBe("https://x.co/a");
+  });
+
+  it("escapes HTML-special characters", () => {
+    const escaped = escapeHtml(`<b>"Tom" & O'Brien</b>`);
+    expect(escaped).toContain("&lt;b&gt;");
+    expect(escaped).toContain("&quot;Tom&quot;");
+    expect(escaped).toContain("&amp;");
+    expect(escaped).toContain("&#39;");
+    expect(escaped).not.toContain("<");
+    expect(escaped).not.toContain(">");
   });
 });

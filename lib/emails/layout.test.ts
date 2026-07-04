@@ -36,4 +36,20 @@ describe("renderEmail", () => {
     expect(out.text).toContain("Warm regards");
     expect(out.text).toContain("Tom & Marc");
   });
+
+  it("converts multi-row tables to readable, unmashed text", () => {
+    const tableOut = renderEmail({
+      preheader: "Peek text",
+      heading: "Your order",
+      blocks: [
+        "<table><tr><td>Forest Green</td><td>× 2</td></tr><tr><td>Natural Cream</td><td>× 1</td></tr></table>",
+      ],
+    });
+    expect(tableOut.text).toContain("Forest Green");
+    expect(tableOut.text).toContain("Natural Cream");
+    expect(tableOut.text).not.toContain("2Natural");
+    expect(tableOut.text.indexOf("Natural Cream")).toBeGreaterThan(
+      tableOut.text.indexOf("Forest Green"),
+    );
+  });
 });

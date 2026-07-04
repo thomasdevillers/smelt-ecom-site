@@ -57,7 +57,21 @@ export function renderEmail(input: EmailInput): { html: string; text: string } {
     `</td></tr>` +
     `</table></td></tr></table></body></html>`;
 
-  const stripTags = (s: string) => s.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/\s+\n/g, "\n").trim();
+  const stripTags = (s: string) =>
+    s
+      .replace(/<\/(tr|div|p|h1|h2|li)>/gi, "\n")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/(td|th)>/gi, "  ")
+      .replace(/<[^>]+>/g, "")
+      .replace(/&amp;/g, "&")
+      .replace(/&#39;/g, "'")
+      .replace(/&quot;/g, '"')
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .split("\n")
+      .map((l) => l.replace(/[ \t]+$/, "").trim())
+      .filter((l) => l.length > 0)
+      .join("\n");
   const text = [
     heading,
     "",
@@ -70,7 +84,6 @@ export function renderEmail(input: EmailInput): { html: string; text: string } {
     "",
     "Hand-felted in Cape Town. 100% merino wool.",
   ]
-    .filter((l) => l !== undefined)
     .join("\n")
     .replace(/\n{3,}/g, "\n\n");
 

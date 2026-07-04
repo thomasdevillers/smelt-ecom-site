@@ -18,3 +18,13 @@ export function absoluteUrl(path: string, base = process.env.SITE_URL ?? ""): st
   const p = path.startsWith("/") ? path : `/${path}`;
   return `${b}${p}`;
 }
+
+/** Escape HTML-special characters so customer-derived strings are safe to interpolate. */
+export function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
