@@ -6,6 +6,7 @@ import Ticker from "@/components/Ticker";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import CartDrawer from "@/components/CartDrawer";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Footer />
           <CartDrawer />
         </CartProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
