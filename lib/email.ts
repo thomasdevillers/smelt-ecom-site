@@ -6,8 +6,8 @@
 //                      which can only deliver to your own Resend account email.
 //                      Set to "Smelt <orders@saunahat.co.za>" once the domain
 //                      is verified in Resend.
-//   ORDER_NOTIFY_EMAIL – where the "new order" alert goes (you). Defaults to
-//                        the account owner via the sandbox.
+//   ORDER_NOTIFY_EMAIL – where the "new order" alert goes (you). Accepts a
+//                        comma-separated list for multiple recipients.
 import { Resend } from "resend";
 import { formatMoney } from "./pricing";
 import type { OrderItem } from "./orders";
@@ -51,7 +51,11 @@ export async function sendOrderEmails(data: OrderEmailData): Promise<void> {
   if (!isEmailConfigured()) return;
 
   const total = formatMoney(data.amountRand);
-  const notifyTo = process.env.ORDER_NOTIFY_EMAIL;
+  // ORDER_NOTIFY_EMAIL may hold a comma-separated list of recipients.
+  const notifyTo = (process.env.ORDER_NOTIFY_EMAIL || "")
+    .split(",")
+    .map((addr) => addr.trim())
+    .filter(Boolean);
 
   const tasks: Promise<unknown>[] = [];
 
@@ -84,7 +88,7 @@ export async function sendOrderEmails(data: OrderEmailData): Promise<void> {
   }
 
   // Owner notification.
-  if (notifyTo) {
+  if (notifyTo.length) {
     tasks.push(
       resend().emails.send({
         from: fromAddress(),
