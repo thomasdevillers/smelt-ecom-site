@@ -1,0 +1,18 @@
+.page { max-width: var(--maxw); margin: 0 auto; padding: 40px 20px 40px; }
+.hero { max-width: 720px; margin: 0 auto 40px; text-align: center; }
+.h1 { font-family: var(--font-bricolage), sans-serif; font-weight: 800; font-size: clamp(30px,7vw,58px); line-height: 1; letter-spacing: -.03em; margin: 0 0 20px; }
+.intro { font-size: 17px; line-height: 1.6; color: rgba(14,59,42,.82); margin: 0; }
+.founders { display: grid; grid-template-columns: 1fr; gap: 24px; margin-bottom: 48px; }
+.founder { margin: 0; }
+.photo { width: 100%; height: auto; border-radius: var(--radius-card); object-fit: cover; }
+.fName { font-family: var(--font-bricolage), sans-serif; font-weight: 700; font-size: 22px; margin-top: 14px; }
+.fRole { font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--terracotta); margin: 4px 0 8px; }
+.fBio { font-size: 15px; line-height: 1.6; color: rgba(14,59,42,.8); margin: 0; }
+.values { display: grid; grid-template-columns: 1fr; gap: 20px; margin-bottom: 48px; }
+.value { border: var(--border-ink-soft); border-radius: var(--radius-card); padding: 28px 24px; }
+.vTitle { font-family: var(--font-bricolage), sans-serif; font-weight: 700; font-size: 20px; margin: 0 0 10px; }
+.vBody { font-size: 15px; line-height: 1.6; color: rgba(14,59,42,.8); margin: 0; }
+.cta { text-align: center; }
+.signoff { font-family: var(--font-caveat), cursive; font-size: 32px; color: var(--terracotta); margin-bottom: 20px; }
+@media (min-width: 640px) { .founders { grid-template-columns: 1fr 1fr; } .values { grid-template-columns: repeat(3,1fr); } }
+@media (min-width: 880px) { .page { padding: 64px 32px; } }

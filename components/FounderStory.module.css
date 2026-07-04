@@ -1,0 +1,8 @@
+.section { max-width: var(--maxw); margin: 40px auto 0; padding: 0 20px; display: grid; grid-template-columns: 1fr; gap: 32px; align-items: center; }
+.photos { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.photoFig { margin: 0; }
+.photo { width: 100%; height: auto; border-radius: var(--radius-card); object-fit: cover; }
+.cap { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--terracotta); margin-top: 10px; }
+.h2 { font-family: var(--font-bricolage), sans-serif; font-weight: 800; font-size: clamp(26px,5vw,44px); line-height: 1.02; letter-spacing: -.02em; margin: 12px 0 18px; }
+.p { font-size: 16px; line-height: 1.65; color: rgba(14,59,42,.82); margin: 0 0 24px; max-width: 460px; }
+@media (min-width: 880px) { .section { padding: 0 32px; grid-template-columns: 1fr 1fr; gap: 56px; } .photos { gap: 18px; } }

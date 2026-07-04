@@ -1,0 +1,4 @@
+.bar { background: var(--ink); color: var(--paper); overflow: hidden; white-space: nowrap; }
+.track { display: inline-block; padding: 8px 0; animation: marq 26s linear infinite; font-weight: 600; font-size: 12px; letter-spacing: .16em; }
+.item { padding: 0 18px; }
+.star { padding: 0 0 0 18px; color: var(--paper); }

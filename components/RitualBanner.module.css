@@ -1,0 +1,7 @@
+.section { max-width: var(--maxw); margin: 40px auto 0; padding: 0 20px; }
+.banner { background: var(--ink); color: var(--paper); border-radius: 28px; padding: clamp(32px,6vw,72px); display: grid; grid-template-columns: 1fr; gap: 28px; align-items: center; }
+.h2 { font-family: var(--font-bricolage), sans-serif; font-weight: 800; font-size: clamp(26px,5vw,46px); line-height: 1; letter-spacing: -.02em; margin: 0 0 18px; }
+.p { font-size: 16px; line-height: 1.6; color: rgba(242,233,207,.82); margin: 0 0 24px; max-width: 440px; }
+.imgWrap { display: flex; justify-content: center; align-items: center; }
+.img { width: 100%; max-width: 300px; height: auto; border-radius: 20px; }
+@media (min-width: 880px) { .section { padding: 0 32px; } .banner { grid-template-columns: 1fr 1fr; gap: 40px; } }

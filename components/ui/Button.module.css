@@ -1,0 +1,6 @@
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; border-radius: var(--radius-pill); padding: 16px 26px; font-family: inherit; font-weight: 600; font-size: 15px; text-decoration: none; cursor: pointer; border: 1px solid var(--ink); min-height: 48px; transition: transform .12s ease; }
+.btn:active { transform: scale(.98); }
+.solid { background: var(--ink); color: var(--paper); }
+.outline { background: transparent; color: var(--ink); }
+.paper { background: var(--paper); color: var(--ink); border-color: var(--paper); }
+.full { width: 100%; }

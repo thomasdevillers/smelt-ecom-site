@@ -1,0 +1,34 @@
+.page { max-width: var(--maxw); margin: 0 auto; padding: 40px 20px; }
+.hero { max-width: 640px; margin: 0 auto 40px; text-align: center; }
+.h1 { font-family: var(--font-bricolage), sans-serif; font-weight: 800; font-size: clamp(28px,6vw,50px); line-height: 1.02; letter-spacing: -.03em; margin: 12px 0 18px; }
+.intro { font-size: 17px; line-height: 1.6; color: rgba(14,59,42,.82); margin: 0; }
+
+.layout { display: grid; grid-template-columns: 1fr; gap: 32px; max-width: 900px; margin: 0 auto; }
+
+.form { display: grid; gap: 18px; }
+.field { display: grid; gap: 8px; }
+.label { font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: rgba(14,59,42,.7); }
+.input, .textarea { width: 100%; font-family: inherit; font-size: 16px; color: var(--ink); background: var(--paper); border: var(--border-ink-soft); border-radius: 14px; padding: 14px 16px; }
+.textarea { resize: vertical; min-height: 120px; }
+.input:focus, .textarea:focus { outline: 3px solid var(--terracotta); outline-offset: 1px; }
+.submit { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--ink); color: var(--paper); border: none; border-radius: 14px; padding: 16px; font-weight: 600; font-size: 16px; cursor: pointer; min-height: 52px; }
+
+.thanks { text-align: center; border: var(--border-ink-soft); border-radius: var(--radius-card); padding: 48px 28px; }
+.thanksMark { color: var(--terracotta); font-size: 28px; margin-bottom: 12px; }
+.thanksH2 { font-family: var(--font-bricolage), sans-serif; font-weight: 800; font-size: 26px; margin: 0 0 10px; }
+.thanksP { font-size: 15px; line-height: 1.6; color: rgba(14,59,42,.8); margin: 0; max-width: 360px; margin: 0 auto; }
+
+.side { background: var(--paper-warm); border-radius: var(--radius-card); padding: 28px 24px; align-self: start; }
+.sideTitle { font-family: var(--font-bricolage), sans-serif; font-weight: 700; font-size: 20px; margin: 0 0 18px; }
+.methods { list-style: none; margin: 0 0 20px; padding: 0; display: grid; gap: 16px; }
+.method { display: grid; gap: 3px; }
+.methodLabel { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--terracotta); }
+.methodValue { font-size: 16px; font-weight: 600; color: var(--ink); text-decoration: none; }
+a.methodValue:hover { text-decoration: underline; }
+.hours { font-size: 14px; line-height: 1.55; color: rgba(14,59,42,.75); margin: 0 0 20px; }
+.signoff { font-family: var(--font-caveat), cursive; font-size: 26px; color: var(--terracotta); }
+
+@media (min-width: 820px) {
+  .page { padding: 64px 32px; }
+  .layout { grid-template-columns: 1.4fr 1fr; gap: 44px; align-items: start; }
+}

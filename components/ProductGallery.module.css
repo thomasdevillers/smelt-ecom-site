@@ -1,0 +1,2 @@
+.wrap { display: flex; flex-direction: column; gap: 14px; }
+.main { border: var(--border-ink-soft); border-radius: var(--radius-card); background: var(--paper-warm); display: flex; align-items: center; justify-content: center; aspect-ratio: 1; overflow: hidden; }

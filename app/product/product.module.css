@@ -1,0 +1,24 @@
+.page { max-width: var(--maxw); margin: 0 auto; padding: 24px 20px 96px; }
+.grid { display: grid; grid-template-columns: 1fr; gap: 28px; }
+.h1 { font-family: var(--font-bricolage), sans-serif; font-weight: 800; font-size: clamp(30px,7vw,48px); line-height: 1; letter-spacing: -.03em; margin: 0 0 8px; }
+.price { font-size: 20px; font-weight: 700; margin-bottom: 16px; }
+.desc { font-size: 16px; line-height: 1.6; color: rgba(14,59,42,.82); margin: 0 0 24px; }
+.opt { margin-bottom: 20px; }
+.optLabel { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: rgba(14,59,42,.55); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.savePill { background: var(--terracotta); color: var(--paper); font-size: 11px; padding: 2px 8px; border-radius: var(--radius-pill); letter-spacing: 0; }
+.chips { display: flex; gap: 10px; flex-wrap: wrap; }
+.chip { padding: 12px 16px; border-radius: var(--radius-pill); cursor: pointer; font-family: inherit; font-weight: 600; font-size: 13px; border: 1px solid rgba(14,59,42,.3); background: transparent; color: var(--ink); min-height: 44px; }
+.chipOn { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+.qty { display: inline-flex; align-items: center; gap: 18px; border: var(--border-ink-soft); border-radius: var(--radius-pill); padding: 6px 16px; }
+.qty button { background: none; border: none; font-size: 22px; cursor: pointer; width: 36px; height: 36px; }
+.add { width: 100%; margin-top: 6px; background: var(--ink); color: var(--paper); border: none; border-radius: 14px; padding: 17px; font-family: inherit; font-weight: 600; font-size: 15px; cursor: pointer; min-height: 52px; }
+.reassure { font-size: 13px; color: rgba(14,59,42,.6); line-height: 1.5; margin-top: 12px; }
+.accordions { margin-top: 28px; border-top: var(--border-ink-soft); }
+.stickyBar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 40; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--paper); border-top: var(--border-ink); padding: 12px 20px; }
+.stickyInfo { font-weight: 700; font-size: 14px; }
+.stickyAdd { background: var(--ink); color: var(--paper); border: none; border-radius: var(--radius-pill); padding: 12px 24px; font-family: inherit; font-weight: 600; font-size: 14px; cursor: pointer; min-height: 44px; }
+@media (min-width: 880px) {
+  .page { padding: 40px 32px 60px; }
+  .grid { grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; }
+  .stickyBar { display: none; }
+}

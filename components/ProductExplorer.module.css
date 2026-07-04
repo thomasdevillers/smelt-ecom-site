@@ -1,0 +1,24 @@
+.section { scroll-margin-top: 120px; max-width: var(--maxw); margin: 0 auto; padding: 56px 20px 40px; }
+.header { display: flex; flex-direction: column; gap: 16px; margin-bottom: 32px; }
+.h2 { font-family: var(--font-bricolage), sans-serif; font-weight: 800; font-size: clamp(30px,6vw,58px); line-height: .96; letter-spacing: -.03em; margin: 0; }
+.intro { max-width: 340px; font-size: 15px; line-height: 1.55; color: rgba(14,59,42,.75); margin: 0; }
+.grid { display: grid; grid-template-columns: 1fr; gap: 28px; align-items: center; }
+.stage { position: relative; display: flex; align-items: center; justify-content: center; min-height: 320px; }
+.panel { border: var(--border-ink); border-radius: var(--radius-card); padding: 28px 24px; display: flex; flex-direction: column; gap: 22px; }
+.name { font-family: var(--font-bricolage), sans-serif; font-weight: 700; font-size: 28px; letter-spacing: -.02em; margin: 0 0 4px; }
+.price { font-size: 15px; color: rgba(14,59,42,.7); }
+.optLabel { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: rgba(14,59,42,.55); margin-bottom: 10px; }
+.chips { display: flex; gap: 10px; flex-wrap: wrap; }
+.chip { padding: 12px 16px; border-radius: var(--radius-pill); cursor: pointer; font-family: inherit; font-weight: 600; font-size: 13px; border: 1px solid rgba(14,59,42,.3); background: transparent; color: var(--ink); min-height: 44px; }
+.chipOn { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+.add { margin-top: 6px; background: var(--ink); color: var(--paper); border: none; border-radius: 14px; padding: 17px; font-family: inherit; font-weight: 600; font-size: 15px; cursor: pointer; min-height: 52px; }
+.reassure { font-size: 13px; color: rgba(14,59,42,.6); line-height: 1.5; }
+
+@media (min-width: 880px) {
+  .section { padding: 88px 32px 40px; }
+  .header { flex-direction: row; justify-content: space-between; align-items: flex-end; margin-bottom: 44px; }
+  .grid { grid-template-columns: 1.05fr .95fr; gap: 44px; }
+  .stage { min-height: 380px; }
+  .panel { padding: 38px 34px; }
+  .name { font-size: 32px; }
+}

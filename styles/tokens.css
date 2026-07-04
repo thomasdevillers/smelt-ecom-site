@@ -1,0 +1,19 @@
+:root {
+  --paper: #F6F1E3;
+  --paper-warm: #FBF7EC;
+  --ink: #0E3B2A;
+  --ink-deep: #0A2C20;
+  --terracotta: #E4633C;
+  --peach: #F2A98C;
+
+  --radius-card: 24px;
+  --radius-pill: 999px;
+
+  --border-ink: 1px solid var(--ink);
+  --border-ink-soft: 1px solid rgba(14, 59, 42, 0.2);
+
+  --shadow-hat: drop-shadow(0 26px 40px rgba(10, 44, 32, 0.4));
+  --shadow-hat-soft: drop-shadow(0 26px 40px rgba(10, 44, 32, 0.22));
+
+  --maxw: 1320px;
+}

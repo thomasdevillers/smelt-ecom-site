@@ -1,0 +1,7 @@
+.viewport { position: relative; width: 100%; overflow: hidden; }
+.track { display: flex; width: 100%; transition: transform .8s cubic-bezier(.65,.02,.28,1); }
+.slide { flex: 0 0 100%; display: flex; align-items: center; justify-content: center; }
+.img { width: 86%; max-width: 460px; height: auto; object-fit: contain; }
+.shadow { filter: var(--shadow-hat-soft); }
+.label { position: absolute; left: 2px; top: 6px; font-family: var(--font-caveat), cursive; font-size: 20px; font-weight: 700; opacity: .75; z-index: 2; }
+@media (prefers-reduced-motion: reduce) { .track { transition: none; } }

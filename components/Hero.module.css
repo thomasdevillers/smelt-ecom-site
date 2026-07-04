@@ -1,0 +1,21 @@
+.hero { max-width: var(--maxw); margin: 0 auto; padding: 36px 20px 20px; display: grid; grid-template-columns: 1fr; gap: 24px; align-items: center; }
+.badge { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; letter-spacing: .16em; border: var(--border-ink); border-radius: var(--radius-pill); padding: 7px 14px; margin-bottom: 22px; }
+.h1 { font-family: var(--font-bricolage), sans-serif; font-weight: 800; font-size: clamp(38px,9vw,78px); line-height: .94; letter-spacing: -.03em; margin: 0 0 20px; }
+.sub { font-size: 17px; line-height: 1.55; max-width: 460px; margin: 0 0 26px; color: rgba(14,59,42,.82); }
+.script { font-family: var(--font-caveat), cursive; font-size: 24px; font-weight: 700; }
+.ctas { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.stars { display: flex; align-items: center; gap: 10px; margin-top: 24px; font-size: 13px; color: rgba(14,59,42,.7); }
+.starRow { color: var(--terracotta); font-size: 16px; letter-spacing: 2px; }
+.imgWrap { position: relative; display: flex; justify-content: center; align-items: center; min-height: 260px; }
+.halo { position: absolute; width: 250px; height: 250px; border-radius: 50%; background: radial-gradient(circle at 50% 42%, var(--ink), var(--ink-deep)); }
+.hat { position: relative; width: 210px; height: auto; object-fit: contain; border-radius: 24px; animation: floaty 6s ease-in-out infinite; filter: var(--shadow-hat); }
+.caption { position: absolute; bottom: -14px; left: 76%; transform: translateX(-50%) rotate(-5deg); font-family: var(--font-caveat), cursive; font-size: 22px; font-weight: 700; white-space: nowrap; }
+
+@media (min-width: 880px) {
+  .hero { grid-template-columns: 1.05fr .95fr; gap: 40px; padding: 70px 32px 40px; }
+  .sub { font-size: 18px; }
+  .imgWrap { min-height: 440px; }
+  .halo { width: 380px; height: 380px; }
+  .hat { width: 330px; }
+  .caption { bottom: 0; font-size: 26px; }
+}

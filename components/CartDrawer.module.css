@@ -1,0 +1,26 @@
+.scrim { position: fixed; inset: 0; background: rgba(10,44,32,.5); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 60; }
+.scrimOpen { opacity: 1; pointer-events: auto; }
+.drawer { position: fixed; top: 0; right: 0; height: 100dvh; width: 100%; max-width: 420px; background: var(--paper); z-index: 61; transform: translateX(100%); transition: transform .28s ease; display: flex; flex-direction: column; }
+.open { transform: translateX(0); }
+.head { display: flex; align-items: center; justify-content: space-between; padding: 20px; border-bottom: var(--border-ink); }
+.title { font-family: var(--font-bricolage), sans-serif; font-weight: 700; font-size: 20px; }
+.close { background: none; border: none; font-size: 20px; cursor: pointer; width: 44px; height: 44px; }
+.empty { padding: 40px 20px; text-align: center; }
+.shopLink { display: inline-block; margin-top: 12px; font-weight: 600; }
+.lines { flex: 1; overflow-y: auto; padding: 12px 20px; }
+.line { display: flex; gap: 12px; align-items: center; padding: 14px 0; border-bottom: var(--border-ink-soft); }
+.thumb { border-radius: 12px; object-fit: cover; background: var(--paper-warm); }
+.lineBody { flex: 1; }
+.lineName { font-weight: 700; }
+.lineMeta { font-size: 13px; color: rgba(14,59,42,.7); margin: 2px 0 8px; }
+.qtyRow { display: inline-flex; align-items: center; gap: 12px; border: var(--border-ink-soft); border-radius: var(--radius-pill); padding: 4px 10px; }
+.qtyRow button { background: none; border: none; font-size: 18px; cursor: pointer; width: 28px; height: 28px; }
+.lineTotal { font-weight: 700; }
+.foot { padding: 20px; border-top: var(--border-ink); }
+.shipMsg { font-family: var(--font-caveat), cursive; font-size: 18px; color: var(--terracotta); margin-bottom: 8px; }
+.shipBar { height: 6px; border-radius: var(--radius-pill); background: rgba(14,59,42,.12); overflow: hidden; margin-bottom: 14px; }
+.shipFill { height: 100%; border-radius: var(--radius-pill); background: var(--terracotta); transition: width .35s ease; }
+.shipFull { background: var(--ink); }
+.subtotal { display: flex; justify-content: space-between; font-weight: 700; font-size: 18px; margin-bottom: 14px; }
+.checkout { display: flex; align-items: center; justify-content: center; background: var(--ink); color: var(--paper); border-radius: 14px; padding: 16px; font-weight: 600; text-decoration: none; min-height: 52px; }
+.viewBag { display: block; text-align: center; margin-top: 10px; font-size: 14px; }
