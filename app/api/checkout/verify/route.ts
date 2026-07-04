@@ -1,82 +1,71 @@
-import { isPaystackConfigured, verifyTransaction } from "@/lib/paystack";
-import { recordOrder, type OrderItem } from "@/lib/orders";
-import { sendOrderEmails } from "@/lib/email";
-import { markCartConverted } from "@/lib/carts";
-import { type ShippingAddress } from "@/lib/address";
+import { verifyTransaction } from "@/lib/paystack";
+import { recordOrder } from "@/lib/orders";
+import { sanitizeCart } from "@/lib/checkoutShared";
+import { sanitizeAddress } from "@/lib/address";
+import { PRODUCT } from "@/lib/product";
+import type { CartState } from "@/lib/cartReducer";
 
-// pg requires the Node.js runtime.
-export const runtime = "nodejs";
-
-// Called by the success page after Paystack redirects back with ?reference=...
-// Confirms with Paystack directly (server-to-server) that the payment succeeded.
-export async function GET(request: Request) {
-  const reference = new URL(request.url).searchParams.get("reference");
-  if (!reference) {
-    return Response.json({ error: "Missing reference." }, { status: 400 });
+export async function POST(request: Request) {
+  let body: {
+    reference?: unknown;
+    cart?: unknown;
+    address?: unknown;
+    name?: unknown;
+  };
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  if (!isPaystackConfigured()) {
-    return Response.json({ configured: false }, { status: 503 });
+  const { reference } = body;
+  if (typeof reference !== "string") {
+    return Response.json(
+      { error: "A valid transaction reference is required." },
+      { status: 400 },
+    );
   }
 
   try {
-    const result = await verifyTransaction(reference);
-
-    // Persist on success too. The webhook is the primary writer, but recording
-    // here as well means orders are captured even before the webhook is set up.
-    // recordOrder upserts by reference, so double-writes are harmless.
-    if (result.status === "success") {
-      const meta = result.metadata ?? {};
-      const items = (meta.items as OrderItem[]) ?? [];
-      const amountRand =
-        (typeof meta.amountRand === "number" ? meta.amountRand : null) ??
-        Math.round(result.amount / 100);
-      const customerName =
-        typeof meta.customerName === "string" ? meta.customerName : null;
-      const shippingAddress =
-        (meta.shippingAddress as ShippingAddress | undefined) ?? null;
-      try {
-        const newlyPaid = await recordOrder({
-          reference: result.reference,
-          email: result.customerEmail ?? "",
-          amountRand,
-          currency: result.currency,
-          status: result.status,
-          items,
-          paidAt: result.paidAt,
-          customerName,
-          shippingAddress,
-        });
-        // recordOrder returns true only for whichever path (this or the webhook)
-        // records the payment first, so the emails fire exactly once.
-        if (newlyPaid) {
-          await sendOrderEmails({
-            reference: result.reference,
-            email: result.customerEmail ?? "",
-            amountRand,
-            items,
-            customerName,
-            shippingAddress,
-          });
-          await markCartConverted(result.customerEmail ?? "");
-        }
-      } catch (err) {
-        // Non-fatal: the customer still gets confirmation; the webhook will
-        // reconcile persistence. Just log it.
-        console.error("Order persist (verify) error:", err);
-      }
+    const verified = await verifyTransaction(reference);
+    if (verified.status !== "success") {
+      return Response.json({ error: "Payment not completed." }, { status: 400 });
     }
 
-    return Response.json({
-      configured: true,
-      paid: result.status === "success",
-      status: result.status,
-      reference: result.reference,
-      amountRand: Math.round(result.amount / 100),
-      email: result.customerEmail,
+    // The webhook is the source of truth, but we record the order here too
+    // to give the user immediate feedback. The `recordOrder` function is
+    // idempotent, so this is safe. We can pull the order details from the
+    // metadata we passed to Paystack, which is more reliable than the client.
+    const meta = verified.metadata as any;
+    const items =
+      meta?.items ??
+      (
+        Object.keys(sanitizeCart(body.cart)) as Array<keyof CartState>
+      ).map((c) => ({
+        colour: c,
+        name: PRODUCT.variants[c].name,
+        qty: cart[c],
+      }));
+
+    await recordOrder({
+      reference,
+      email: verified.customerEmail!,
+      amountRand: verified.amount / 100, // convert from cents
+      currency: verified.currency,
+      status: verified.status,
+      items,
+      paidAt: verified.paidAt,
+      customerName:
+        meta?.customerName ?? (typeof body.name === "string" ? body.name.trim() : ""),
+      shippingAddress: meta?.shippingAddress ?? sanitizeAddress(body.address),
     });
+
+    return Response.json({ success: true });
   } catch (err) {
     console.error("Paystack verify error:", err);
-    return Response.json({ error: "Could not verify payment." }, { status: 502 });
+    return Response.json(
+      { error: "Could not verify payment. Please try again." },
+      { status: 502 },
+    );
   }
 }

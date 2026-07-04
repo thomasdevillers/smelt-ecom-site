@@ -1,18 +1,21 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart";
 import { COLOURS, PRODUCT } from "@/lib/product";
 import { formatMoney, lineTotal } from "@/lib/pricing";
 import styles from "./checkout.module.css";
 
-type Status = "idle" | "submitting" | "preorder" | "error";
+type Status = "idle" | "submitting" | "verifying" | "preorder" | "error";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PAYSTACK_KEY = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
 
 export default function CheckoutPage() {
-  const { cart, subtotal } = useCart();
+  const { cart, subtotal, clearCart } = useCart();
   const lines = COLOURS.filter((c) => cart[c] > 0);
+  const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -39,34 +42,71 @@ export default function CheckoutPage() {
     }).catch(() => {}); // fire-and-forget; never block or surface errors
   }
 
-  async function handlePay(e: React.FormEvent) {
-    e.preventDefault();
-    setStatus("submitting");
-    setError("");
+  // Paystack's own type is missing some props. Rather than augment it, any.
+  const onSuccess = async (trx: any) => {
+    setStatus("verifying");
     try {
-      const res = await fetch("/api/checkout", {
+      const res = await fetch("/api/checkout/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, name, address, cart }),
+        body: JSON.stringify({ reference: trx.reference, cart, address, name }),
       });
       const data = await res.json();
 
-      if (res.status === 503 && data.configured === false) {
-        // Payments not live yet: fall back to pre-order confirmation.
-        setStatus("preorder");
-        return;
-      }
       if (!res.ok) {
-        setError(data.error || "Something went wrong. Please try again.");
+        setError(data.error || "Verification failed. Please try again.");
         setStatus("error");
         return;
       }
-      // Hand off to Paystack's hosted checkout.
-      window.location.href = data.authorizationUrl;
+
+      // Successful payment + order logged.
+      clearCart();
+      router.push("/checkout/success");
     } catch {
       setError("Network error. Please try again.");
       setStatus("error");
     }
+  };
+
+  async function handlePay(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+
+    if (process.env.NEXT_PUBLIC_PAYSTACK_CONFIGURED !== "true") {
+      // Payments not live yet: fall back to pre-order confirmation.
+      setStatus("preorder");
+      return;
+    }
+
+    // Hand off to Paystack
+    setStatus("submitting");
+
+    const items = COLOURS.filter((c) => cart[c] > 0).map((c) => ({
+      colour: c,
+      name: PRODUCT.variants[c].name,
+      qty: cart[c],
+    }));
+
+    // Dynamically import PaystackPop to prevent window is not defined error during SSR
+    const PaystackPop = (await import("@paystack/inline-js")).default;
+    const paystack = new PaystackPop();
+    paystack.newTransaction({
+      key: PAYSTACK_KEY!,
+      email,
+      amount: Math.round(subtotal * 100),
+      currency: "ZAR",
+      metadata: {
+        cart,
+        items,
+        amountRand: subtotal,
+        customerName: name,
+        shippingAddress: address,
+      },
+      onSuccess,
+      onCancel: () => {
+        setStatus("idle");
+      },
+    });
   }
 
   return (
@@ -217,11 +257,13 @@ export default function CheckoutPage() {
             <button
               className={styles.pay}
               type="submit"
-              disabled={status === "submitting"}
+              disabled={status === "submitting" || status === "verifying"}
             >
               {status === "submitting"
                 ? "Starting secure checkout…"
-                : `Pay ${formatMoney(subtotal)} securely`}
+                : status === "verifying"
+                  ? "Verifying payment…"
+                  : `Pay ${formatMoney(subtotal)} securely`}
             </button>
             <p className={styles.secure}>Payments secured by Paystack.</p>
           </form>
