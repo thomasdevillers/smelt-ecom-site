@@ -13,7 +13,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PAYSTACK_KEY = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
 
 export default function CheckoutPage() {
-  const { cart, subtotal, clearCart } = useCart();
+  const { cart, subtotal, dispatch } = useCart();
   const lines = COLOURS.filter((c) => cart[c] > 0);
   const router = useRouter();
 
@@ -60,7 +60,7 @@ export default function CheckoutPage() {
       }
 
       // Successful payment + order logged.
-      clearCart();
+      dispatch({ type: "clear" });
       router.push("/checkout/success");
     } catch {
       setError("Network error. Please try again.");
@@ -96,11 +96,33 @@ export default function CheckoutPage() {
       amount: Math.round(subtotal * 100),
       currency: "ZAR",
       metadata: {
-        cart,
-        items,
-        amountRand: subtotal,
-        customerName: name,
-        shippingAddress: address,
+        custom_fields: [
+          {
+            display_name: "Cart",
+            variable_name: "cart",
+            value: JSON.stringify(cart),
+          },
+          {
+            display_name: "Items",
+            variable_name: "items",
+            value: JSON.stringify(items),
+          },
+          {
+            display_name: "Amount (ZAR)",
+            variable_name: "amount_rand",
+            value: subtotal,
+          },
+          {
+            display_name: "Customer Name",
+            variable_name: "customer_name",
+            value: name,
+          },
+          {
+            display_name: "Shipping Address",
+            variable_name: "shipping_address",
+            value: JSON.stringify(address),
+          },
+        ],
       },
       onSuccess,
       onCancel: () => {

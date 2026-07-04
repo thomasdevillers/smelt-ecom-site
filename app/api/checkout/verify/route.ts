@@ -37,14 +37,15 @@ export async function POST(request: Request) {
     // idempotent, so this is safe. We can pull the order details from the
     // metadata we passed to Paystack, which is more reliable than the client.
     const meta = verified.metadata as any;
+    const sanitizedBodyCart = sanitizeCart(body.cart);
     const items =
       meta?.items ??
       (
-        Object.keys(sanitizeCart(body.cart)) as Array<keyof CartState>
+        Object.keys(sanitizedBodyCart) as Array<keyof CartState>
       ).map((c) => ({
         colour: c,
         name: PRODUCT.variants[c].name,
-        qty: cart[c],
+        qty: sanitizedBodyCart[c],
       }));
 
     await recordOrder({
