@@ -18,5 +18,8 @@
 .err { color: #b3261e; font-size: 14px; margin: 0; }
 .secure { text-align: center; font-size: 13px; color: rgba(14,59,42,.6); margin: 0; }
 
+.fieldRow { display: grid; gap: 16px; }
+@media (min-width: 560px) { .fieldRow { grid-template-columns: 1fr 1fr; } }
+
 .back { display: inline-block; margin-top: 24px; font-weight: 600; }
 @media (min-width: 880px) { .card { padding: 40px 36px; } }

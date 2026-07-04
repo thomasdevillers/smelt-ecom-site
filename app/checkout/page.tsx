@@ -8,13 +8,36 @@ import styles from "./checkout.module.css";
 
 type Status = "idle" | "submitting" | "preorder" | "error";
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function CheckoutPage() {
   const { cart, subtotal } = useCart();
   const lines = COLOURS.filter((c) => cart[c] > 0);
 
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [address, setAddress] = useState({
+    line1: "",
+    line2: "",
+    city: "",
+    postalCode: "",
+    province: "",
+    country: "South Africa",
+    phone: "",
+  });
+  const setAddr = (k: string, v: string) =>
+    setAddress((a) => ({ ...a, [k]: v }));
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
+
+  function trackCart() {
+    if (!EMAIL_RE.test(email) || lines.length === 0) return;
+    fetch("/api/cart/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, name, cart }),
+    }).catch(() => {}); // fire-and-forget; never block or surface errors
+  }
 
   async function handlePay(e: React.FormEvent) {
     e.preventDefault();
@@ -24,7 +47,7 @@ export default function CheckoutPage() {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, cart }),
+        body: JSON.stringify({ email, name, address, cart }),
       });
       const data = await res.json();
 
@@ -98,8 +121,96 @@ export default function CheckoutPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onBlur={trackCart}
                 placeholder="you@example.com"
                 required
+              />
+            </label>
+            <label className={styles.field}>
+              <span className={styles.label}>Full name</span>
+              <input
+                className={styles.input}
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Thandi Mokoena"
+                required
+              />
+            </label>
+            <label className={styles.field}>
+              <span className={styles.label}>Address line 1</span>
+              <input
+                className={styles.input}
+                type="text"
+                value={address.line1}
+                onChange={(e) => setAddr("line1", e.target.value)}
+                placeholder="12 Loop Street"
+                required
+              />
+            </label>
+            <label className={styles.field}>
+              <span className={styles.label}>Address line 2 (optional)</span>
+              <input
+                className={styles.input}
+                type="text"
+                value={address.line2}
+                onChange={(e) => setAddr("line2", e.target.value)}
+                placeholder="Apartment, suite, etc."
+              />
+            </label>
+            <div className={styles.fieldRow}>
+              <label className={styles.field}>
+                <span className={styles.label}>City</span>
+                <input
+                  className={styles.input}
+                  type="text"
+                  value={address.city}
+                  onChange={(e) => setAddr("city", e.target.value)}
+                  placeholder="Cape Town"
+                  required
+                />
+              </label>
+              <label className={styles.field}>
+                <span className={styles.label}>Postal code</span>
+                <input
+                  className={styles.input}
+                  type="text"
+                  value={address.postalCode}
+                  onChange={(e) => setAddr("postalCode", e.target.value)}
+                  placeholder="8001"
+                  required
+                />
+              </label>
+            </div>
+            <label className={styles.field}>
+              <span className={styles.label}>Province</span>
+              <input
+                className={styles.input}
+                type="text"
+                value={address.province}
+                onChange={(e) => setAddr("province", e.target.value)}
+                placeholder="Western Cape"
+                required
+              />
+            </label>
+            <label className={styles.field}>
+              <span className={styles.label}>Country</span>
+              <input
+                className={styles.input}
+                type="text"
+                value={address.country}
+                onChange={(e) => setAddr("country", e.target.value)}
+                required
+              />
+            </label>
+            <label className={styles.field}>
+              <span className={styles.label}>Phone (optional)</span>
+              <input
+                className={styles.input}
+                type="tel"
+                value={address.phone}
+                onChange={(e) => setAddr("phone", e.target.value)}
+                placeholder="+27 82 000 0000"
               />
             </label>
             {status === "error" && <p className={styles.err}>{error}</p>}
