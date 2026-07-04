@@ -1,13 +1,25 @@
 import Button from "@/components/ui/Button";
 import SectionLabel from "@/components/ui/SectionLabel";
 import { CARE } from "@/content/care";
+import { breadcrumbLd, jsonLdScript } from "@/lib/seo";
 import styles from "./care.module.css";
 
-export const metadata = { title: "Care · Look after your Smelt sauna hat" };
+export const metadata = {
+  title: { absolute: "Care · Look after your Smelt sauna hat" },
+  description:
+    "How to care for your 100% wool felt sauna hat: air-dry after every session, never machine wash, spot-clean with cool water, and reshape while damp.",
+  alternates: { canonical: "/care" },
+};
+
+const crumbsLd = breadcrumbLd([
+  ["Home", "/"],
+  ["Care", "/care"],
+]);
 
 export default function CarePage() {
   return (
     <main className={styles.page}>
+      <script {...jsonLdScript(crumbsLd)} />
       <section className={styles.hero}>
         <SectionLabel>{CARE.eyebrow}</SectionLabel>
         <h1 className={styles.h1}>{CARE.title}</h1>
