@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
 import styles from "./Footer.module.css";
 
@@ -10,10 +11,7 @@ export default function Footer() {
           <div>
             <div className={styles.brand}>Smelt</div>
             <p className={styles.blurb}>Warm regards in your inbox: drops, restocks, and the occasional sauna opinion.</p>
-            <form className={styles.signup} onSubmit={(e) => e.preventDefault()}>
-              <input className={styles.input} placeholder="you@example.com" aria-label="Email address" />
-              <button className={styles.join} type="submit">Join</button>
-            </form>
+            <NewsletterSignup styles={styles} />
           </div>
           <div>
             <div className={styles.colTitle}>Shop</div>
@@ -46,5 +44,46 @@ export default function Footer() {
         </div>
       </div>
     </footer>
+  );
+}
+
+function NewsletterSignup({ styles }: { styles: Record<string, string> }) {
+  const [email, setEmail] = useState("");
+  const [state, setState] = useState<"idle" | "sending" | "done" | "error">("idle");
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setState("sending");
+    try {
+      const res = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      setState(res.ok ? "done" : "error");
+    } catch {
+      setState("error");
+    }
+  }
+
+  if (state === "done") {
+    return <p className={styles.blurb}>Thanks — warm regards. Check your inbox.</p>;
+  }
+  return (
+    <form className={styles.signup} onSubmit={submit}>
+      <input
+        className={styles.input}
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="you@example.com"
+        aria-label="Email address"
+        required
+      />
+      <button className={styles.join} type="submit" disabled={state === "sending"}>
+        {state === "sending" ? "Joining…" : "Join"}
+      </button>
+      {state === "error" && <span className={styles.blurb}>Something went wrong — try again.</span>}
+    </form>
   );
 }
