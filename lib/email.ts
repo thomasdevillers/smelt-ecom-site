@@ -76,7 +76,7 @@ export async function sendOrderEmails(data: OrderEmailData): Promise<void> {
     .map((addr) => addr.trim())
     .filter(Boolean);
 
-  const tasks: Promise<unknown>[] = [];
+  const tasks: Promise<void>[] = [];
 
   // Customer receipt.
   if (data.email) {
@@ -86,15 +86,7 @@ export async function sendOrderEmails(data: OrderEmailData): Promise<void> {
       items: data.items,
       address: data.shippingAddress ?? null,
     });
-    tasks.push(
-      resend().emails.send({
-        from: fromAddress(),
-        to: data.email,
-        subject: e.subject,
-        html: e.html,
-        text: e.text,
-      }),
-    );
+    tasks.push(send(data.email, e.subject, e.html, e.text));
   }
 
   // Owner notification.
@@ -106,21 +98,10 @@ export async function sendOrderEmails(data: OrderEmailData): Promise<void> {
       items: data.items,
       address: data.shippingAddress ?? null,
     });
-    tasks.push(
-      resend().emails.send({
-        from: fromAddress(),
-        to: notifyTo,
-        subject: e.subject,
-        html: e.html,
-        text: e.text,
-      }),
-    );
+    tasks.push(send(notifyTo, e.subject, e.html, e.text));
   }
 
-  const results = await Promise.allSettled(tasks);
-  for (const r of results) {
-    if (r.status === "rejected") console.error("Order email failed:", r.reason);
-  }
+  await Promise.all(tasks);
 }
 
 export async function sendPaymentFailedEmail(d: {
