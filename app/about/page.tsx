@@ -2,13 +2,25 @@ import Image from "next/image";
 import Button from "@/components/ui/Button";
 import SectionLabel from "@/components/ui/SectionLabel";
 import { ABOUT } from "@/content/about";
+import { breadcrumbLd, jsonLdScript } from "@/lib/seo";
 import styles from "./about.module.css";
 
-export const metadata = { title: "About Smelt · Warm regards from Cape Town" };
+export const metadata = {
+  title: { absolute: "About Smelt · Warm regards from Cape Town" },
+  description:
+    "The story behind Smelt: 100% merino wool felt sauna hats, embroidered not printed, hand-felted in Cape Town. Why we made a hat for the hottest room in the house.",
+  alternates: { canonical: "/about" },
+};
+
+const crumbsLd = breadcrumbLd([
+  ["Home", "/"],
+  ["About", "/about"],
+]);
 
 export default function AboutPage() {
   return (
     <main className={styles.page}>
+      <script {...jsonLdScript(crumbsLd)} />
       <section className={styles.hero}>
         <SectionLabel>{ABOUT.eyebrow}</SectionLabel>
         <h1 className={styles.h1}>{ABOUT.title}</h1>
