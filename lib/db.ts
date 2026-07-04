@@ -51,6 +51,40 @@ export function ensureSchema(): Promise<void> {
           created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
         );
       `);
+
+      await getPool().query(`
+        ALTER TABLE orders
+          ADD COLUMN IF NOT EXISTS customer_name      TEXT,
+          ADD COLUMN IF NOT EXISTS shipping_address    JSONB,
+          ADD COLUMN IF NOT EXISTS fulfillment_status  TEXT NOT NULL DEFAULT 'pending',
+          ADD COLUMN IF NOT EXISTS tracking_number     TEXT,
+          ADD COLUMN IF NOT EXISTS tracking_carrier    TEXT,
+          ADD COLUMN IF NOT EXISTS tracking_url        TEXT,
+          ADD COLUMN IF NOT EXISTS shipped_at          TIMESTAMPTZ,
+          ADD COLUMN IF NOT EXISTS delivered_at        TIMESTAMPTZ;
+      `);
+
+      await getPool().query(`
+        CREATE TABLE IF NOT EXISTS abandoned_carts (
+          id           BIGSERIAL PRIMARY KEY,
+          email        TEXT NOT NULL UNIQUE,
+          name         TEXT,
+          items        JSONB NOT NULL DEFAULT '[]'::jsonb,
+          amount_rand  INTEGER NOT NULL DEFAULT 0,
+          created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+          updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+          reminded_at  TIMESTAMPTZ,
+          converted_at TIMESTAMPTZ
+        );
+      `);
+
+      await getPool().query(`
+        CREATE TABLE IF NOT EXISTS subscribers (
+          id         BIGSERIAL PRIMARY KEY,
+          email      TEXT NOT NULL UNIQUE,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        );
+      `);
     })().catch((err) => {
       // Reset so a later request can retry after a transient failure.
       schemaReady = null;
