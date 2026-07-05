@@ -8,7 +8,7 @@
 .starRow { color: var(--terracotta); font-size: 16px; letter-spacing: 2px; }
 .imgWrap { position: relative; display: flex; justify-content: center; align-items: center; min-height: 260px; }
 .halo { position: absolute; width: 250px; height: 250px; border-radius: 50%; background: radial-gradient(circle at 50% 42%, var(--ink), var(--ink-deep)); }
-.hat { position: relative; width: 210px; height: auto; object-fit: contain; border-radius: 24px; animation: floaty 6s ease-in-out infinite; filter: var(--shadow-hat); }
+.hat { position: relative; width: 210px; height: auto; object-fit: contain; border-radius: 24px; animation: floaty 6s ease-in-out infinite; filter: var(--shadow-hat); padding-left: 15px; padding-bottom: 20px;}
 .caption { position: absolute; bottom: -14px; left: 76%; transform: translateX(-50%) rotate(-5deg); font-family: var(--font-caveat), cursive; font-size: 22px; font-weight: 700; white-space: nowrap; }
 
 @media (min-width: 880px) {
