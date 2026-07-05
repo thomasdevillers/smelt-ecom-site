@@ -45,6 +45,9 @@ export default function ProductClient() {
               <span>{qty}</span>
               <button onClick={() => setQty((q) => q + 1)} aria-label="Increase quantity">+</button>
             </div>
+            <div className={styles.reassure} style={{ marginTop: '8px', color: 'var(--terracotta)' }}>
+              Bundle &amp; save: 5% off 2 hats, 10% off 3+ hats.
+            </div>
           </div>
 
           <button className={styles.add} onClick={add}>Pre-order · {formatMoney(total)}</button>
