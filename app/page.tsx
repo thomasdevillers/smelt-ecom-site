@@ -6,6 +6,7 @@ import HairPSA from "@/components/HairPSA";
 import FoundingBatch from "@/components/FoundingBatch";
 import FounderStory from "@/components/FounderStory";
 import Faq from "@/components/Faq";
+import Policies from "@/components/Policies";
 import RitualBanner from "@/components/RitualBanner";
 import { FAQ } from "@/content/faq";
 
@@ -42,6 +43,7 @@ export default function Home() {
       <HairPSA />
       <Reels />
       <Faq />
+      <Policies />
       <RitualBanner />
     </main>
   );
