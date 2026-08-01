@@ -34,6 +34,7 @@ export default function Footer() {
             <div className={styles.colLinks}>
               <Link href="/care">Care guide</Link>
               <Link href="/#faq">FAQ</Link>
+              <Link href="/policies">Store policies</Link>
               <Link href="/contact">Contact us</Link>
             </div>
           </div>
