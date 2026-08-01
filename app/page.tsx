@@ -1,7 +1,6 @@
 import Hero from "@/components/Hero";
 import Features from "@/components/Features";
 import ProductExplorer from "@/components/ProductExplorer";
-import Bundles from "@/components/Bundles";
 import Reels from "@/components/Reels";
 import HairPSA from "@/components/HairPSA";
 import FoundingBatch from "@/components/FoundingBatch";
@@ -41,7 +40,6 @@ export default function Home() {
       <Features />
       <FounderStory />
       <HairPSA />
-      <Bundles />
       <Reels />
       <Faq />
       <RitualBanner />

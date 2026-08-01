@@ -22,8 +22,7 @@ export default function Hero() {
           </Button>
         </div>
         <div className={styles.stars}>
-          <span className={styles.starRow}>✳</span> Hand-felted in Cape Town.
-          100% merino wool.
+          <span className={styles.starRow}>✳</span> 100% merino wool.
         </div>
       </div>
       <div className={styles.imgWrap}>
@@ -36,7 +35,6 @@ export default function Hero() {
           className={styles.hat}
           priority
         />
-        <div className={styles.caption}>↑ the crowd favourite</div>
       </div>
     </section>
   );
