@@ -55,7 +55,7 @@ export default function Policies() {
           <div className={styles.item}>
             <span className={styles.itemLabel}>Defective Goods</span>
             <p className={styles.itemText}>
-              We stand by the quality of our products. If your hat arrives damaged or has a manufacturing defect, please contact us within 7 days of delivery. Email{" "}
+              We stand by the quality of our products. If your hat arrives damaged or has a manufacturing defect, please contact us within 6 Months of delivery. Email{" "}
               <a className={styles.emailLink} href="mailto:returns@saunahat.co.za">
                 returns@saunahat.co.za
               </a>{" "}
