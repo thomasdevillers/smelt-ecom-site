@@ -90,11 +90,12 @@ export default function CheckoutPage() {
     // Dynamically import PaystackPop to prevent window is not defined error during SSR
     const PaystackPop = (await import("@paystack/inline-js")).default;
     const paystack = new PaystackPop();
-    paystack.newTransaction({
+    await paystack.checkout({
       key: PAYSTACK_KEY!,
       email,
       amount: Math.round(subtotal * 100),
       currency: "ZAR",
+      channels: ["card", "apple_pay", "bank_transfer", "mobile_money", "eft", "qr", "ussd"],
       // @paystack/inline-js's shipped types only declare `custom_fields` here
       // (its module uses `export =`, which can't be augmented). The flat
       // fields below are what our server actually reads back (see
