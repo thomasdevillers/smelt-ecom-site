@@ -43,7 +43,7 @@ export default function ProductExplorer() {
             </div>
           </div>
 
-          <button className={styles.add} onClick={add}>Pre-order · {formatMoney(BASE_PRICE)}</button>
+          <button className={styles.add} onClick={add}>Add to bag · {formatMoney(BASE_PRICE)}</button>
           <div className={styles.reassure}>Free felt care card. 30-day returns if it doesn&rsquo;t spark joy (or sweat).</div>
         </div>
       </div>

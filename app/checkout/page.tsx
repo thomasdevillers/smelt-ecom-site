@@ -7,7 +7,7 @@ import { COLOURS, PRODUCT } from "@/lib/product";
 import { formatMoney, lineTotal } from "@/lib/pricing";
 import styles from "./checkout.module.css";
 
-type Status = "idle" | "submitting" | "verifying" | "preorder" | "error";
+type Status = "idle" | "submitting" | "verifying" | "error";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PAYSTACK_KEY = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
@@ -73,8 +73,8 @@ export default function CheckoutPage() {
     setError("");
 
     if (process.env.NEXT_PUBLIC_PAYSTACK_CONFIGURED !== "true") {
-      // Payments not live yet: fall back to pre-order confirmation.
-      setStatus("preorder");
+      setError("Checkout is temporarily unavailable. Please try again shortly.");
+      setStatus("error");
       return;
     }
 
@@ -148,24 +148,11 @@ export default function CheckoutPage() {
       <div className={styles.card}>
         <div className={styles.badge}>Checkout</div>
 
-        {status === "preorder" ? (
-          <>
-            <h1 className={styles.h1}>You&rsquo;re on the list. Warm regards.</h1>
-            <p className={styles.copy}>
-              Card payments aren&rsquo;t live just yet, but we&rsquo;ve noted your
-              pre-order at <strong>{email}</strong>. We&rsquo;ll email you the
-              moment the founding batch is ready to pay for and ship.
-            </p>
-          </>
-        ) : (
-          <>
-            <h1 className={styles.h1}>Almost warm.</h1>
-            <p className={styles.copy}>
-              Enter your email and pay securely. Everything is hand-felted to
-              order, so your pre-order ships with the founding batch.
-            </p>
-          </>
-        )}
+        <h1 className={styles.h1}>Almost warm.</h1>
+        <p className={styles.copy}>
+          Your hat is in stock. Enter your delivery details and pay securely,
+          and we&rsquo;ll send tracking as soon as it&rsquo;s on the way.
+        </p>
 
         {lines.length > 0 ? (
           <div className={styles.summary}>
@@ -186,7 +173,7 @@ export default function CheckoutPage() {
           <p className={styles.empty}>Your bag is empty. Add a hat first.</p>
         )}
 
-        {status !== "preorder" && lines.length > 0 && (
+        {lines.length > 0 && (
           <form className={styles.form} onSubmit={handlePay}>
             <label className={styles.field}>
               <span className={styles.label}>Email for your receipt</span>

@@ -58,7 +58,7 @@ export default function AboutPage() {
       <section className={styles.cta}>
         <div className={styles.signoff}>{ABOUT.signoff}</div>
         <Button href="/product" variant="solid">
-          Pre-order yours <span>→</span>
+          Shop now <span>→</span>
         </Button>
       </section>
     </main>

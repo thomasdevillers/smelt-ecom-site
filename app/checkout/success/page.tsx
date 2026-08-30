@@ -62,11 +62,11 @@ export default function CheckoutSuccessPage() {
         {state.kind === "paid" && (
           <>
             <div className={styles.badge}>Payment confirmed</div>
-            <h1 className={styles.h1}>You&rsquo;re in the founding batch. Warm regards.</h1>
+            <h1 className={styles.h1}>Your order is confirmed. Warm regards.</h1>
             <p className={styles.copy}>
-              We&rsquo;ve received {formatMoney(state.amount)}. Your hat is
-              hand-felted to order and ships with the founding batch, roughly
-              four to six weeks out. A receipt is on its way to your inbox.
+              We&rsquo;ve received {formatMoney(state.amount)}. Your hat is in stock,
+              and we&rsquo;ll email tracking as soon as it&rsquo;s on the way. A receipt is
+              heading to your inbox now.
             </p>
             <div className={styles.summary}>
               <div className={styles.row}>

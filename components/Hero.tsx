@@ -15,7 +15,7 @@ export default function Hero() {
         </p>
         <div className={styles.ctas}>
           <Button href="/product" variant="solid">
-            Pre-order yours <span>→</span>
+            Shop now <span>→</span>
           </Button>
           <Button href="/#bundles" variant="outline">
             See the bundles

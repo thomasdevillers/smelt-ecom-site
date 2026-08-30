@@ -7,12 +7,12 @@ import { abs, breadcrumbLd, jsonLdScript } from "@/lib/seo";
 export const metadata: Metadata = {
   title: "Smelt Sauna Hat · 100% wool felt, embroidered",
   description:
-    "The Smelt sauna hat: 100% merino wool felt, embroidered front and back, one size. Forest Green or Natural Cream. Pre-order now, ships worldwide from Cape Town.",
+    "The Smelt sauna hat: 100% merino wool felt, embroidered front and back, one size. Forest Green or Natural Cream. In stock and shipping worldwide from Cape Town.",
   alternates: { canonical: "/product" },
   openGraph: {
     title: "Smelt Sauna Hat · 100% wool felt, embroidered",
     description:
-      "100% merino wool felt, embroidered not printed. Forest Green or Natural Cream. Pre-order now.",
+      "100% merino wool felt, embroidered not printed. Forest Green or Natural Cream. In stock now.",
     url: abs("/product"),
     type: "website",
   },
@@ -41,7 +41,7 @@ const productLd = {
     priceCurrency: "ZAR",
     price: BASE_PRICE,
     priceValidUntil: PRICE_VALID_UNTIL,
-    availability: "https://schema.org/PreOrder",
+    availability: "https://schema.org/InStock",
     itemCondition: "https://schema.org/NewCondition",
     hasMerchantReturnPolicy: {
       "@type": "MerchantReturnPolicy",
@@ -56,29 +56,13 @@ const productLd = {
       "@type": "OfferShippingDetails",
       shippingRate: {
         "@type": "MonetaryAmount",
-        // Free shipping on the founding-batch pre-orders (all over threshold).
+        // Orders over the free-shipping threshold qualify for free shipping.
         value: 0,
         currency: "ZAR",
       },
       shippingDestination: {
         "@type": "DefinedRegion",
         addressCountry: "ZA",
-      },
-      deliveryTime: {
-        "@type": "ShippingDeliveryTime",
-        // Founding batch is hand-felted to order: ~4–6 weeks.
-        handlingTime: {
-          "@type": "QuantitativeValue",
-          minValue: 28,
-          maxValue: 42,
-          unitCode: "DAY",
-        },
-        transitTime: {
-          "@type": "QuantitativeValue",
-          minValue: 2,
-          maxValue: 10,
-          unitCode: "DAY",
-        },
       },
     },
   },

@@ -50,7 +50,7 @@ export default function CartDrawer() {
               className={styles.shopLink}
               onClick={closeCart}
             >
-              Pre-order yours →
+              Shop hats →
             </Link>
           </div>
         ) : (
@@ -132,7 +132,7 @@ export default function CartDrawer() {
                 className={styles.checkout}
                 onClick={closeCart}
               >
-                Pre-order · {formatMoney(subtotal)}
+                Checkout · {formatMoney(subtotal)}
               </Link>
               <Link href="/cart" className={styles.viewBag} onClick={closeCart}>
                 View full bag

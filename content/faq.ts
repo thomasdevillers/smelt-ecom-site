@@ -29,8 +29,8 @@ export const FAQ: FaqItem[] = [
     a: "Embroidered, never printed. Prints crack and peel in sauna heat. Thread does not. Every hat is stitched front and back, so it survives the room it was built for.",
   },
   {
-    q: "You're taking pre-orders. When will it ship?",
-    a: "We haven't officially launched yet. The first run is a small founding batch, hand-felted to order, so pre-orders ship in roughly four to six weeks. You'll get an email the moment yours is on its way.",
+    q: "When will my order ship?",
+    a: "The hats are in stock and ready to go. You'll get an email with tracking the moment yours is on its way from Cape Town.",
   },
   {
     q: "What if I don't love it?",

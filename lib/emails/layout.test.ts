@@ -4,8 +4,8 @@ import { renderEmail } from "./layout";
 describe("renderEmail", () => {
   const out = renderEmail({
     preheader: "Peek text",
-    heading: "Your pre-order is confirmed",
-    intro: "Thanks for pre-ordering.",
+    heading: "Your order is confirmed",
+    intro: "Thanks for ordering.",
     blocks: ["<p>Body block</p>"],
     cta: { label: "View", url: "https://saunahat.co.za/x" },
   });
@@ -16,7 +16,7 @@ describe("renderEmail", () => {
   });
 
   it("includes heading, preheader and cta in html", () => {
-    expect(out.html).toContain("Your pre-order is confirmed");
+    expect(out.html).toContain("Your order is confirmed");
     expect(out.html).toContain("Peek text");
     expect(out.html).toContain("https://saunahat.co.za/x");
   });
@@ -27,7 +27,7 @@ describe("renderEmail", () => {
   });
 
   it("text version is plain and includes heading + cta url", () => {
-    expect(out.text).toContain("Your pre-order is confirmed");
+    expect(out.text).toContain("Your order is confirmed");
     expect(out.text).toContain("https://saunahat.co.za/x");
     expect(out.text).not.toContain("<");
   });

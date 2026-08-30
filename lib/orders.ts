@@ -1,5 +1,5 @@
 // Order persistence. All functions are safe no-ops when DATABASE_URL is unset,
-// so the app runs (and takes pre-orders) before the datastore is provisioned.
+// so the app runs before the datastore is provisioned.
 import { ensureSchema, getPool, isDbConfigured } from "./db";
 import type { ShippingAddress } from "./address";
 

@@ -12,14 +12,14 @@ export function orderConfirmationEmail(d: {
     orderItemsTable(d.items),
     moneyRow("Total paid", d.total),
     d.address ? `<p><strong>Shipping to:</strong></p>${addressBlock(d.address)}` : "",
-    `<p>Every hat is hand-felted to order, so your pre-order ships with the founding batch, roughly four to six weeks out. We'll be in touch when it's on its way.</p>`,
+    `<p>Your hat is in stock. We'll be in touch with tracking as soon as it's on its way from Cape Town.</p>`,
   ].filter(Boolean);
   const { html, text } = renderEmail({
-    preheader: "Your Smelt pre-order is confirmed.",
-    heading: "Your pre-order is confirmed",
-    intro: "Thanks for pre-ordering a Smelt sauna hat.",
+    preheader: "Your Smelt order is confirmed.",
+    heading: "Your order is confirmed",
+    intro: "Thanks for ordering a Smelt sauna hat.",
     blocks,
     cta: { label: "Visit Smelt", url: absoluteUrl("/") },
   });
-  return { subject: "Your Smelt pre-order is confirmed. Warm regards.", html, text };
+  return { subject: "Your Smelt order is confirmed. Warm regards.", html, text };
 }

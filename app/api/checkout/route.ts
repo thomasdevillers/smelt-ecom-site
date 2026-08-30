@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Your bag is empty." }, { status: 400 });
   }
 
-  // Payments not wired up yet: tell the client so it can stay in pre-order mode.
+  // Do not accept an order unless the live payment provider is configured.
   if (!isPaystackConfigured()) {
     return Response.json({ configured: false }, { status: 503 });
   }

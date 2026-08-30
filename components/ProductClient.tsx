@@ -3,7 +3,6 @@ import { useState } from "react";
 import ProductGallery from "@/components/ProductGallery";
 import Accordion from "@/components/Accordion";
 import HairPSA from "@/components/HairPSA";
-import Reels from "@/components/Reels";
 import SectionLabel from "@/components/ui/SectionLabel";
 import { PRODUCT, type Colour } from "@/lib/product";
 import { BASE_PRICE, formatMoney, lineTotal } from "@/lib/pricing";
@@ -50,7 +49,7 @@ export default function ProductClient() {
             </div>
           </div>
 
-          <button className={styles.add} onClick={add}>Pre-order · {formatMoney(total)}</button>
+          <button className={styles.add} onClick={add}>Add to bag · {formatMoney(total)}</button>
           <div className={styles.reassure}>Free felt care card. 30-day returns if it doesn&rsquo;t spark joy (or sweat).</div>
 
           <div className={styles.accordions}>
@@ -69,11 +68,9 @@ export default function ProductClient() {
       </div>
 
       <HairPSA />
-      <Reels />
-
       <div className={styles.stickyBar}>
         <div className={styles.stickyInfo}>{v.name} · {formatMoney(total)}</div>
-        <button className={styles.stickyAdd} onClick={add}>Pre-order</button>
+        <button className={styles.stickyAdd} onClick={add}>Add to bag</button>
       </div>
     </main>
   );

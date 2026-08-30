@@ -9,7 +9,7 @@ export function abandonedCartEmail(d: {
   const greeting = d.name ? `Hi ${escapeHtml(d.name)},` : "Hi there,";
   const blocks = [
     `<p>${greeting}</p>`,
-    `<p>You left a Smelt hat warming up in your bag. Each one is hand-felted to order, and the founding batch is filling up.</p>`,
+    `<p>You left a Smelt hat warming up in your bag. It is in stock and ready when you are.</p>`,
     orderItemsTable(d.items),
     moneyRow("Your bag", d.total),
     `<p style="font-size:12px;">Not interested? No trouble — just reply to this email and we'll leave you be.</p>`,

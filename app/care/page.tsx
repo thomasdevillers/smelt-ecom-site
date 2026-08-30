@@ -55,7 +55,7 @@ export default function CarePage() {
       <section className={styles.cta}>
         <div className={styles.signoff}>{CARE.signoff}</div>
         <Button href="/product" variant="solid">
-          Pre-order yours <span>→</span>
+          Shop now <span>→</span>
         </Button>
       </section>
     </main>

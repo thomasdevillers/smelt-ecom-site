@@ -2,8 +2,7 @@
 // we initialize a transaction with the SECRET key and hand the browser an
 // authorization_url to redirect to. No public key is needed on the client.
 //
-// Set PAYSTACK_SECRET_KEY in .env.local to go live. Until then, the app stays
-// in "pre-order" mode and never calls Paystack.
+// Set PAYSTACK_SECRET_KEY in .env.local to accept live payments.
 
 const PAYSTACK_BASE = "https://api.paystack.co";
 

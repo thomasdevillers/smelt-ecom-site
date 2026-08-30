@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     template: '%s · Smelt',
   },
   description:
-    'Smelt makes 100% merino wool felt sauna hats. Embroidered, not printed. Two colourways. Pre-order now, shipping worldwide from Cape Town.',
+    'Smelt makes 100% merino wool felt sauna hats. Embroidered, not printed. Two colourways, in stock and shipping worldwide from Cape Town.',
   applicationName: 'Smelt',
   keywords: [
     'sauna hat',

@@ -25,7 +25,7 @@ export default function CartPage() {
         <div className={styles.empty}>
           <p>Nothing in here yet. Your head is unprotected.</p>
           <Link href="/product" className={styles.shopLink}>
-            Pre-order yours →
+            Shop hats →
           </Link>
         </div>
       ) : (
@@ -96,7 +96,7 @@ export default function CartPage() {
               <span>{freeShip ? "Free" : "Calculated at checkout"}</span>
             </div>
             <Link href="/checkout" className={styles.checkout}>
-              Pre-order · {formatMoney(subtotal)}
+              Checkout · {formatMoney(subtotal)}
             </Link>
             <Link href="/product" className={styles.keep}>
               Keep shopping

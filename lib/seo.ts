@@ -1,5 +1,5 @@
 /** Canonical production origin. SITE_URL env wins (matches lib/emails/theme.ts). */
-export const SITE_URL = (process.env.SITE_URL ?? "https://saunahat.co.za").replace(/\/$/, "");
+export const SITE_URL = (process.env.SITE_URL || "https://saunahat.co.za").replace(/\/$/, "");
 
 /** Absolute URL for a site-relative path. */
 export function abs(path: string): string {
