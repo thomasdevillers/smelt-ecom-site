@@ -6,9 +6,13 @@ export interface ShippingAddress {
   province: string;
   country: string;
   phone?: string;
+  lat?: number;
+  lng?: number;
+  placeId?: string;
 }
 
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+const num = (v: unknown) => (typeof v === "number" && !isNaN(v) ? v : undefined);
 
 export function sanitizeAddress(input: unknown): ShippingAddress {
   const c = (input ?? {}) as Record<string, unknown>;
@@ -20,6 +24,9 @@ export function sanitizeAddress(input: unknown): ShippingAddress {
     province: str(c.province),
     country: str(c.country) || "South Africa",
     phone: str(c.phone) || undefined,
+    lat: num(c.lat),
+    lng: num(c.lng),
+    placeId: str(c.placeId) || undefined,
   };
 }
 
