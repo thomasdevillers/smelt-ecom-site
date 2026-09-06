@@ -50,7 +50,6 @@ export default function ProductClient() {
           </div>
 
           <button className={styles.add} onClick={add}>Add to bag · {formatMoney(total)}</button>
-          <div className={styles.reassure}>Free felt care card. 30-day returns if it doesn&rsquo;t spark joy (or sweat).</div>
 
           <div className={styles.accordions}>
             <Accordion title="Details" defaultOpen>
@@ -62,7 +61,7 @@ export default function ProductClient() {
               </ul>
             </Accordion>
             <Accordion title="Felt care">Air it out after each session and let it dry fully. Spot-clean with cool water. Never machine wash, because felt holds a grudge.</Accordion>
-            <Accordion title="Shipping &amp; returns">R90 shipping nationwide across South Africa (free shipping on orders over R500). 30-day returns if it doesn&rsquo;t spark joy (or sweat).</Accordion>
+            <Accordion title="Shipping &amp; returns">R90 shipping nationwide across South Africa (free shipping on orders over R500).</Accordion>
           </div>
         </div>
       </div>

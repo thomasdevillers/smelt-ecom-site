@@ -21,12 +21,11 @@ export default function ProductExplorer() {
           <SectionLabel>The collection (all two of them)</SectionLabel>
           <h2 className={styles.h2}>Say hello coming in.<br />Warm regards going out.</h2>
         </div>
-        <p className={styles.intro}>The front greets the sauna with your name. The back sends everyone off with <em>&ldquo;Warm regards.&rdquo;</em> Flip it around.</p>
       </div>
 
       <div className={styles.grid}>
         <div className={styles.stage}>
-          <HatSwap colour={colour} showLabel dropShadow />
+          <HatSwap colour={colour} dropShadow />
         </div>
 
         <div className={styles.panel}>
@@ -44,7 +43,6 @@ export default function ProductExplorer() {
           </div>
 
           <button className={styles.add} onClick={add}>Add to bag · {formatMoney(BASE_PRICE)}</button>
-          <div className={styles.reassure}>Free felt care card. 30-day returns if it doesn&rsquo;t spark joy (or sweat).</div>
         </div>
       </div>
     </section>

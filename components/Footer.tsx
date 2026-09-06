@@ -24,8 +24,7 @@ export default function Footer() {
           <div>
             <div className={styles.colTitle}>Smelt</div>
             <div className={styles.colLinks}>
-              <Link href="/about">About</Link>
-              <Link href="/#reels">Reels</Link>
+              <Link href="/#story">The story</Link>
               <Link href="/#felt">The felt</Link>
             </div>
           </div>
