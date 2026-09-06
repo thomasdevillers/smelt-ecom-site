@@ -1,3 +1,4 @@
+import StarMark from "./ui/StarMark";
 import styles from "./Ticker.module.css";
 
 const ITEMS = [
@@ -11,7 +12,12 @@ export default function Ticker() {
     <div className={styles.bar} aria-hidden="true">
       <div className={styles.track}>
         {run.map((t, i) => (
-          <span key={i} className={styles.item}>{t}<span className={styles.star}>✳</span></span>
+          <span key={i} className={styles.item}>
+            {t}
+            <span className={styles.star}>
+              <StarMark size={12} />
+            </span>
+          </span>
         ))}
       </div>
     </div>

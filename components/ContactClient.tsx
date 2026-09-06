@@ -2,6 +2,7 @@
 import { useState } from "react";
 import SectionLabel from "@/components/ui/SectionLabel";
 import { CONTACT } from "@/content/contact";
+import StarMark from "@/components/ui/StarMark";
 import styles from "@/app/contact/contact.module.css";
 
 export default function ContactClient() {
@@ -19,7 +20,9 @@ export default function ContactClient() {
         <section className={styles.formWrap}>
           {sent ? (
             <div className={styles.thanks}>
-              <div className={styles.thanksMark}>✳</div>
+              <div className={styles.thanksMark}>
+                <StarMark size={28} />
+              </div>
               <h2 className={styles.thanksH2}>Got it. Warm regards.</h2>
               <p className={styles.thanksP}>
                 Thanks for reaching out. We&rsquo;ll reply to you shortly, usually
