@@ -16,7 +16,7 @@ export default function CartPage() {
   const { cart, dispatch, subtotal } = useCart();
   const lines = COLOURS.filter((c) => cart[c] > 0);
   const freeShip = qualifiesForFreeShipping(subtotal);
-  const remaining = Math.max(0, FREE_SHIP_THRESHOLD + 1 - subtotal);
+  const remaining = Math.max(0, FREE_SHIP_THRESHOLD - subtotal);
 
   return (
     <main className={styles.page}>
@@ -93,7 +93,7 @@ export default function CartPage() {
             </div>
             <div className={styles.rowMuted}>
               <span>Shipping</span>
-              <span>{freeShip ? "Free" : "Calculated at checkout"}</span>
+              <span>{freeShip ? "FREE" : "R90"}</span>
             </div>
             <Link href="/checkout" className={styles.checkout}>
               Checkout · {formatMoney(subtotal)}

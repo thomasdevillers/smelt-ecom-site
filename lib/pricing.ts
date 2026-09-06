@@ -1,5 +1,6 @@
-export const BASE_PRICE = 549;
-export const FREE_SHIP_THRESHOLD = 1000;
+export const BASE_PRICE = 450;
+export const SHIPPING_FEE = 90;
+export const FREE_SHIP_THRESHOLD = 500;
 
 /** Discount rate applied per-unit based on quantity of a single colour. */
 function discountRate(qty: number): number {
@@ -24,5 +25,13 @@ export function formatMoney(n: number): string {
 }
 
 export function qualifiesForFreeShipping(subtotal: number): boolean {
-  return subtotal > FREE_SHIP_THRESHOLD;
+  return subtotal >= FREE_SHIP_THRESHOLD;
+}
+
+export function shippingFee(subtotal: number): number {
+  return qualifiesForFreeShipping(subtotal) ? 0 : SHIPPING_FEE;
+}
+
+export function grandTotal(subtotal: number): number {
+  return subtotal + shippingFee(subtotal);
 }

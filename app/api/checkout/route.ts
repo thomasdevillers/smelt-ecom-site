@@ -4,6 +4,8 @@ import { initializeTransaction, isPaystackConfigured } from "@/lib/paystack";
 import { sanitizeCart } from "@/lib/checkoutShared";
 import { sanitizeAddress } from "@/lib/address";
 
+import { grandTotal } from "@/lib/pricing";
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
@@ -25,10 +27,11 @@ export async function POST(request: Request) {
   const shippingAddress = sanitizeAddress(body.address);
 
   const cart = sanitizeCart(body.cart);
-  const amount = cartSubtotal(cart);
-  if (amount <= 0) {
+  const subtotal = cartSubtotal(cart);
+  if (subtotal <= 0) {
     return Response.json({ error: "Your bag is empty." }, { status: 400 });
   }
+  const amount = grandTotal(subtotal);
 
   // Do not accept an order unless the live payment provider is configured.
   if (!isPaystackConfigured()) {

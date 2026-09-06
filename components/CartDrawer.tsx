@@ -16,8 +16,8 @@ export default function CartDrawer() {
   const { cart, dispatch, subtotal, isOpen, closeCart, count } = useCart();
   const lines = COLOURS.filter((c) => cart[c] > 0);
   const freeShip = qualifiesForFreeShipping(subtotal);
-  const remaining = Math.max(0, FREE_SHIP_THRESHOLD + 1 - subtotal);
-  const shipProgress = Math.min(100, (subtotal / (FREE_SHIP_THRESHOLD + 1)) * 100);
+  const remaining = Math.max(0, FREE_SHIP_THRESHOLD - subtotal);
+  const shipProgress = Math.min(100, (subtotal / FREE_SHIP_THRESHOLD) * 100);
 
   return (
     <>

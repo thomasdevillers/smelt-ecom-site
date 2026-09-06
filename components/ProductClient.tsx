@@ -62,7 +62,7 @@ export default function ProductClient() {
               </ul>
             </Accordion>
             <Accordion title="Felt care">Air it out after each session and let it dry fully. Spot-clean with cool water. Never machine wash, because felt holds a grudge.</Accordion>
-            <Accordion title="Shipping &amp; returns">Ships worldwide from Cape Town. Free shipping over R1000. 30-day returns if it doesn&rsquo;t spark joy (or sweat).</Accordion>
+            <Accordion title="Shipping &amp; returns">R90 shipping nationwide across South Africa (free shipping on orders over R500). 30-day returns if it doesn&rsquo;t spark joy (or sweat).</Accordion>
           </div>
         </div>
       </div>
