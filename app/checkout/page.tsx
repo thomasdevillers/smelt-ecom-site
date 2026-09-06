@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart";
 import { COLOURS, PRODUCT } from "@/lib/product";
 import { formatMoney, lineTotal } from "@/lib/pricing";
+import { AddressAutocomplete, type ParsedPlaceAddress } from "@/components/AddressAutocomplete";
+import type { ShippingAddress } from "@/lib/address";
 import styles from "./checkout.module.css";
 
 type Status = "idle" | "submitting" | "verifying" | "error";
@@ -19,7 +21,7 @@ export default function CheckoutPage() {
 
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
-  const [address, setAddress] = useState({
+  const [address, setAddress] = useState<ShippingAddress>({
     line1: "",
     line2: "",
     city: "",
@@ -30,6 +32,21 @@ export default function CheckoutPage() {
   });
   const setAddr = (k: string, v: string) =>
     setAddress((a) => ({ ...a, [k]: v }));
+
+  const handlePlaceSelect = (parsed: ParsedPlaceAddress) => {
+    setAddress((prev) => ({
+      ...prev,
+      line1: parsed.line1 || prev.line1,
+      line2: parsed.line2 || prev.line2,
+      city: parsed.city || prev.city,
+      province: parsed.province || prev.province,
+      postalCode: parsed.postalCode || prev.postalCode,
+      country: parsed.country || prev.country,
+      lat: parsed.lat ?? prev.lat,
+      lng: parsed.lng ?? prev.lng,
+      placeId: parsed.placeId ?? prev.placeId,
+    }));
+  };
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
 
@@ -200,12 +217,11 @@ export default function CheckoutPage() {
             </label>
             <label className={styles.field}>
               <span className={styles.label}>Address line 1</span>
-              <input
+              <AddressAutocomplete
                 className={styles.input}
-                type="text"
                 value={address.line1}
-                onChange={(e) => setAddr("line1", e.target.value)}
-                placeholder="12 Loop Street"
+                onChange={(v) => setAddr("line1", v)}
+                onPlaceSelect={handlePlaceSelect}
                 required
               />
             </label>
