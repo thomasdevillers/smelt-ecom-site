@@ -7,7 +7,7 @@ export default function ProductGallery({ colour }: { colour: Colour }) {
   return (
     <div className={styles.wrap}>
       <div className={styles.main}>
-        <HatSwap colour={colour} showLabel />
+        <HatSwap colour={colour} />
       </div>
     </div>
   );

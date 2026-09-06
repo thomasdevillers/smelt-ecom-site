@@ -18,9 +18,6 @@ export default function Hero() {
           <Button href="/product" variant="solid">
             Shop now <span>→</span>
           </Button>
-          <Button href="/#bundles" variant="outline">
-            See the bundles
-          </Button>
         </div>
         <div className={styles.stars}>
           <StarMark className={styles.starRow} size={15} /> 100% merino wool.

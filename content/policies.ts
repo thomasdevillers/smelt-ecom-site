@@ -7,7 +7,7 @@ export const POLICIES = {
     title: "Shipping & Delivery",
     dispatch:
       "All stock is kept on hand locally. Orders are packed and dispatched within 1 to 3 business days.",
-    courier: "We use The Courier Guy for all nationwide deliveries.",
+    courier: "We use Aramex for all nationwide deliveries.",
     timelines: [
       { area: "Cape Town & Surrounds", time: "1–2 business days" },
       { area: "National Main Centres", time: "2–3 business days" },
@@ -21,7 +21,7 @@ export const POLICIES = {
     hygiene:
       "Sauna hats are high-heat, high-sweat personal items. For strict hygiene and safety reasons, we do not accept returns or exchanges on any opened or used hats.",
     unopened:
-      "If you change your mind, we accept returns on completely unopened, unused, and sealed hats within 7 days of delivery. The return shipping costs via The Courier Guy will be for your account.",
+      "If you change your mind, we accept returns on completely unopened, unused, and sealed hats within 7 days of delivery. The return shipping costs via Aramex will be for your account.",
     defective:
       "We stand by the quality of our products. If your hat arrives damaged or has a manufacturing defect, please contact us within 6 months of delivery. Email returns@saunahat.co.za with your order number and clear photos of the issue. We will arrange collection at our cost and provide either a full refund or a free replacement. (Note: This does not cover normal wear and tear or improper washing).",
   },
