@@ -6,6 +6,8 @@ import { sanitizeCart } from "@/lib/checkoutShared";
 import { sanitizeAddress, type ShippingAddress } from "@/lib/address";
 import { PRODUCT } from "@/lib/product";
 import { cartSubtotal, type CartState } from "@/lib/cartReducer";
+import { sendMetaPurchase } from "@/lib/metaConversions";
+import type { MetaClientContext } from "@/lib/meta";
 
 export async function POST(request: Request) {
   let body: {
@@ -13,6 +15,7 @@ export async function POST(request: Request) {
     cart?: unknown;
     address?: unknown;
     name?: unknown;
+    metaClient?: MetaClientContext;
   };
   try {
     body = await request.json();
@@ -122,9 +125,49 @@ export async function POST(request: Request) {
       }
     }
 
+    await sendMetaPurchase({
+      reference,
+      email: verified.customerEmail ?? "",
+      amount: paidAmountRand,
+      currency: verified.currency,
+      items,
+      paidAt: verified.paidAt,
+      request,
+      client: body.metaClient,
+    });
+
     return Response.json({ success: true });
   } catch (err) {
     console.error("Paystack verify error:", err);
+    return Response.json(
+      { error: "Could not verify payment. Please try again." },
+      { status: 502 },
+    );
+  }
+}
+
+export async function GET(request: Request) {
+  const reference = new URL(request.url).searchParams.get("reference");
+  if (!reference) {
+    return Response.json({ error: "A payment reference is required." }, { status: 400 });
+  }
+
+  try {
+    const verified = await verifyTransaction(reference);
+    if (verified.status !== "success") {
+      return Response.json({ error: "Payment not completed." }, { status: 400 });
+    }
+
+    const meta = verified.metadata as { items?: OrderItem[] } | null;
+    return Response.json({
+      paid: true,
+      reference: verified.reference,
+      amountRand: Math.round(verified.amount / 100),
+      currency: verified.currency,
+      items: meta?.items ?? [],
+    });
+  } catch (err) {
+    console.error("Paystack read verification error:", err);
     return Response.json(
       { error: "Could not verify payment. Please try again." },
       { status: 502 },

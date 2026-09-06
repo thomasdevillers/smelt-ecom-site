@@ -9,6 +9,8 @@ import Ticker from '@/components/Ticker'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import CartDrawer from '@/components/CartDrawer'
+import MetaPageViewTracker from '@/components/MetaPageViewTracker'
+import { META_PIXEL_ID } from '@/lib/meta'
 import { SITE_URL, abs } from '@/lib/seo'
 
 const bricolage = Bricolage_Grotesque({
@@ -105,8 +107,9 @@ n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];
 s.parentNode.insertBefore(t,s)}(window, document,'script',
 'https://connect.facebook.net/en_US/fbevents.js');
-fbq('init', '2249377099196502');
-fbq('track', 'PageView');`}
+fbq('init', '${META_PIXEL_ID}');
+fbq('track', 'PageView');
+window.dispatchEvent(new Event('meta-pixel-ready'));`}
         </Script>
         <noscript>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -114,7 +117,7 @@ fbq('track', 'PageView');`}
             height="1"
             width="1"
             style={{ display: 'none' }}
-            src="https://www.facebook.com/tr?id=2249377099196502&ev=PageView&noscript=1"
+            src={`https://www.facebook.com/tr?id=${META_PIXEL_ID}&ev=PageView&noscript=1`}
             alt=""
           />
         </noscript>
@@ -133,6 +136,7 @@ fbq('track', 'PageView');`}
         </CartProvider>
         <Analytics />
         <SpeedInsights />
+        <MetaPageViewTracker />
       </body>
     </html>
   )

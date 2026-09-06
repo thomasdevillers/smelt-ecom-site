@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart";
@@ -7,9 +7,12 @@ import { COLOURS, PRODUCT } from "@/lib/product";
 import { formatMoney, lineTotal, shippingFee, grandTotal } from "@/lib/pricing";
 import { AddressAutocomplete, type ParsedPlaceAddress } from "@/components/AddressAutocomplete";
 import type { ShippingAddress } from "@/lib/address";
+import { META_CURRENCY, metaCartContents } from "@/lib/meta";
+import { getMetaClientContext, trackMetaEvent } from "@/lib/metaPixel";
 import styles from "./checkout.module.css";
 
 type Status = "idle" | "submitting" | "verifying" | "error";
+type PaystackSuccess = { reference: string };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PAYSTACK_KEY = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
@@ -18,6 +21,7 @@ export default function CheckoutPage() {
   const { cart, subtotal, dispatch } = useCart();
   const lines = COLOURS.filter((c) => cart[c] > 0);
   const router = useRouter();
+  const checkoutTracked = useRef(false);
 
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -50,6 +54,20 @@ export default function CheckoutPage() {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    if (checkoutTracked.current || subtotal <= 0) return;
+    checkoutTracked.current = true;
+    const contents = metaCartContents(cart);
+    trackMetaEvent("InitiateCheckout", {
+      content_ids: contents.map((item) => item.id),
+      contents,
+      content_type: "product",
+      currency: META_CURRENCY,
+      value: grandTotal(subtotal),
+      num_items: contents.reduce((total, item) => total + item.quantity, 0),
+    });
+  }, [cart, subtotal]);
+
   function trackCart() {
     if (!EMAIL_RE.test(email) || lines.length === 0) return;
     fetch("/api/cart/track", {
@@ -59,14 +77,19 @@ export default function CheckoutPage() {
     }).catch(() => {}); // fire-and-forget; never block or surface errors
   }
 
-  // Paystack's own type is missing some props. Rather than augment it, any.
-  const onSuccess = async (trx: any) => {
+  const onSuccess = async (trx: PaystackSuccess) => {
     setStatus("verifying");
     try {
       const res = await fetch("/api/checkout/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reference: trx.reference, cart, address, name }),
+        body: JSON.stringify({
+          reference: trx.reference,
+          cart,
+          address,
+          name,
+          metaClient: getMetaClientContext(),
+        }),
       });
       const data = await res.json();
 
@@ -78,7 +101,9 @@ export default function CheckoutPage() {
 
       // Successful payment + order logged.
       dispatch({ type: "clear" });
-      router.push("/checkout/success");
+      router.push(
+        `/checkout/success?reference=${encodeURIComponent(trx.reference)}`,
+      );
     } catch {
       setError("Network error. Please try again.");
       setStatus("error");
@@ -126,6 +151,7 @@ export default function CheckoutPage() {
         amountRand: totalAmount,
         customerName: name,
         shippingAddress: address,
+        metaClient: getMetaClientContext(),
         custom_fields: [
           {
             display_name: "Cart",

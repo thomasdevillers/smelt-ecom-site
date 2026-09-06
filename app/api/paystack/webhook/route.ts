@@ -5,6 +5,8 @@ import { markCartConverted } from "@/lib/carts";
 import { type ShippingAddress } from "@/lib/address";
 import { sanitizeCart } from "@/lib/checkoutShared";
 import { cartSubtotal } from "@/lib/cartReducer";
+import { sendMetaPurchase } from "@/lib/metaConversions";
+import type { MetaClientContext } from "@/lib/meta";
 
 // pg and node:crypto require the Node.js runtime, not edge.
 export const runtime = "nodejs";
@@ -57,6 +59,7 @@ export async function POST(request: Request) {
         amountRand?: number;
         customerName?: string | null;
         shippingAddress?: ShippingAddress | null;
+        metaClient?: MetaClientContext;
       };
     };
   };
@@ -129,6 +132,15 @@ export async function POST(request: Request) {
           shippingAddress,
         });
         await markCartConverted(d.customer?.email ?? "");
+        await sendMetaPurchase({
+          reference: d.reference ?? "",
+          email: d.customer?.email ?? "",
+          amount: paidAmountRand,
+          currency: d.currency ?? "ZAR",
+          items,
+          paidAt: d.paid_at,
+          client: d.metadata?.metaClient,
+        });
       }
     } catch (err) {
       // Return 500 so Paystack retries; we haven't persisted the order.

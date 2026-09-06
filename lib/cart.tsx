@@ -1,6 +1,8 @@
 "use client";
 import { createContext, useContext, useEffect, useReducer, useState, useCallback } from "react";
 import { cartReducer, emptyCart, cartCount, cartSubtotal, type CartState, type CartAction } from "./cartReducer";
+import { META_CURRENCY, metaVariantContent, metaVariantName } from "./meta";
+import { trackMetaEvent } from "./metaPixel";
 
 const STORAGE_KEY = "smelt-cart-v1";
 
@@ -17,7 +19,7 @@ interface CartContextValue {
 const CartContext = createContext<CartContextValue | null>(null);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [cart, dispatch] = useReducer(cartReducer, emptyCart);
+  const [cart, baseDispatch] = useReducer(cartReducer, emptyCart);
   const [isOpen, setIsOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
@@ -25,8 +27,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) dispatch(JSON.parse(raw) as CartState);
+      if (raw) baseDispatch(JSON.parse(raw) as CartState);
     } catch {}
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHydrated(true);
   }, []);
 
@@ -37,6 +40,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const openCart = useCallback(() => setIsOpen(true), []);
   const closeCart = useCallback(() => setIsOpen(false), []);
+  const dispatch = useCallback((action: CartAction) => {
+    baseDispatch(action);
+    if (action.type === "add" && action.qty > 0) {
+      const content = metaVariantContent(action.colour, action.qty);
+      trackMetaEvent("AddToCart", {
+        content_name: metaVariantName(action.colour),
+        content_ids: [content.id],
+        contents: [content],
+        content_type: "product",
+        currency: META_CURRENCY,
+        value: content.item_price! * content.quantity,
+      });
+    }
+  }, []);
 
   return (
     <CartContext.Provider

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ProductGallery from "@/components/ProductGallery";
 import Accordion from "@/components/Accordion";
 import HairPSA from "@/components/HairPSA";
@@ -7,6 +7,8 @@ import SectionLabel from "@/components/ui/SectionLabel";
 import { PRODUCT, type Colour } from "@/lib/product";
 import { BASE_PRICE, formatMoney, lineTotal } from "@/lib/pricing";
 import { useCart } from "@/lib/cart";
+import { META_CURRENCY, metaVariantContent } from "@/lib/meta";
+import { trackMetaEvent } from "@/lib/metaPixel";
 import styles from "@/app/product/product.module.css";
 
 export default function ProductClient() {
@@ -16,6 +18,18 @@ export default function ProductClient() {
   const v = PRODUCT.variants[colour];
   const total = lineTotal(qty);
   const add = () => { dispatch({ type: "add", colour, qty }); openCart(); };
+
+  useEffect(() => {
+    const content = metaVariantContent("green", 1);
+    trackMetaEvent("ViewContent", {
+      content_name: PRODUCT.name,
+      content_ids: [content.id],
+      contents: [content],
+      content_type: "product",
+      currency: META_CURRENCY,
+      value: BASE_PRICE,
+    });
+  }, []);
 
   return (
     <main className={styles.page}>

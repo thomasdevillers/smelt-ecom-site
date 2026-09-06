@@ -3,11 +3,18 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
 import { formatMoney } from "@/lib/pricing";
+import { META_CURRENCY, metaContentId } from "@/lib/meta";
+import { trackMetaEvent } from "@/lib/metaPixel";
 import styles from "../checkout.module.css";
+
+interface PaidItem {
+  colour: string;
+  qty: number;
+}
 
 type State =
   | { kind: "verifying" }
-  | { kind: "paid"; amount: number; reference: string }
+  | { kind: "paid"; amount: number; reference: string; items: PaidItem[] }
   | { kind: "failed"; message: string };
 
 export default function CheckoutSuccessPage() {
@@ -18,7 +25,9 @@ export default function CheckoutSuccessPage() {
   useEffect(() => {
     const reference = new URLSearchParams(window.location.search).get("reference");
     if (!reference) {
-      setState({ kind: "failed", message: "No payment reference found." });
+      queueMicrotask(() =>
+        setState({ kind: "failed", message: "No payment reference found." }),
+      );
       return;
     }
 
@@ -29,12 +38,37 @@ export default function CheckoutSuccessPage() {
         );
         const data = await res.json();
         if (res.ok && data.paid) {
+          const purchaseStorageKey = `smelt-meta-purchase-${data.reference}`;
+          if (!sessionStorage.getItem(purchaseStorageKey)) {
+            const items = (data.items ?? []) as PaidItem[];
+            trackMetaEvent(
+              "Purchase",
+              {
+                content_ids: items.map((item) => metaContentId(item.colour)),
+                contents: items.map((item) => ({
+                  id: metaContentId(item.colour),
+                  quantity: item.qty,
+                })),
+                content_type: "product",
+                currency: data.currency || META_CURRENCY,
+                value: data.amountRand,
+                num_items: items.reduce((total, item) => total + item.qty, 0),
+              },
+              data.reference,
+            );
+            sessionStorage.setItem(purchaseStorageKey, "1");
+          }
           // Empty the bag exactly once on a confirmed payment.
           if (!cleared.current) {
             cleared.current = true;
             dispatch({ type: "clear" });
           }
-          setState({ kind: "paid", amount: data.amountRand, reference: data.reference });
+          setState({
+            kind: "paid",
+            amount: data.amountRand,
+            reference: data.reference,
+            items: data.items ?? [],
+          });
         } else {
           setState({
             kind: "failed",
