@@ -4,7 +4,7 @@ import { abandonedCartEmail } from "./abandonedCart";
 describe("abandonedCartEmail", () => {
   const e = abandonedCartEmail({
     name: "Sam", items: [{ colour: "green", name: "Forest Green", qty: 1 }],
-    total: "R549", cartUrl: "https://saunahat.co.za/cart",
+    total: "R540", cartUrl: "https://saunahat.co.za/cart",
   });
   it("has a warming-up subject", () => {
     expect(e.subject).toMatch(/warming up/i);

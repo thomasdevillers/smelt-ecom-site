@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart";
 import { COLOURS, PRODUCT } from "@/lib/product";
-import { formatMoney, lineTotal } from "@/lib/pricing";
+import { formatMoney, lineTotal, shippingFee, grandTotal } from "@/lib/pricing";
 import { AddressAutocomplete, type ParsedPlaceAddress } from "@/components/AddressAutocomplete";
 import type { ShippingAddress } from "@/lib/address";
 import styles from "./checkout.module.css";
@@ -104,13 +104,15 @@ export default function CheckoutPage() {
       qty: cart[c],
     }));
 
+    const totalAmount = grandTotal(subtotal);
+
     // Dynamically import PaystackPop to prevent window is not defined error during SSR
     const PaystackPop = (await import("@paystack/inline-js")).default;
     const paystack = new PaystackPop();
     await paystack.checkout({
       key: PAYSTACK_KEY!,
       email,
-      amount: Math.round(subtotal * 100),
+      amount: Math.round(totalAmount * 100),
       currency: "ZAR",
       channels: ["card", "apple_pay"],
       // @paystack/inline-js's shipped types only declare `custom_fields` here
@@ -121,7 +123,7 @@ export default function CheckoutPage() {
       metadata: {
         cart,
         items,
-        amountRand: subtotal,
+        amountRand: totalAmount,
         customerName: name,
         shippingAddress: address,
         custom_fields: [
@@ -138,7 +140,7 @@ export default function CheckoutPage() {
           {
             display_name: "Amount (ZAR)",
             variable_name: "amount_rand",
-            value: subtotal,
+            value: totalAmount,
           },
           {
             display_name: "Customer Name",
@@ -159,6 +161,8 @@ export default function CheckoutPage() {
       },
     });
   }
+
+  const totalAmount = grandTotal(subtotal);
 
   return (
     <main className={styles.page}>
@@ -181,9 +185,21 @@ export default function CheckoutPage() {
                 <span>{formatMoney(lineTotal(cart[c]))}</span>
               </div>
             ))}
+            <div className={styles.row}>
+              <span>Subtotal</span>
+              <span>{formatMoney(subtotal)}</span>
+            </div>
+            <div className={styles.row}>
+              <span>Shipping</span>
+              <span>
+                {shippingFee(subtotal) === 0
+                  ? "FREE"
+                  : formatMoney(shippingFee(subtotal))}
+              </span>
+            </div>
             <div className={styles.total}>
               <span>Total</span>
-              <span>{formatMoney(subtotal)}</span>
+              <span>{formatMoney(totalAmount)}</span>
             </div>
           </div>
         ) : (
@@ -300,7 +316,7 @@ export default function CheckoutPage() {
                 ? "Starting secure checkout…"
                 : status === "verifying"
                   ? "Verifying payment…"
-                  : `Pay ${formatMoney(subtotal)} securely`}
+                  : `Pay ${formatMoney(totalAmount)} securely`}
             </button>
             <p className={styles.secure}>Payments secured by Paystack.</p>
           </form>
