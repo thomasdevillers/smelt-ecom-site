@@ -2,10 +2,10 @@ import { verifyTransaction } from "@/lib/paystack";
 import { recordOrder, type OrderItem } from "@/lib/orders";
 import { sendOrderEmails } from "@/lib/email";
 import { markCartConverted } from "@/lib/carts";
-import { sanitizeCart } from "@/lib/checkoutShared";
+import { checkoutTotal, sanitizeCart } from "@/lib/checkoutShared";
 import { sanitizeAddress, type ShippingAddress } from "@/lib/address";
 import { PRODUCT } from "@/lib/product";
-import { cartSubtotal, type CartState } from "@/lib/cartReducer";
+import { type CartState } from "@/lib/cartReducer";
 import { sendMetaPurchase } from "@/lib/metaConversions";
 import type { MetaClientContext } from "@/lib/meta";
 
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     // against what Paystack actually confirms was paid. Without this check a
     // tampered client could pay for a cheap cart while claiming an expensive
     // one in `items`/`cart`.
-    const expectedAmountRand = cartSubtotal(cart);
+    const expectedAmountRand = checkoutTotal(cart);
     const paidAmountRand = Math.round(verified.amount / 100);
     const amountMatches = expectedAmountRand === paidAmountRand;
 

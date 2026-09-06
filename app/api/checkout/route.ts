@@ -1,10 +1,8 @@
 import { cartSubtotal, type CartState } from "@/lib/cartReducer";
 import { PRODUCT } from "@/lib/product";
 import { initializeTransaction, isPaystackConfigured } from "@/lib/paystack";
-import { sanitizeCart } from "@/lib/checkoutShared";
+import { checkoutTotal, sanitizeCart } from "@/lib/checkoutShared";
 import { sanitizeAddress } from "@/lib/address";
-
-import { grandTotal } from "@/lib/pricing";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -31,7 +29,7 @@ export async function POST(request: Request) {
   if (subtotal <= 0) {
     return Response.json({ error: "Your bag is empty." }, { status: 400 });
   }
-  const amount = grandTotal(subtotal);
+  const amount = checkoutTotal(cart);
 
   // Do not accept an order unless the live payment provider is configured.
   if (!isPaystackConfigured()) {
@@ -48,7 +46,7 @@ export async function POST(request: Request) {
       email,
       amount,
       callbackUrl: `${origin}/checkout/success`,
-      metadata: { items, amountRand: amount, customerName, shippingAddress },
+      metadata: { cart, items, amountRand: amount, customerName, shippingAddress },
     });
     return Response.json({ configured: true, authorizationUrl, reference });
   } catch (err) {

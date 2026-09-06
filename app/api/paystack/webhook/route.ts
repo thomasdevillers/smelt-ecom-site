@@ -3,8 +3,7 @@ import { recordOrder, type OrderItem } from "@/lib/orders";
 import { sendOrderEmails, sendPaymentFailedEmail } from "@/lib/email";
 import { markCartConverted } from "@/lib/carts";
 import { type ShippingAddress } from "@/lib/address";
-import { sanitizeCart } from "@/lib/checkoutShared";
-import { cartSubtotal } from "@/lib/cartReducer";
+import { checkoutTotal, sanitizeCart } from "@/lib/checkoutShared";
 import { sendMetaPurchase } from "@/lib/metaConversions";
 import type { MetaClientContext } from "@/lib/meta";
 
@@ -82,7 +81,7 @@ export async function POST(request: Request) {
     // Paystack actually confirms was charged (`d.amount`) rather than
     // whatever amountRand the client claims in metadata.
     const cart = sanitizeCart(d.metadata?.cart);
-    const expectedAmountRand = cartSubtotal(cart);
+    const expectedAmountRand = checkoutTotal(cart);
     const amountMatches = expectedAmountRand === paidAmountRand;
 
     try {
