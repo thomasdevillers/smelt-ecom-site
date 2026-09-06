@@ -3,6 +3,7 @@ import Features from "@/components/Features";
 import ProductExplorer from "@/components/ProductExplorer";
 import HairPSA from "@/components/HairPSA";
 import FounderStory from "@/components/FounderStory";
+import InTheWild from "@/components/InTheWild";
 import Faq from "@/components/Faq";
 import Policies from "@/components/Policies";
 import RitualBanner from "@/components/RitualBanner";
@@ -36,8 +37,9 @@ export default function Home() {
       <Hero />
       <ProductExplorer />
       <Features />
-      <FounderStory />
+      <InTheWild />
       <HairPSA />
+      <FounderStory />
       <Faq />
       <Policies />
       <RitualBanner />
