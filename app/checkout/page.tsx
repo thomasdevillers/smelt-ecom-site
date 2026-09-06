@@ -95,7 +95,7 @@ export default function CheckoutPage() {
       email,
       amount: Math.round(subtotal * 100),
       currency: "ZAR",
-      channels: ["card", "apple_pay", "bank_transfer", "mobile_money", "eft", "qr", "ussd"],
+      channels: ["card", "apple_pay"],
       // @paystack/inline-js's shipped types only declare `custom_fields` here
       // (its module uses `export =`, which can't be augmented). The flat
       // fields below are what our server actually reads back (see
