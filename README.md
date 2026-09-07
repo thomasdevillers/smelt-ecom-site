@@ -24,12 +24,20 @@ Mobile-first e-commerce site for Smelt sauna hats. Next.js (App Router) + TypeSc
 - `lib/` — `pricing.ts`, `product.ts`, `cartReducer.ts`, `cart.tsx` (context)
 - `public/images/` — product shots, founder photos, logos
 
+## Orders
+
+Paystack is the source of truth for paid orders. Customer details, delivery
+address, cart contents, and quantities are attached to each Paystack transaction
+as metadata and custom fields. Stock and fulfilment are tracked manually; the
+site does not require a database.
+
 ## Deploy (Vercel)
 1. Push this repo to GitHub.
 2. Import it at vercel.com → framework auto-detected as Next.js.
-3. Deploy. No env vars needed for v1.
+3. Configure the Paystack environment variables from `.env.local.example`.
+4. Deploy.
 
 ## v1 notes
-- Checkout is a polished placeholder (`app/checkout`) — no real payments yet.
+- Checkout takes real payments through Paystack.
 - Cart persists to localStorage (`smelt-cart-v1`).
 - Bundle discounts are computed **per colour** (5% off at qty 2, 10% off at qty 3).

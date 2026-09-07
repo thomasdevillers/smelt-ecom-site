@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 import { META_PIXEL_ID, metaContentId, type MetaClientContext } from "./meta";
-import type { OrderItem } from "./orders";
+import type { OrderItem } from "./orderTypes";
 import { SITE_URL } from "./seo";
 
 const DEFAULT_GRAPH_API_VERSION = "v23.0";

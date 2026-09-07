@@ -14,7 +14,6 @@ import styles from "./checkout.module.css";
 type Status = "idle" | "submitting" | "verifying" | "error";
 type PaystackSuccess = { reference: string };
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PAYSTACK_KEY = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
 
 export default function CheckoutPage() {
@@ -68,15 +67,6 @@ export default function CheckoutPage() {
     });
   }, [cart, subtotal]);
 
-  function trackCart() {
-    if (!EMAIL_RE.test(email) || lines.length === 0) return;
-    fetch("/api/cart/track", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, name, cart }),
-    }).catch(() => {}); // fire-and-forget; never block or surface errors
-  }
-
   const onSuccess = async (trx: PaystackSuccess) => {
     setStatus("verifying");
     try {
@@ -99,7 +89,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      // Successful payment + order logged.
+      // Successful payment confirmed by Paystack.
       dispatch({ type: "clear" });
       router.push(
         `/checkout/success?reference=${encodeURIComponent(trx.reference)}`,
@@ -241,7 +231,6 @@ export default function CheckoutPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                onBlur={trackCart}
                 placeholder="you@example.com"
                 required
               />

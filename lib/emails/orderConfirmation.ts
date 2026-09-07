@@ -1,7 +1,7 @@
 import { renderEmail } from "./layout";
 import { orderItemsTable, moneyRow, addressBlock } from "./components";
 import { absoluteUrl, escapeHtml } from "./theme";
-import type { OrderItem } from "../orders";
+import type { OrderItem } from "../orderTypes";
 import type { ShippingAddress } from "../address";
 
 export function orderConfirmationEmail(d: {

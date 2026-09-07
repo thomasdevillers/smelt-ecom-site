@@ -1,7 +1,7 @@
 import { renderEmail } from "./layout";
 import { orderItemsTable, moneyRow } from "./components";
 import { escapeHtml } from "./theme";
-import type { OrderItem } from "../orders";
+import type { OrderItem } from "../orderTypes";
 
 export function abandonedCartEmail(d: {
   name?: string | null; items: OrderItem[]; total: string; cartUrl: string;

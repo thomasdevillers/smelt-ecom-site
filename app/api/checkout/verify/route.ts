@@ -1,9 +1,6 @@
 import { verifyTransaction } from "@/lib/paystack";
-import { recordOrder, type OrderItem } from "@/lib/orders";
-import { sendOrderEmails } from "@/lib/email";
-import { markCartConverted } from "@/lib/carts";
+import type { OrderItem } from "@/lib/orderTypes";
 import { checkoutTotal, sanitizeCart } from "@/lib/checkoutShared";
-import { sanitizeAddress, type ShippingAddress } from "@/lib/address";
 import { PRODUCT } from "@/lib/product";
 import { type CartState } from "@/lib/cartReducer";
 import { sendMetaPurchase } from "@/lib/metaConversions";
@@ -13,8 +10,6 @@ export async function POST(request: Request) {
   let body: {
     reference?: unknown;
     cart?: unknown;
-    address?: unknown;
-    name?: unknown;
     metaClient?: MetaClientContext;
   };
   try {
@@ -42,8 +37,6 @@ export async function POST(request: Request) {
     const meta = verified.metadata as {
       cart?: unknown;
       items?: OrderItem[];
-      customerName?: string | null;
-      shippingAddress?: ShippingAddress | null;
     } | null;
 
     const cart = sanitizeCart(meta?.cart ?? body.cart);
@@ -64,25 +57,10 @@ export async function POST(request: Request) {
     const paidAmountRand = Math.round(verified.amount / 100);
     const amountMatches = expectedAmountRand === paidAmountRand;
 
-    const customerName =
-      meta?.customerName ?? (typeof body.name === "string" ? body.name.trim() : "");
-    const shippingAddress = meta?.shippingAddress ?? sanitizeAddress(body.address);
-
     if (!amountMatches) {
       console.error(
         `Paystack amount mismatch for ${reference}: paid R${paidAmountRand}, cart totals R${expectedAmountRand}`,
       );
-      await recordOrder({
-        reference,
-        email: verified.customerEmail ?? "",
-        amountRand: paidAmountRand,
-        currency: verified.currency,
-        status: "amount_mismatch",
-        items,
-        paidAt: verified.paidAt,
-        customerName,
-        shippingAddress,
-      });
       return Response.json(
         {
           error:
@@ -90,39 +68,6 @@ export async function POST(request: Request) {
         },
         { status: 409 },
       );
-    }
-
-    // The webhook is the primary writer, but we also record (and, the first
-    // time we see this reference paid, email) here. recordOrder upserts by
-    // reference and only reports `newlyPaid` once, so whichever of this route
-    // or the webhook gets there first fires the notification exactly once.
-    const newlyPaid = await recordOrder({
-      reference,
-      email: verified.customerEmail ?? "",
-      amountRand: paidAmountRand,
-      currency: verified.currency,
-      status: verified.status,
-      items,
-      paidAt: verified.paidAt,
-      customerName,
-      shippingAddress,
-    });
-
-    if (newlyPaid) {
-      try {
-        await sendOrderEmails({
-          reference,
-          email: verified.customerEmail ?? "",
-          amountRand: paidAmountRand,
-          items,
-          customerName,
-          shippingAddress,
-        });
-        await markCartConverted(verified.customerEmail ?? "");
-      } catch (err) {
-        // Non-fatal: the order is already recorded; just log it.
-        console.error("Order email (verify) error:", err);
-      }
     }
 
     await sendMetaPurchase({

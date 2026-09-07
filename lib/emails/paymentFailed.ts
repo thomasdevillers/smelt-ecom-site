@@ -1,6 +1,6 @@
 import { renderEmail } from "./layout";
 import { orderItemsTable } from "./components";
-import type { OrderItem } from "../orders";
+import type { OrderItem } from "../orderTypes";
 
 export function paymentFailedEmail(d: {
   items?: OrderItem[]; retryUrl: string;

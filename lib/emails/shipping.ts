@@ -1,7 +1,7 @@
 import { renderEmail } from "./layout";
 import { orderItemsTable } from "./components";
 import { escapeHtml } from "./theme";
-import type { OrderItem } from "../orders";
+import type { OrderItem } from "../orderTypes";
 
 export function shippingEmail(d: {
   name?: string | null; carrier: string; trackingNumber: string; trackingUrl?: string; items: OrderItem[];

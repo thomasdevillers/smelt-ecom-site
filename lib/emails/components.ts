@@ -1,5 +1,5 @@
 import { COLORS, FONT_STACK, escapeHtml } from "./theme";
-import type { OrderItem } from "../orders";
+import type { OrderItem } from "../orderTypes";
 import type { ShippingAddress } from "../address";
 
 const cell = `font-family:${FONT_STACK};font-size:15px;color:${COLORS.ink};padding:8px 0;`;

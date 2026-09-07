@@ -1,13 +1,11 @@
 import crypto from "node:crypto";
-import { recordOrder, type OrderItem } from "@/lib/orders";
-import { sendOrderEmails, sendPaymentFailedEmail } from "@/lib/email";
-import { markCartConverted } from "@/lib/carts";
-import { type ShippingAddress } from "@/lib/address";
+import type { OrderItem } from "@/lib/orderTypes";
+import { sendPaymentFailedEmail } from "@/lib/email";
 import { checkoutTotal, sanitizeCart } from "@/lib/checkoutShared";
 import { sendMetaPurchase } from "@/lib/metaConversions";
 import type { MetaClientContext } from "@/lib/meta";
 
-// pg and node:crypto require the Node.js runtime, not edge.
+// node:crypto requires the Node.js runtime, not edge.
 export const runtime = "nodejs";
 
 // Paystack webhook. This is the SOURCE OF TRUTH for payments: it fires
@@ -56,8 +54,6 @@ export async function POST(request: Request) {
         cart?: unknown;
         items?: OrderItem[];
         amountRand?: number;
-        customerName?: string | null;
-        shippingAddress?: ShippingAddress | null;
         metaClient?: MetaClientContext;
       };
     };
@@ -72,8 +68,6 @@ export async function POST(request: Request) {
     const d = event.data;
     const paidAmountRand = Math.round((d.amount ?? 0) / 100);
     const items = d.metadata?.items ?? [];
-    const customerName = d.metadata?.customerName ?? null;
-    const shippingAddress = d.metadata?.shippingAddress ?? null;
 
     // `metadata` came from the browser when it opened the Paystack widget, so
     // it's untrusted. Recompute the expected total from the cart with the
@@ -84,68 +78,27 @@ export async function POST(request: Request) {
     const expectedAmountRand = checkoutTotal(cart);
     const amountMatches = expectedAmountRand === paidAmountRand;
 
-    try {
-      if (!amountMatches) {
-        console.error(
-          `Paystack webhook amount mismatch for ${d.reference}: paid R${paidAmountRand}, cart totals R${expectedAmountRand}`,
-        );
-        await recordOrder({
-          reference: d.reference ?? "",
-          email: d.customer?.email ?? "",
-          amountRand: paidAmountRand,
-          currency: d.currency ?? "ZAR",
-          status: "amount_mismatch",
-          items,
-          paidAt: d.paid_at ?? null,
-          customerName,
-          shippingAddress,
-        });
-        // Acknowledge so Paystack doesn't retry; a human needs to review this,
-        // not a webhook retry loop.
-        return new Response("ok", { status: 200 });
-      }
-
-      const newlyPaid = await recordOrder({
-        reference: d.reference ?? "",
-        email: d.customer?.email ?? "",
-        amountRand: paidAmountRand,
-        currency: d.currency ?? "ZAR",
-        status: d.status ?? "success",
-        items,
-        paidAt: d.paid_at ?? null,
-        customerName,
-        shippingAddress,
-      });
-
-      if (newlyPaid) {
-        console.log(`New paid order: ${d.reference} (${d.customer?.email})`);
-        // Fire notifications once, on the first time we see this payment.
-        // Email is best-effort: sendOrderEmails swallows its own failures, so a
-        // mail hiccup won't cause a webhook retry / duplicate order.
-        await sendOrderEmails({
-          reference: d.reference ?? "",
-          email: d.customer?.email ?? "",
-          amountRand: paidAmountRand,
-          items,
-          customerName,
-          shippingAddress,
-        });
-        await markCartConverted(d.customer?.email ?? "");
-        await sendMetaPurchase({
-          reference: d.reference ?? "",
-          email: d.customer?.email ?? "",
-          amount: paidAmountRand,
-          currency: d.currency ?? "ZAR",
-          items,
-          paidAt: d.paid_at,
-          client: d.metadata?.metaClient,
-        });
-      }
-    } catch (err) {
-      // Return 500 so Paystack retries; we haven't persisted the order.
-      console.error("Webhook persist error:", err);
-      return new Response("persist failed", { status: 500 });
+    if (!amountMatches) {
+      console.error(
+        `Paystack webhook amount mismatch for ${d.reference}: paid R${paidAmountRand}, cart totals R${expectedAmountRand}`,
+      );
+      // Paystack remains the payment record. Acknowledge the event so it does
+      // not retry indefinitely; the mismatched transaction needs manual review.
+      return new Response("ok", { status: 200 });
     }
+
+    console.log(`Confirmed Paystack order: ${d.reference}`);
+    // Meta deduplicates repeated webhook deliveries by the Paystack reference,
+    // which is used as event_id in buildMetaPurchaseEvent.
+    await sendMetaPurchase({
+      reference: d.reference ?? "",
+      email: d.customer?.email ?? "",
+      amount: paidAmountRand,
+      currency: d.currency ?? "ZAR",
+      items,
+      paidAt: d.paid_at,
+      client: d.metadata?.metaClient,
+    });
   }
 
   if (event.event === "charge.failed" && event.data) {
