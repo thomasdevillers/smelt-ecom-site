@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ProductGallery from "@/components/ProductGallery";
 import Accordion from "@/components/Accordion";
 import HairPSA from "@/components/HairPSA";
@@ -9,9 +9,12 @@ import { BASE_PRICE, formatMoney, lineTotal } from "@/lib/pricing";
 import { useCart } from "@/lib/cart";
 import { META_CURRENCY, metaVariantContent } from "@/lib/meta";
 import { trackMetaEvent } from "@/lib/metaPixel";
+import { tiktokContent } from "@/lib/tiktok";
+import { trackTikTokEvent } from "@/lib/tiktokPixel";
 import styles from "@/app/product/product.module.css";
 
 export default function ProductClient() {
+  const viewed = useRef(false);
   const [colour, setColour] = useState<Colour>("green");
   const [qty, setQty] = useState(1);
   const { dispatch, openCart } = useCart();
@@ -20,6 +23,9 @@ export default function ProductClient() {
   const add = () => { dispatch({ type: "add", colour, qty }); openCart(); };
 
   useEffect(() => {
+    if (viewed.current) return;
+    viewed.current = true;
+    trackTikTokEvent("ViewContent", { contents: [tiktokContent("green", 1)], value: BASE_PRICE, currency: "ZAR" });
     const content = metaVariantContent("green", 1);
     trackMetaEvent("ViewContent", {
       content_name: PRODUCT.name,

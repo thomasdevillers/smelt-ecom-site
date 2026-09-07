@@ -5,6 +5,9 @@ import { useCart } from "@/lib/cart";
 import { formatMoney } from "@/lib/pricing";
 import { META_CURRENCY, metaContentId } from "@/lib/meta";
 import { trackMetaEvent } from "@/lib/metaPixel";
+import { COLOURS, type Colour } from "@/lib/product";
+import { tiktokContent } from "@/lib/tiktok";
+import { trackTikTokEvent } from "@/lib/tiktokPixel";
 import styles from "../checkout.module.css";
 
 interface PaidItem {
@@ -38,6 +41,17 @@ export default function CheckoutSuccessPage() {
         );
         const data = await res.json();
         if (res.ok && data.paid) {
+          const tiktokParameters = {
+            contents: ((data.items ?? []) as PaidItem[])
+              .filter((item) => COLOURS.includes(item.colour as Colour) && item.qty > 0)
+              .map((item) => tiktokContent(item.colour as Colour, item.qty)),
+            value: data.amountRand,
+            currency: data.currency || "ZAR",
+          };
+          // Paystack owns payment entry; a verified payment is our reliable signal.
+          trackTikTokEvent("AddPaymentInfo", tiktokParameters, data.reference);
+          trackTikTokEvent("PlaceAnOrder", tiktokParameters, data.reference);
+          trackTikTokEvent("Purchase", tiktokParameters, data.reference);
           const purchaseStorageKey = `smelt-meta-purchase-${data.reference}`;
           if (!sessionStorage.getItem(purchaseStorageKey)) {
             const items = (data.items ?? []) as PaidItem[];

@@ -4,6 +4,9 @@ import { cartReducer, emptyCart, cartCount, cartSubtotal, type CartState, type C
 import { META_CURRENCY, metaVariantContent, metaVariantName } from "./meta";
 import { trackMetaEvent } from "./metaPixel";
 
+import { tiktokContent } from "./tiktok";
+import { trackTikTokEvent } from "./tiktokPixel";
+
 const STORAGE_KEY = "smelt-cart-v1";
 
 interface CartContextValue {
@@ -44,6 +47,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     baseDispatch(action);
     if (action.type === "add" && action.qty > 0) {
       const content = metaVariantContent(action.colour, action.qty);
+      trackTikTokEvent("AddToCart", {
+        contents: [tiktokContent(action.colour, action.qty)],
+        value: content.item_price! * content.quantity,
+        currency: "ZAR",
+      });
       trackMetaEvent("AddToCart", {
         content_name: metaVariantName(action.colour),
         content_ids: [content.id],

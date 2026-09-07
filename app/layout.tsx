@@ -106,6 +106,7 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
 
   ttq.load('DAFEQ6BC77UES974NGD0');
   ttq.page();
+  window.dispatchEvent(new Event('tiktok-pixel-ready'));
 }(window, document, 'ttq');`}
         </Script>
         <Script id="meta-pixel">

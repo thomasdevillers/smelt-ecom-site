@@ -2,20 +2,19 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
+import { trackTikTokPage } from "@/lib/tiktokPixel";
 import { trackMetaEvent } from "@/lib/metaPixel";
 
 export default function MetaPageViewTracker() {
   const pathname = usePathname();
-  const firstPageView = useRef(true);
+  const previousPathname = useRef(pathname);
 
   useEffect(() => {
-    // The bootstrap snippet records the initial load. Only report subsequent
-    // client-side navigations here so a page is never counted twice.
-    if (firstPageView.current) {
-      firstPageView.current = false;
-      return;
-    }
+    // The bootstrap records the initial load; only track actual route changes.
+    if (previousPathname.current === pathname) return;
+    previousPathname.current = pathname;
     trackMetaEvent("PageView");
+    trackTikTokPage();
   }, [pathname]);
 
   return null;

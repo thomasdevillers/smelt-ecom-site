@@ -9,6 +9,8 @@ import { AddressAutocomplete, type ParsedPlaceAddress } from "@/components/Addre
 import type { ShippingAddress } from "@/lib/address";
 import { META_CURRENCY, metaCartContents } from "@/lib/meta";
 import { getMetaClientContext, trackMetaEvent } from "@/lib/metaPixel";
+import { tiktokCartParameters } from "@/lib/tiktok";
+import { identifyTikTok, trackTikTokEvent } from "@/lib/tiktokPixel";
 import styles from "./checkout.module.css";
 
 type Status = "idle" | "submitting" | "verifying" | "error";
@@ -56,6 +58,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (checkoutTracked.current || subtotal <= 0) return;
     checkoutTracked.current = true;
+    trackTikTokEvent("InitiateCheckout", tiktokCartParameters(cart, grandTotal(subtotal)));
     const contents = metaCartContents(cart);
     trackMetaEvent("InitiateCheckout", {
       content_ids: contents.map((item) => item.id),
@@ -109,6 +112,8 @@ export default function CheckoutPage() {
       setStatus("error");
       return;
     }
+
+    identifyTikTok({ email, phone: address.phone });
 
     // Hand off to Paystack
     setStatus("submitting");
