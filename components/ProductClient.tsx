@@ -51,7 +51,7 @@ export default function ProductClient() {
           <div className={styles.opt}>
             <div className={styles.optLabel}>Colourway</div>
             <div className={styles.chips}>
-              {(["green","cream"] as Colour[]).map((c) => (
+              {(["green", "cream"] as Colour[]).map((c) => (
                 <button key={c} className={`${styles.chip} ${colour === c ? styles.chipOn : ""}`} onClick={() => { setColour(c); }}>{PRODUCT.variants[c].name}</button>
               ))}
             </div>
@@ -63,9 +63,6 @@ export default function ProductClient() {
               <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Decrease quantity">−</button>
               <span>{qty}</span>
               <button onClick={() => setQty((q) => q + 1)} aria-label="Increase quantity">+</button>
-            </div>
-            <div className={styles.reassure} style={{ marginTop: '8px', color: 'var(--terracotta)' }}>
-              Bundle &amp; save: 5% off 2 hats, 10% off 3+ hats.
             </div>
           </div>
 
