@@ -1,3 +1,6 @@
+import { after } from "next/server";
+import { sendTikTokPurchase } from "@/lib/tiktokEvents";
+import type { TikTokClientContext } from "@/lib/tiktok";
 import crypto from "node:crypto";
 import type { OrderItem } from "@/lib/orderTypes";
 import { sendPaymentFailedEmail } from "@/lib/email";
@@ -55,6 +58,8 @@ export async function POST(request: Request) {
         items?: OrderItem[];
         amountRand?: number;
         metaClient?: MetaClientContext;
+        tiktokClient?: TikTokClientContext;
+        shippingAddress?: { phone?: unknown };
       };
     };
   };
@@ -76,7 +81,7 @@ export async function POST(request: Request) {
     // whatever amountRand the client claims in metadata.
     const cart = sanitizeCart(d.metadata?.cart);
     const expectedAmountRand = checkoutTotal(cart);
-    const amountMatches = expectedAmountRand === paidAmountRand;
+    const amountMatches = expectedAmountRand > 0 && d.amount === expectedAmountRand * 100 && d.currency === "ZAR";
 
     if (!amountMatches) {
       console.error(
@@ -87,6 +92,13 @@ export async function POST(request: Request) {
       return new Response("ok", { status: 200 });
     }
 
+    if (d.currency === "ZAR" && paidAmountRand > 0) {
+      after(() => sendTikTokPurchase({
+        reference: d.reference ?? "", email: d.customer?.email ?? "",
+        phone: d.metadata?.shippingAddress?.phone, amount: paidAmountRand, currency: d.currency!,
+        cart, paidAt: d.paid_at, client: d.metadata?.tiktokClient,
+      }));
+    }
     console.log(`Confirmed Paystack order: ${d.reference}`);
     // Meta deduplicates repeated webhook deliveries by the Paystack reference,
     // which is used as event_id in buildMetaPurchaseEvent.

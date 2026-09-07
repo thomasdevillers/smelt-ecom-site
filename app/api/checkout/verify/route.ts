@@ -1,3 +1,6 @@
+import { after } from "next/server";
+import { sendTikTokPurchase } from "@/lib/tiktokEvents";
+import type { TikTokClientContext } from "@/lib/tiktok";
 import { verifyTransaction } from "@/lib/paystack";
 import type { OrderItem } from "@/lib/orderTypes";
 import { checkoutTotal, sanitizeCart } from "@/lib/checkoutShared";
@@ -11,6 +14,7 @@ export async function POST(request: Request) {
     reference?: unknown;
     cart?: unknown;
     metaClient?: MetaClientContext;
+    tiktokClient?: TikTokClientContext;
   };
   try {
     body = await request.json();
@@ -36,6 +40,8 @@ export async function POST(request: Request) {
     // inline widget — treat it as untrusted input, same as `body`.
     const meta = verified.metadata as {
       cart?: unknown;
+      tiktokClient?: TikTokClientContext;
+      shippingAddress?: { phone?: unknown };
       items?: OrderItem[];
     } | null;
 
@@ -55,7 +61,7 @@ export async function POST(request: Request) {
     // one in `items`/`cart`.
     const expectedAmountRand = checkoutTotal(cart);
     const paidAmountRand = Math.round(verified.amount / 100);
-    const amountMatches = expectedAmountRand === paidAmountRand;
+    const amountMatches = expectedAmountRand > 0 && verified.amount === expectedAmountRand * 100 && verified.currency === "ZAR";
 
     if (!amountMatches) {
       console.error(
@@ -69,6 +75,12 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
+
+    after(() => sendTikTokPurchase({
+      reference: verified.reference, email: verified.customerEmail ?? "",
+      phone: meta?.shippingAddress?.phone, amount: paidAmountRand, currency: verified.currency,
+      cart, paidAt: verified.paidAt, request, client: body.tiktokClient ?? meta?.tiktokClient,
+    }));
 
     await sendMetaPurchase({
       reference,
@@ -103,13 +115,28 @@ export async function GET(request: Request) {
       return Response.json({ error: "Payment not completed." }, { status: 400 });
     }
 
-    const meta = verified.metadata as { items?: OrderItem[] } | null;
+    const meta = verified.metadata as {
+      items?: OrderItem[]; cart?: unknown; tiktokClient?: TikTokClientContext;
+      shippingAddress?: { phone?: unknown };
+    } | null;
+    const cart = sanitizeCart(meta?.cart);
+    if (checkoutTotal(cart) * 100 !== verified.amount || checkoutTotal(cart) <= 0 || verified.currency !== "ZAR") {
+      return Response.json({ error: "Payment total does not match the order." }, { status: 409 });
+    }
+    after(() => sendTikTokPurchase({
+      reference: verified.reference, email: verified.customerEmail ?? "",
+      phone: meta?.shippingAddress?.phone, amount: Math.round(verified.amount / 100),
+      currency: verified.currency, cart, paidAt: verified.paidAt,
+      client: meta?.tiktokClient, request,
+    }));
     return Response.json({
       paid: true,
       reference: verified.reference,
       amountRand: Math.round(verified.amount / 100),
       currency: verified.currency,
-      items: meta?.items ?? [],
+      items: (Object.keys(cart) as Array<keyof CartState>)
+        .filter((colour) => cart[colour] > 0)
+        .map((colour) => ({ colour, name: PRODUCT.variants[colour].name, qty: cart[colour] })),
     });
   } catch (err) {
     console.error("Paystack read verification error:", err);

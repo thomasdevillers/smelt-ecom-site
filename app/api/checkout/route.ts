@@ -1,3 +1,4 @@
+import { tiktokUser } from "@/lib/tiktokEvents";
 import { cartSubtotal, type CartState } from "@/lib/cartReducer";
 import { PRODUCT } from "@/lib/product";
 import { initializeTransaction, isPaystackConfigured } from "@/lib/paystack";
@@ -7,7 +8,7 @@ import { sanitizeAddress } from "@/lib/address";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
-  let body: { email?: unknown; cart?: unknown; name?: unknown; address?: unknown };
+  let body: { email?: unknown; cart?: unknown; name?: unknown; address?: unknown; tiktokClient?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -46,7 +47,7 @@ export async function POST(request: Request) {
       email,
       amount,
       callbackUrl: `${origin}/checkout/success`,
-      metadata: { cart, items, amountRand: amount, customerName, shippingAddress },
+      metadata: { cart, items, amountRand: amount, customerName, shippingAddress, tiktokClient: tiktokUser(body.tiktokClient, request) },
     });
     return Response.json({ configured: true, authorizationUrl, reference });
   } catch (err) {

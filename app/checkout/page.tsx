@@ -10,7 +10,7 @@ import type { ShippingAddress } from "@/lib/address";
 import { META_CURRENCY, metaCartContents } from "@/lib/meta";
 import { getMetaClientContext, trackMetaEvent } from "@/lib/metaPixel";
 import { tiktokCartParameters } from "@/lib/tiktok";
-import { identifyTikTok, trackTikTokEvent } from "@/lib/tiktokPixel";
+import { getTikTokClientContext, identifyTikTok, trackTikTokEvent } from "@/lib/tiktokPixel";
 import styles from "./checkout.module.css";
 
 type Status = "idle" | "submitting" | "verifying" | "error";
@@ -82,6 +82,7 @@ export default function CheckoutPage() {
           address,
           name,
           metaClient: getMetaClientContext(),
+          tiktokClient: getTikTokClientContext(),
         }),
       });
       const data = await res.json();
@@ -147,6 +148,7 @@ export default function CheckoutPage() {
         customerName: name,
         shippingAddress: address,
         metaClient: getMetaClientContext(),
+        tiktokClient: getTikTokClientContext(),
         custom_fields: [
           {
             display_name: "Cart",

@@ -48,6 +48,7 @@ describe("TikTok matching and commerce", () => {
     target.ttq = { identify, track };
     target.dispatchEvent(new Event("tiktok-pixel-ready"));
     expect(identify).toHaveBeenCalledWith({ email: hash("buyer@example.com") });
+    expect(track).toHaveBeenCalledWith("Purchase", { value: 540, currency: "ZAR" }, { event_id: "verified-123" });
     expect(track).toHaveBeenCalledTimes(1);
     expect(identify.mock.invocationCallOrder[0]).toBeLessThan(track.mock.invocationCallOrder[0]);
     // A new module (page reload) still respects session deduplication.
@@ -56,6 +57,29 @@ describe("TikTok matching and commerce", () => {
     reloaded.trackTikTokEvent("Purchase", {}, "verified-123");
     await Promise.resolve();
     expect(track).toHaveBeenCalledTimes(1);
+  });
+
+  it("relays browsing events even before the pixel loads, sharing the exact event ID", async () => {
+    vi.resetModules();
+    const target = new EventTarget() as EventTarget & { ttq?: unknown; location?: unknown };
+    target.location = { origin: "https://saunahat.co.za", pathname: "/product", search: "?ttclid=click-123" };
+    vi.stubGlobal("window", target);
+    vi.stubGlobal("crypto", webcrypto);
+    vi.stubGlobal("document", { cookie: "_ttp=browser-123" });
+    vi.stubGlobal("sessionStorage", { getItem: vi.fn(), setItem: vi.fn() });
+    const relay = vi.fn().mockResolvedValue(new Response());
+    vi.stubGlobal("fetch", relay);
+    const { trackTikTokEvent } = await import("./tiktokPixel");
+    trackTikTokEvent("ViewContent", { currency: "ZAR", value: 450 });
+    await Promise.resolve();
+    expect(relay).toHaveBeenCalledTimes(1);
+    const payload = JSON.parse(relay.mock.calls[0][1].body);
+    expect(payload.user).toMatchObject({ ttclid: "click-123", ttp: "browser-123" });
+    expect(payload.url).toBe("https://saunahat.co.za/product");
+    const track = vi.fn(); target.ttq = { track };
+    target.dispatchEvent(new Event("tiktok-pixel-ready"));
+    expect(track).toHaveBeenCalledWith("ViewContent", { currency: "ZAR", value: 450 }, { event_id: payload.event_id });
+    expect(payload.event_id).toBeTruthy();
   });
 
   it("still tracks when storage is denied and safely absorbs pixel errors", async () => {
