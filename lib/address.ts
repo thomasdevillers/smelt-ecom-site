@@ -1,6 +1,7 @@
 export interface ShippingAddress {
   line1: string;
   line2?: string;
+  buildingName?: string;
   city: string;
   postalCode: string;
   province: string;
@@ -19,6 +20,7 @@ export function sanitizeAddress(input: unknown): ShippingAddress {
   return {
     line1: str(c.line1),
     line2: str(c.line2) || undefined,
+    buildingName: str(c.buildingName) || undefined,
     city: str(c.city),
     postalCode: str(c.postalCode),
     province: str(c.province),

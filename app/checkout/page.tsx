@@ -13,6 +13,7 @@ import { tiktokCartParameters } from "@/lib/tiktok";
 import { getTikTokClientContext, identifyTikTok, trackTikTokEvent } from "@/lib/tiktokPixel";
 import { trackVercelEvent, vercelCartData } from "@/lib/vercelAnalytics";
 import styles from "./checkout.module.css";
+import { useCheckoutFollowup } from "@/lib/useCheckoutFollowup";
 
 type Status = "idle" | "submitting" | "verifying" | "error";
 type PaystackSuccess = { reference: string };
@@ -30,6 +31,7 @@ export default function CheckoutPage() {
   const [address, setAddress] = useState<ShippingAddress>({
     line1: "",
     line2: "",
+    buildingName: "",
     city: "",
     postalCode: "",
     province: "",
@@ -55,6 +57,8 @@ export default function CheckoutPage() {
   };
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
+  const [followupStage, setFollowupStage] = useState<"details" | "payment_opened" | "payment_closed">("details");
+  useCheckoutFollowup({ email, name, cart, activity: address, stage: error ? "checkout_error" : followupStage });
 
   useEffect(() => {
     if (checkoutTracked.current || subtotal <= 0) return;
@@ -110,6 +114,12 @@ export default function CheckoutPage() {
     e.preventDefault();
     setError("");
 
+    if (!address.phone?.trim()) {
+      setError("Please enter a contact phone number for your delivery.");
+      setStatus("error");
+      return;
+    }
+
     if (process.env.NEXT_PUBLIC_PAYSTACK_CONFIGURED !== "true") {
       setError("Checkout is temporarily unavailable. Please try again shortly.");
       setStatus("error");
@@ -120,6 +130,7 @@ export default function CheckoutPage() {
 
     // Hand off to Paystack
     setStatus("submitting");
+    setFollowupStage("payment_opened");
 
     const items = COLOURS.filter((c) => cart[c] > 0).map((c) => ({
       colour: c,
@@ -183,6 +194,7 @@ export default function CheckoutPage() {
       onSuccess,
       onCancel: () => {
         setStatus("idle");
+        setFollowupStage("payment_closed");
       },
     });
   }
@@ -234,7 +246,7 @@ export default function CheckoutPage() {
         {lines.length > 0 && (
           <form className={styles.form} onSubmit={handlePay}>
             <label className={styles.field}>
-              <span className={styles.label}>Email for your receipt</span>
+              <span className={styles.label}>Email for your order and checkout support</span>
               <input
                 className={styles.input}
                 type="email"
@@ -263,6 +275,17 @@ export default function CheckoutPage() {
                 onChange={(v) => setAddr("line1", v)}
                 onPlaceSelect={handlePlaceSelect}
                 required
+              />
+            </label>
+            <label className={styles.field}>
+              <span className={styles.label}>Building / estate name (optional)</span>
+              <input
+                className={styles.input}
+                type="text"
+                name="buildingName"
+                value={address.buildingName ?? ""}
+                onChange={(e) => setAddr("buildingName", e.target.value)}
+                placeholder="Building, complex or estate name"
               />
             </label>
             <label className={styles.field}>
@@ -321,13 +344,16 @@ export default function CheckoutPage() {
               />
             </label>
             <label className={styles.field}>
-              <span className={styles.label}>Phone (optional)</span>
+              <span className={styles.label}>Contact phone number</span>
               <input
                 className={styles.input}
                 type="tel"
+                name="phone"
+                autoComplete="tel"
                 value={address.phone}
                 onChange={(e) => setAddr("phone", e.target.value)}
                 placeholder="+27 82 000 0000"
+                required
               />
             </label>
             {status === "error" && <p className={styles.err}>{error}</p>}

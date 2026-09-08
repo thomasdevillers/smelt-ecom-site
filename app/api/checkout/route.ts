@@ -24,6 +24,12 @@ export async function POST(request: Request) {
 
   const customerName = typeof body.name === "string" ? body.name.trim() : "";
   const shippingAddress = sanitizeAddress(body.address);
+  if (!shippingAddress.phone) {
+    return Response.json(
+      { error: "A contact phone number is required for delivery." },
+      { status: 400 },
+    );
+  }
 
   const cart = sanitizeCart(body.cart);
   const subtotal = cartSubtotal(cart);

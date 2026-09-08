@@ -26,7 +26,7 @@ export function moneyRow(label: string, value: string): string {
 }
 
 export function addressBlock(a: ShippingAddress): string {
-  const lines = [a.line1, a.line2, `${a.city}, ${a.province} ${a.postalCode}`, a.country, a.phone]
+  const lines = [a.buildingName, a.line1, a.line2, `${a.city}, ${a.province} ${a.postalCode}`, a.country, a.phone]
     .filter(Boolean)
     .map((l) => escapeHtml(String(l)))
     .join("<br/>");

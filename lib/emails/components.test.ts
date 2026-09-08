@@ -20,10 +20,11 @@ describe("email components", () => {
 
   it("renders an address block", () => {
     const html = addressBlock({
-      line1: "1 Main Rd", city: "Cape Town", postalCode: "8001",
+      line1: "1 Main Rd", buildingName: "Oak & Pine Estate", city: "Cape Town", postalCode: "8001",
       province: "WC", country: "South Africa",
     });
     expect(html).toContain("1 Main Rd");
+    expect(html).toContain("Oak &amp; Pine Estate");
     expect(html).toContain("Cape Town");
   });
 });
