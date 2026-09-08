@@ -118,6 +118,10 @@ export default function CheckoutSuccessPage() {
               and we&rsquo;ll email tracking as soon as it&rsquo;s on the way. A receipt is
               heading to your inbox now.
             </p>
+            <p className={styles.copy}>
+              Can&rsquo;t find your order confirmation email? Please check your spam
+              or junk folder.
+            </p>
             <div className={styles.summary}>
               <div className={styles.row}>
                 <span>Reference</span>
