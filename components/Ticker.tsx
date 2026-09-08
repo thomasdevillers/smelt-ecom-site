@@ -2,7 +2,7 @@ import StarMark from "./ui/StarMark";
 import styles from "./Ticker.module.css";
 
 const ITEMS = [
-  "WARM REGARDS", "100% WOOL FELT", "FREE SHIPPING OVER R500",
+  "WARM REGARDS", "100% WOOL FELT", "FREE DELIVERY ON 2+ HATS",
   "EMBROIDERED, NOT PRINTED", "MADE TO SWEAT IN",
 ];
 

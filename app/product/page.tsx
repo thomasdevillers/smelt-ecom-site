@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import ProductClient from "@/components/ProductClient";
 import { PRODUCT } from "@/lib/product";
-import { BASE_PRICE } from "@/lib/pricing";
+import { BASE_PRICE, SHIPPING_FEE } from "@/lib/pricing";
 import { abs, breadcrumbLd, jsonLdScript } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Smelt Sauna Hat · 100% wool felt, embroidered",
   description:
-    "The Smelt sauna hat: 100% merino wool felt, embroidered front and back, one size. Forest Green or Natural Cream. In stock and shipping worldwide from Cape Town.",
+    "The Smelt sauna hat: 100% merino wool felt, embroidered front and back, one size. Forest Green or Natural Cream. In stock and shipping nationwide from Cape Town.",
   alternates: { canonical: "/product" },
   openGraph: {
     title: "Smelt Sauna Hat · 100% wool felt, embroidered",
@@ -56,8 +56,8 @@ const productLd = {
       "@type": "OfferShippingDetails",
       shippingRate: {
         "@type": "MonetaryAmount",
-        // Orders over the free-shipping threshold qualify for free shipping.
-        value: 0,
+        // The advertised single hat has the standard nationwide delivery fee.
+        value: SHIPPING_FEE,
         currency: "ZAR",
       },
       shippingDestination: {

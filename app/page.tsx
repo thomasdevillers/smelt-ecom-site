@@ -11,7 +11,7 @@ import { FAQ } from "@/content/faq";
 
 export const metadata = {
   description:
-    "100% merino wool felt sauna hats, embroidered not printed. Two colourways, one size, in stock and shipping worldwide from Cape Town.",
+    "100% merino wool felt sauna hats, embroidered not printed. Two colourways, one size, in stock and shipping nationwide from Cape Town.",
   alternates: { canonical: "/" },
 };
 

@@ -7,7 +7,6 @@ import {
   formatMoney,
   lineTotal,
   unitPrice,
-  FREE_SHIP_THRESHOLD,
   qualifiesForFreeShipping,
 } from "@/lib/pricing";
 import styles from "./cart.module.css";
@@ -16,7 +15,6 @@ export default function CartPage() {
   const { cart, dispatch, subtotal } = useCart();
   const lines = COLOURS.filter((c) => cart[c] > 0);
   const freeShip = qualifiesForFreeShipping(subtotal);
-  const remaining = Math.max(0, FREE_SHIP_THRESHOLD - subtotal);
 
   return (
     <main className={styles.page}>
@@ -45,7 +43,7 @@ export default function CartPage() {
                   <div className={styles.lineBody}>
                     <div className={styles.lineName}>{v.name}</div>
                     <div className={styles.lineMeta}>
-                      {formatMoney(unitPrice(cart[c]))} each
+                      {formatMoney(unitPrice())} each
                     </div>
                     <div className={styles.qtyRow}>
                       <button
@@ -85,7 +83,7 @@ export default function CartPage() {
             <div className={styles.shipMsg}>
               {freeShip
                 ? "Free shipping unlocked. Warm regards."
-                : `${formatMoney(remaining)} away from free shipping.`}
+                : "Add a second hat in either colour for free delivery."}
             </div>
             <div className={styles.row}>
               <span>Subtotal</span>

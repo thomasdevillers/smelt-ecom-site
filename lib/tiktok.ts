@@ -8,7 +8,7 @@ export function tiktokContent(colour: Colour, quantity: number) {
     content_type: "product" as const,
     content_name: `${PRODUCT.name} - ${PRODUCT.variants[colour].name}`,
     quantity,
-    price: unitPrice(quantity),
+    price: unitPrice(),
   };
 }
 

@@ -7,7 +7,6 @@ import {
   formatMoney,
   lineTotal,
   unitPrice,
-  FREE_SHIP_THRESHOLD,
   qualifiesForFreeShipping,
 } from "@/lib/pricing";
 import styles from "./CartDrawer.module.css";
@@ -16,8 +15,7 @@ export default function CartDrawer() {
   const { cart, dispatch, subtotal, isOpen, closeCart, count } = useCart();
   const lines = COLOURS.filter((c) => cart[c] > 0);
   const freeShip = qualifiesForFreeShipping(subtotal);
-  const remaining = Math.max(0, FREE_SHIP_THRESHOLD - subtotal);
-  const shipProgress = Math.min(100, (subtotal / FREE_SHIP_THRESHOLD) * 100);
+  const shipProgress = freeShip ? 100 : 50;
 
   return (
     <>
@@ -70,7 +68,7 @@ export default function CartDrawer() {
                     <div className={styles.lineBody}>
                       <div className={styles.lineName}>{v.name}</div>
                       <div className={styles.lineMeta}>
-                        {formatMoney(unitPrice(cart[c]))} each
+                        {formatMoney(unitPrice())} each
                       </div>
                       <div className={styles.qtyRow}>
                         <button
@@ -108,7 +106,7 @@ export default function CartDrawer() {
               <div className={styles.shipMsg}>
                 {freeShip
                   ? "You've unlocked free shipping. Warm regards."
-                  : `${formatMoney(remaining)} away from free shipping.`}
+                  : "Add a second hat in either colour for free delivery."}
               </div>
               <div
                 className={styles.shipBar}

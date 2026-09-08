@@ -25,9 +25,9 @@ describe("TikTok matching and commerce", () => {
   });
 
   it("uses variant quantities, bundle prices and the supplied shipping-inclusive total", () => {
-    expect(tiktokCartParameters({ green: 2, cream: 0 }, 856)).toEqual({
-      currency: "ZAR", value: 856,
-      contents: [{ content_id: "smelt-sauna-hat-green", content_type: "product", content_name: "Smelt Sauna Hat - Forest Green", quantity: 2, price: 428 }],
+    expect(tiktokCartParameters({ green: 2, cream: 0 }, 900)).toEqual({
+      currency: "ZAR", value: 900,
+      contents: [{ content_id: "smelt-sauna-hat-green", content_type: "product", content_name: "Smelt Sauna Hat - Forest Green", quantity: 2, price: 450 }],
     });
   });
 

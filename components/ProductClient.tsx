@@ -1,8 +1,10 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import ProductGallery from "@/components/ProductGallery";
 import Accordion from "@/components/Accordion";
 import HairPSA from "@/components/HairPSA";
+import { POLICIES } from "@/content/policies";
 import SectionLabel from "@/components/ui/SectionLabel";
 import { PRODUCT, type Colour } from "@/lib/product";
 import { BASE_PRICE, formatMoney, lineTotal } from "@/lib/pricing";
@@ -60,7 +62,7 @@ export default function ProductClient() {
           </div>
 
           <div className={styles.opt}>
-            <div className={styles.optLabel}>Quantity {qty >= 2 && <span className={styles.savePill}>{qty >= 3 ? "10% off" : "5% off"}</span>}</div>
+            <div className={styles.optLabel}>Quantity</div>
             <div className={styles.qty}>
               <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Decrease quantity">−</button>
               <span>{qty}</span>
@@ -69,6 +71,8 @@ export default function ProductClient() {
           </div>
 
           <button className={styles.add} onClick={add}>Add to bag · {formatMoney(total)}</button>
+
+          <p className={styles.reassure}>Ships from Cape Town · Dispatched within 1–3 business days.<br />Free nationwide delivery when you buy two or more hats.</p>
 
           <div className={styles.accordions}>
             <Accordion title="Details" defaultOpen>
@@ -80,7 +84,13 @@ export default function ProductClient() {
               </ul>
             </Accordion>
             <Accordion title="Felt care">Air it out after each session and let it dry fully. Spot-clean with cool water. Never machine wash, because felt holds a grudge.</Accordion>
-            <Accordion title="Shipping &amp; returns">R90 shipping nationwide across South Africa (free shipping on orders over R500).</Accordion>
+            <Accordion title="Shipping &amp; returns">
+              <p>R90 delivery nationwide across South Africa. Buy two or more hats, in any colour combination, for free delivery.</p>
+              <p>{POLICIES.shipping.dispatch} Courier transit times after dispatch:</p>
+              <ul>{POLICIES.shipping.timelines.map(({ area, time }) => <li key={area}>{area}: {time}</li>)}</ul>
+              <p>{POLICIES.shipping.tracking}</p>
+              <Link href="/policies#returns-policy">Read our returns policy</Link>
+            </Accordion>
           </div>
         </div>
       </div>

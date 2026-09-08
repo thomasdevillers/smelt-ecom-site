@@ -11,7 +11,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 it("uses flat commerce data with bundle prices and shipping-inclusive checkout value", () => {
-  expect(vercelProductData("cream", 2)).toEqual({ product: "Smelt Sauna Hat", colour: "cream", quantity: 2, value: 856, currency: "ZAR" });
+  expect(vercelProductData("cream", 2)).toEqual({ product: "Smelt Sauna Hat", colour: "cream", quantity: 2, value: 900, currency: "ZAR" });
   expect(vercelCartData({ green: 1, cream: 1 }, 900)).toMatchObject({ colour: "mixed", quantity: 2, value: 900 });
 });
 it("only counts confirmed payments once and sends no payment reference or customer data", async () => {

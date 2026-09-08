@@ -33,11 +33,11 @@ describe("cartReducer", () => {
     expect(s.green).toBe(0);
   });
 
-  it("computes subtotal using per-colour bundle pricing", () => {
+  it("computes subtotal at full price across colours", () => {
     // green x3 (1215) + cream x1 (450) = 1665
     let s = cartReducer(emptyCart, { type: "add", colour: "green", qty: 3 });
     s = cartReducer(s, { type: "add", colour: "cream", qty: 1 });
-    expect(cartSubtotal(s)).toBe(1665);
+    expect(cartSubtotal(s)).toBe(1800);
     expect(cartCount(s)).toBe(4);
   });
 });
