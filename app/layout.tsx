@@ -138,6 +138,7 @@ window.dispatchEvent(new Event('meta-pixel-ready'));`}
             __html: JSON.stringify(organizationLd).replace(/</g, '\\u003c'),
           }}
         />
+        <Analytics />
         <CartProvider>
           <Ticker />
           <Header />
@@ -145,7 +146,6 @@ window.dispatchEvent(new Event('meta-pixel-ready'));`}
           <Footer />
           <CartDrawer />
         </CartProvider>
-        <Analytics />
         <SpeedInsights />
         <MetaPageViewTracker />
       </body>

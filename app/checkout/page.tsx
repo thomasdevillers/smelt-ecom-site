@@ -11,6 +11,7 @@ import { META_CURRENCY, metaCartContents } from "@/lib/meta";
 import { getMetaClientContext, trackMetaEvent } from "@/lib/metaPixel";
 import { tiktokCartParameters } from "@/lib/tiktok";
 import { getTikTokClientContext, identifyTikTok, trackTikTokEvent } from "@/lib/tiktokPixel";
+import { trackVercelEvent, vercelCartData } from "@/lib/vercelAnalytics";
 import styles from "./checkout.module.css";
 
 type Status = "idle" | "submitting" | "verifying" | "error";
@@ -58,6 +59,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (checkoutTracked.current || subtotal <= 0) return;
     checkoutTracked.current = true;
+    trackVercelEvent("InitiateCheckout", vercelCartData(cart, grandTotal(subtotal)));
     trackTikTokEvent("InitiateCheckout", tiktokCartParameters(cart, grandTotal(subtotal)));
     const contents = metaCartContents(cart);
     trackMetaEvent("InitiateCheckout", {

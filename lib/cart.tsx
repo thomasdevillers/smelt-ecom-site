@@ -7,6 +7,8 @@ import { trackMetaEvent } from "./metaPixel";
 import { tiktokContent } from "./tiktok";
 import { trackTikTokEvent } from "./tiktokPixel";
 
+import { trackVercelEvent, vercelProductData } from "./vercelAnalytics";
+
 const STORAGE_KEY = "smelt-cart-v1";
 
 interface CartContextValue {
@@ -46,6 +48,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const dispatch = useCallback((action: CartAction) => {
     baseDispatch(action);
     if (action.type === "add" && action.qty > 0) {
+      trackVercelEvent("AddToCart", vercelProductData(action.colour, action.qty));
       const content = metaVariantContent(action.colour, action.qty);
       trackTikTokEvent("AddToCart", {
         contents: [tiktokContent(action.colour, action.qty)],

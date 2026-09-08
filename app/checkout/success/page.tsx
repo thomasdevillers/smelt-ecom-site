@@ -8,6 +8,7 @@ import { trackMetaEvent } from "@/lib/metaPixel";
 import { COLOURS, type Colour } from "@/lib/product";
 import { tiktokContent } from "@/lib/tiktok";
 import { trackTikTokEvent } from "@/lib/tiktokPixel";
+import { trackVercelPurchase } from "@/lib/vercelAnalytics";
 import styles from "../checkout.module.css";
 
 interface PaidItem {
@@ -41,6 +42,7 @@ export default function CheckoutSuccessPage() {
         );
         const data = await res.json();
         if (res.ok && data.paid) {
+          trackVercelPurchase(data);
           const tiktokParameters = {
             contents: ((data.items ?? []) as PaidItem[])
               .filter((item) => COLOURS.includes(item.colour as Colour) && item.qty > 0)
