@@ -30,13 +30,14 @@ export default function CheckoutPage() {
   const [name, setName] = useState("");
   const [address, setAddress] = useState<ShippingAddress>({
     line1: "",
-    line2: "",
-    buildingName: "",
+    suburb: "",
     city: "",
     postalCode: "",
     province: "",
     country: "South Africa",
     phone: "",
+    addressLine2: "",
+    company: "",
   });
   const setAddr = (k: string, v: string) =>
     setAddress((a) => ({ ...a, [k]: v }));
@@ -45,7 +46,8 @@ export default function CheckoutPage() {
     setAddress((prev) => ({
       ...prev,
       line1: parsed.line1 || prev.line1,
-      line2: parsed.line2 || prev.line2,
+      formattedAddress: parsed.formattedAddress || prev.formattedAddress,
+      suburb: parsed.suburb || prev.suburb,
       city: parsed.city || prev.city,
       province: parsed.province || prev.province,
       postalCode: parsed.postalCode || prev.postalCode,
@@ -140,6 +142,15 @@ export default function CheckoutPage() {
 
     const totalAmount = grandTotal(subtotal);
 
+    // Paystack (and, downstream, the order confirmation email) should get the
+    // full formatted address in line1 — paste-ready for Aramex's "Street
+    // Address" field — while the checkout form itself keeps showing the
+    // customer just the short street line.
+    const paystackAddress: ShippingAddress = {
+      ...address,
+      line1: address.formattedAddress || address.line1,
+    };
+
     // Dynamically import PaystackPop to prevent window is not defined error during SSR
     const PaystackPop = (await import("@paystack/inline-js")).default;
     const paystack = new PaystackPop();
@@ -159,7 +170,7 @@ export default function CheckoutPage() {
         items,
         amountRand: totalAmount,
         customerName: name,
-        shippingAddress: address,
+        shippingAddress: paystackAddress,
         metaClient: getMetaClientContext(),
         tiktokClient: getTikTokClientContext(),
         custom_fields: [
@@ -186,7 +197,7 @@ export default function CheckoutPage() {
           {
             display_name: "Shipping Address",
             variable_name: "shipping_address",
-            value: JSON.stringify(address),
+            value: JSON.stringify(paystackAddress),
           },
         ],
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -268,7 +279,7 @@ export default function CheckoutPage() {
               />
             </label>
             <label className={styles.field}>
-              <span className={styles.label}>Address line 1</span>
+              <span className={styles.label}>Street address</span>
               <AddressAutocomplete
                 className={styles.input}
                 value={address.line1}
@@ -278,24 +289,35 @@ export default function CheckoutPage() {
               />
             </label>
             <label className={styles.field}>
-              <span className={styles.label}>Building / estate name (optional)</span>
-              <input
-                className={styles.input}
-                type="text"
-                name="buildingName"
-                value={address.buildingName ?? ""}
-                onChange={(e) => setAddr("buildingName", e.target.value)}
-                placeholder="Building, complex or estate name"
-              />
-            </label>
-            <label className={styles.field}>
               <span className={styles.label}>Address line 2 (optional)</span>
               <input
                 className={styles.input}
                 type="text"
-                value={address.line2}
-                onChange={(e) => setAddr("line2", e.target.value)}
-                placeholder="Apartment, suite, etc."
+                value={address.addressLine2}
+                onChange={(e) => setAddr("addressLine2", e.target.value)}
+                placeholder="Unit, floor, complex name, etc."
+              />
+            </label>
+            <label className={styles.field}>
+              <span className={styles.label}>Company / business park / estate (optional)</span>
+              <input
+                className={styles.input}
+                type="text"
+                name="company"
+                value={address.company ?? ""}
+                onChange={(e) => setAddr("company", e.target.value)}
+                placeholder="Acme Business Park"
+              />
+            </label>
+            <label className={styles.field}>
+              <span className={styles.label}>Suburb</span>
+              <input
+                className={styles.input}
+                type="text"
+                value={address.suburb}
+                onChange={(e) => setAddr("suburb", e.target.value)}
+                placeholder="Sea Point"
+                required
               />
             </label>
             <div className={styles.fieldRow}>

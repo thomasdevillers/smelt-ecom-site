@@ -17,10 +17,10 @@ it("rejects missing or whitespace-only phone numbers before creating a payment",
   }
   expect(initializeTransaction).not.toHaveBeenCalled();
 });
-it("keeps the phone and optional building name in Paystack shipping metadata", async () => {
-  expect((await POST(request({ phone: " 0837875826 ", buildingName: " Oak Estate " }))).status).toBe(200);
+it("keeps the phone and optional company/estate name in Paystack shipping metadata", async () => {
+  expect((await POST(request({ phone: " 0837875826 ", company: " Oak Estate " }))).status).toBe(200);
   expect(initializeTransaction).toHaveBeenCalledWith(expect.objectContaining({
-    metadata: expect.objectContaining({ shippingAddress: expect.objectContaining({ phone: "0837875826", buildingName: "Oak Estate" }) }),
+    metadata: expect.objectContaining({ shippingAddress: expect.objectContaining({ phone: "0837875826", company: "Oak Estate" }) }),
   }));
   expect((await POST(request({ phone: "0837875826" }))).status).toBe(200);
 });
