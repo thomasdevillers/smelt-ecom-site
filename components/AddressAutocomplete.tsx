@@ -4,7 +4,12 @@ import { useEffect, useRef, useState } from "react";
 
 export interface ParsedPlaceAddress {
   line1: string;
-  line2?: string;
+  // The full Google-formatted address (e.g. "285 Beach Road, Sea Point, Cape
+  // Town, 8005, South Africa") — not shown to the customer, but paste-ready
+  // for Aramex's "Receiver's Street Address" field. Used to build the
+  // Paystack payload's line1 instead of the short street-only value.
+  formattedAddress?: string;
+  suburb?: string;
   city: string;
   province: string;
   postalCode: string;
@@ -35,36 +40,52 @@ const GOOGLE_MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 declare global {
   interface Window {
     google?: any;
-    __googleMapsLoadingPromise__?: Promise<void>;
   }
 }
 
-function loadGoogleMapsScript(apiKey: string): Promise<void> {
-  if (window.google?.maps?.places) {
-    return Promise.resolve();
-  }
-  if (window.__googleMapsLoadingPromise__) {
-    return window.__googleMapsLoadingPromise__;
-  }
+// A plain <script src="...&loading=async"> tag does NOT define
+// google.maps.importLibrary — that function only exists once Google's
+// "dynamic library import" bootstrap stub has been installed *before* the
+// real API script loads. This installs that stub (Google's documented
+// pattern: https://developers.google.com/maps/documentation/javascript/load-maps-js-api#dynamic-library-import),
+// which queues importLibrary() calls, injects the real script with a
+// `callback` param (the actual readiness signal — more reliable than
+// script.onload, which can fire before async init finishes), and once that
+// callback fires, importLibrary is replaced by the API's real implementation.
+function ensureGoogleMapsBootstrap(apiKey: string) {
+  if (window.google?.maps?.importLibrary) return;
 
-  window.__googleMapsLoadingPromise__ = new Promise((resolve, reject) => {
-    const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
-    if (existingScript) {
-      existingScript.addEventListener("load", () => resolve());
-      existingScript.addEventListener("error", (e) => reject(e));
-      return;
-    }
+  const google = (window.google = window.google || {});
+  const maps = (google.maps = google.maps || {});
+  const requestedLibraries = new Set<string>();
+  let loadPromise: Promise<void> | undefined;
 
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&v=weekly&loading=async`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => resolve();
-    script.onerror = (err) => reject(err);
-    document.head.appendChild(script);
-  });
+  const loadScript = () =>
+    loadPromise ||
+    (loadPromise = new Promise<void>((resolve, reject) => {
+      const params = new URLSearchParams({
+        key: apiKey,
+        v: "weekly",
+        libraries: [...requestedLibraries].join(","),
+        callback: "google.maps.__ib__",
+      });
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?${params}`;
+      script.async = true;
+      maps.__ib__ = resolve;
+      script.onerror = () => reject(new Error("Google Maps JavaScript API could not load."));
+      document.head.appendChild(script);
+    }));
 
-  return window.__googleMapsLoadingPromise__;
+  maps.importLibrary = (library: string, ...rest: unknown[]) => {
+    requestedLibraries.add(library);
+    return loadScript().then(() => window.google.maps.importLibrary(library, ...rest));
+  };
+}
+
+function loadPlacesLibrary(apiKey: string): Promise<any> {
+  ensureGoogleMapsBootstrap(apiKey);
+  return window.google.maps.importLibrary("places");
 }
 
 function parseComponents(components: any[], fallbackAddress?: string) {
@@ -105,7 +126,17 @@ function parseComponents(components: any[], fallbackAddress?: string) {
   }
 
   const line1 = [streetNumber, route].filter(Boolean).join(" ") || fallbackAddress || "";
-  return { streetNumber, route, sublocality, locality, province, postalCode, country, line1 };
+  return {
+    streetNumber,
+    route,
+    sublocality,
+    locality,
+    province,
+    postalCode,
+    country,
+    line1,
+    formattedAddress: fallbackAddress,
+  };
 }
 
 export function AddressAutocomplete({
@@ -139,64 +170,41 @@ export function AddressAutocomplete({
       return;
     }
 
-    loadGoogleMapsScript(GOOGLE_MAPS_KEY)
-      .then(async () => {
-        const placesLib = window.google?.maps?.places;
-        if (!placesLib) return;
-
-        // Try modern AutocompleteSuggestion (Places API New)
-        if (placesLib.AutocompleteSuggestion?.fetchAutocompleteSuggestions) {
-          try {
-            const res = await placesLib.AutocompleteSuggestion.fetchAutocompleteSuggestions({
-              input: query,
-              includedRegionCodes: ["za"],
-            });
-            const items: PredictionItem[] = (res.suggestions || []).map((s: any) => {
-              const placePrediction = s.placePrediction;
-              return {
-                place_id: placePrediction?.placeId || placePrediction?.place,
-                main_text:
-                  placePrediction?.text?.text ||
-                  placePrediction?.structuredFormat?.mainText?.text ||
-                  "",
-                secondary_text:
-                  placePrediction?.structuredFormat?.secondaryText?.text || "",
-                raw: s,
-              };
-            });
-            setPredictions(items);
-            setIsOpen(items.length > 0);
-            return;
-          } catch (e) {
-            console.warn("AutocompleteSuggestion failed, fallback to AutocompleteService", e);
-          }
+    loadPlacesLibrary(GOOGLE_MAPS_KEY)
+      .then(async (placesLib) => {
+        if (!placesLib?.AutocompleteSuggestion?.fetchAutocompleteSuggestions) {
+          console.error(
+            "Places API (New) is unavailable — enable it for this project in Google Cloud Console."
+          );
+          setPredictions([]);
+          setIsOpen(false);
+          return;
         }
 
-        // Fallback to AutocompleteService
-        if (placesLib.AutocompleteService) {
-          const service = new placesLib.AutocompleteService();
-          service.getPlacePredictions(
-            {
-              input: query,
-              componentRestrictions: { country: "za" },
-              types: ["address"],
-            },
-            (results: any[], status: string) => {
-              if (status === "OK" && results) {
-                const items: PredictionItem[] = results.map((r) => ({
-                  place_id: r.place_id,
-                  main_text: r.structured_formatting?.main_text || r.description,
-                  secondary_text: r.structured_formatting?.secondary_text || "",
-                  raw: r,
-                }));
-                setPredictions(items);
-                setIsOpen(true);
-              } else {
-                setPredictions([]);
-                setIsOpen(false);
-              }
-            }
-          );
+        try {
+          const res = await placesLib.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+            input: query,
+            includedRegionCodes: ["za"],
+          });
+          const items: PredictionItem[] = (res.suggestions || []).map((s: any) => {
+            const placePrediction = s.placePrediction;
+            return {
+              place_id: placePrediction?.placeId || placePrediction?.place,
+              main_text:
+                placePrediction?.text?.text ||
+                placePrediction?.structuredFormat?.mainText?.text ||
+                "",
+              secondary_text:
+                placePrediction?.structuredFormat?.secondaryText?.text || "",
+              raw: s,
+            };
+          });
+          setPredictions(items);
+          setIsOpen(items.length > 0);
+        } catch (e) {
+          console.error("Places autocomplete request failed:", e);
+          setPredictions([]);
+          setIsOpen(false);
         }
       })
       .catch((err) => console.warn("Google Maps script load error:", err));
@@ -213,77 +221,44 @@ export function AddressAutocomplete({
   const handleSelectPrediction = (item: PredictionItem) => {
     setIsOpen(false);
 
-    loadGoogleMapsScript(GOOGLE_MAPS_KEY!)
-      .then(async () => {
-        const placesLib = window.google?.maps?.places;
-        if (!placesLib) return;
-
-        // Try modern Place API (New) fetchFields
-        if (placesLib.Place) {
-          try {
-            const place = item.raw?.placePrediction?.toPlace
-              ? item.raw.placePrediction.toPlace()
-              : item.place_id
-                ? new placesLib.Place({ id: item.place_id })
-                : null;
-            if (place) {
-              await place.fetchFields({
-                fields: ["addressComponents", "location", "id", "formattedAddress"],
-              });
-
-              const rawComponents = place.addressComponents || [];
-              const parsed = parseComponents(rawComponents, place.formattedAddress);
-              const lat = place.location?.lat ? place.location.lat() : undefined;
-              const lng = place.location?.lng ? place.location.lng() : undefined;
-
-              onPlaceSelect({
-                line1: parsed.line1,
-                line2: parsed.sublocality || undefined,
-                city: parsed.locality,
-                province: parsed.province,
-                postalCode: parsed.postalCode,
-                country: parsed.country,
-                lat,
-                lng,
-                placeId: place.id || item.place_id,
-              });
-              return;
-            }
-          } catch (e) {
-            console.warn("Place.fetchFields failed, trying PlacesService details", e);
-          }
+    loadPlacesLibrary(GOOGLE_MAPS_KEY!)
+      .then(async (placesLib) => {
+        if (!placesLib?.Place) {
+          console.error(
+            "Places API (New) is unavailable — enable it for this project in Google Cloud Console."
+          );
+          return;
         }
 
-        // Fallback to PlacesService getDetails
-        const dummyElement = document.createElement("div");
-        const service = new placesLib.PlacesService(dummyElement);
-        service.getDetails(
-          { placeId: item.place_id, fields: ["address_components", "geometry", "formatted_address"] },
-          (placeDetail: any, status: string) => {
-            if (status === "OK" && placeDetail) {
-              const rawComponents = placeDetail.address_components || [];
-              const parsed = parseComponents(rawComponents, placeDetail.formatted_address);
-              const lat = placeDetail.geometry?.location?.lat
-                ? placeDetail.geometry.location.lat()
-                : undefined;
-              const lng = placeDetail.geometry?.location?.lng
-                ? placeDetail.geometry.location.lng()
-                : undefined;
+        try {
+          const place = item.raw?.placePrediction?.toPlace
+            ? item.raw.placePrediction.toPlace()
+            : new placesLib.Place({ id: item.place_id });
 
-              onPlaceSelect({
-                line1: parsed.line1,
-                line2: parsed.sublocality || undefined,
-                city: parsed.locality,
-                province: parsed.province,
-                postalCode: parsed.postalCode,
-                country: parsed.country,
-                lat,
-                lng,
-                placeId: item.place_id,
-              });
-            }
-          }
-        );
+          await place.fetchFields({
+            fields: ["addressComponents", "location", "id", "formattedAddress"],
+          });
+
+          const rawComponents = place.addressComponents || [];
+          const parsed = parseComponents(rawComponents, place.formattedAddress);
+          const lat = place.location?.lat ? place.location.lat() : undefined;
+          const lng = place.location?.lng ? place.location.lng() : undefined;
+
+          onPlaceSelect({
+            line1: parsed.line1,
+            formattedAddress: parsed.formattedAddress,
+            suburb: parsed.sublocality || undefined,
+            city: parsed.locality,
+            province: parsed.province,
+            postalCode: parsed.postalCode,
+            country: parsed.country,
+            lat,
+            lng,
+            placeId: place.id || item.place_id,
+          });
+        } catch (e) {
+          console.error("Place details request failed:", e);
+        }
       })
       .catch((err) => console.warn("Fetch place detail error:", err));
   };

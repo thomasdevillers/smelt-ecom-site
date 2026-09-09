@@ -20,11 +20,22 @@ describe("email components", () => {
 
   it("renders an address block", () => {
     const html = addressBlock({
-      line1: "1 Main Rd", buildingName: "Oak & Pine Estate", city: "Cape Town", postalCode: "8001",
+      line1: "1 Main Rd", company: "Oak & Pine Estate", city: "Cape Town", postalCode: "8001",
       province: "WC", country: "South Africa",
     });
     expect(html).toContain("1 Main Rd");
     expect(html).toContain("Oak &amp; Pine Estate");
     expect(html).toContain("Cape Town");
+  });
+
+  it("doesn't repeat suburb/city/province/country when line1 is already the full formatted address", () => {
+    const html = addressBlock({
+      line1: "285 Beach Road, Sea Point, Cape Town, 8005, South Africa",
+      formattedAddress: "285 Beach Road, Sea Point, Cape Town, 8005, South Africa",
+      suburb: "Sea Point", city: "Cape Town", postalCode: "8005",
+      province: "Western Cape", country: "South Africa", phone: "0821234567",
+    });
+    expect(html.match(/Cape Town/g)?.length).toBe(1);
+    expect(html).toContain("0821234567");
   });
 });
