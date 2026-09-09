@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { sendOrderConfirmation, logOrderConfirmationFailure } from "@/lib/orderConfirmation";
 import { sendTikTokPurchase } from "@/lib/tiktokEvents";
 import type { TikTokClientContext } from "@/lib/tiktok";
 import crypto from "node:crypto";
@@ -25,8 +26,8 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   const secret = process.env.PAYSTACK_SECRET_KEY;
   if (!secret) {
-    // Not live yet: acknowledge so Paystack doesn't retry, but do nothing.
-    return new Response("ok", { status: 200 });
+    console.error("Paystack webhook secret is missing");
+    return new Response("webhook not configured", { status: 503 });
   }
 
   const raw = await request.text();
@@ -98,6 +99,16 @@ export async function POST(request: Request) {
         phone: d.metadata?.shippingAddress?.phone, amount: paidAmountRand, currency: d.currency!,
         cart, paidAt: d.paid_at, client: d.metadata?.tiktokClient,
       }));
+    }
+    try {
+      await sendOrderConfirmation({
+        reference: d.reference ?? "", email: d.customer?.email ?? "",
+        amount: d.amount!, currency: d.currency!, cart, address: d.metadata?.shippingAddress,
+      });
+    } catch (error) {
+      logOrderConfirmationFailure(d.reference ?? "", error);
+      // Do not acknowledge lost mail: Paystack retries this authenticated payment event.
+      return new Response("order confirmation pending", { status: 503 });
     }
     console.log(`Confirmed Paystack order: ${d.reference}`);
     // Meta deduplicates repeated webhook deliveries by the Paystack reference,

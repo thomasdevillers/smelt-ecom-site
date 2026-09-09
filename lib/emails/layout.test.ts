@@ -32,6 +32,16 @@ describe("renderEmail", () => {
     expect(out.text).not.toContain("<");
   });
 
+  it("keeps font declarations inside intact HTML style attributes", () => {
+    const styles = [...out.html.matchAll(/style="([^"]*)"/g)].map((match) => match[1]);
+    const headingStyle = styles.find((style) => style.includes("font-weight:800"));
+    expect(headingStyle).toContain("font-family:'Space Grotesk'");
+    expect(headingStyle).toContain("color:#0E3B2A");
+    const buttonStyle = styles.find((style) => style.includes("display:inline-block"));
+    expect(buttonStyle).toContain("color:#F6F1E3");
+    expect(buttonStyle).toContain("text-decoration:none");
+  });
+
   it("signs off warmly by default", () => {
     expect(out.text).toContain("Warm regards");
     expect(out.text).toContain("Tom & Marc");

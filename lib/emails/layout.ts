@@ -11,6 +11,7 @@ export interface EmailInput {
   intro?: string;
   blocks?: string[]; // trusted HTML fragments built by components.ts
   cta?: Cta;
+  afterCtaBlocks?: string[]; // supporting content after the primary action
   signoff?: string; // defaults to the warm signoff
 }
 
@@ -28,7 +29,7 @@ function ctaHtml(cta: Cta): string {
 }
 
 export function renderEmail(input: EmailInput): { html: string; text: string } {
-  const { preheader, heading, intro, blocks = [], cta } = input;
+  const { preheader, heading, intro, blocks = [], cta, afterCtaBlocks = [] } = input;
   const signoff = input.signoff ?? DEFAULT_SIGNOFF;
   const hat = absoluteUrl("/images/hat-green-front-nobg.png");
 
@@ -49,6 +50,7 @@ export function renderEmail(input: EmailInput): { html: string; text: string } {
     (intro ? `<p style="margin:0 0 16px;font-family:${FONT_STACK};font-size:16px;line-height:1.6;color:${COLORS.inkSoft};">${intro}</p>` : "") +
     blocks.join("") +
     (cta ? ctaHtml(cta) : "") +
+    afterCtaBlocks.join("") +
     `<p style="margin:24px 0 0;font-family:${FONT_STACK};font-size:16px;line-height:1.6;color:${COLORS.ink};">${signoff}</p>` +
     `</td></tr>` +
     `<tr><td align="center" style="padding:24px 8px;font-family:${FONT_STACK};font-size:12px;line-height:1.6;color:${COLORS.inkSoft};">` +
@@ -78,6 +80,8 @@ export function renderEmail(input: EmailInput): { html: string; text: string } {
     intro ?? "",
     ...blocks.map(stripTags),
     cta ? `\n${cta.label}: ${cta.url}` : "",
+    "",
+    ...afterCtaBlocks.map(stripTags),
     "",
     "Warm regards,",
     "Tom & Marc",

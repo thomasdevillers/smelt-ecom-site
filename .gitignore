@@ -36,3 +36,6 @@ yarn-error.log*
 # editor / IDE
 .idea/
 .vscode/
+
+# Private shipment batches, previews, and send receipts
+/.local/

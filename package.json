@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "email:shipping": "tsx --env-file-if-exists=.env.local scripts/send-shipping.ts"
   },
   "dependencies": {
     "@paystack/inline-js": "^2.23.1",

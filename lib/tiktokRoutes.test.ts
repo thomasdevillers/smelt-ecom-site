@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   send: vi.fn().mockResolvedValue(true), purchase: vi.fn().mockResolvedValue(undefined),
   verify: vi.fn(), after: vi.fn(), meta: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock("./orderConfirmation", () => ({ sendOrderConfirmation: vi.fn(), tryOrderConfirmation: vi.fn(), logOrderConfirmationFailure: vi.fn() }));
 vi.mock("next/server", () => ({ after: mocks.after }));
 vi.mock("./tiktokEvents", async (original) => ({ ...await original<typeof import("./tiktokEvents")>(), sendTikTokEvents: mocks.send, sendTikTokPurchase: mocks.purchase }));
 vi.mock("./paystack", () => ({ verifyTransaction: mocks.verify }));

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { COLORS, absoluteUrl, escapeHtml } from "./theme";
 
 describe("email theme", () => {
@@ -12,6 +12,12 @@ describe("email theme", () => {
     expect(absoluteUrl("/images/x.png", "https://saunahat.co.za")).toBe(
       "https://saunahat.co.za/images/x.png",
     );
+  });
+
+  it("uses the production origin when SITE_URL is missing", () => {
+    vi.stubEnv("SITE_URL", "");
+    try { expect(absoluteUrl("/care")).toBe("https://saunahat.co.za/care"); }
+    finally { vi.unstubAllEnvs(); }
   });
 
   it("strips a trailing slash on the base", () => {

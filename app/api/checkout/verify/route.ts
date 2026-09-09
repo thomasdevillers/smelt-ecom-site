@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { tryOrderConfirmation } from "@/lib/orderConfirmation";
 import { sendTikTokPurchase } from "@/lib/tiktokEvents";
 import type { TikTokClientContext } from "@/lib/tiktok";
 import { verifyTransaction } from "@/lib/paystack";
@@ -76,6 +77,10 @@ export async function POST(request: Request) {
       );
     }
 
+    after(() => tryOrderConfirmation({
+      reference: verified.reference, email: verified.customerEmail ?? "",
+      amount: verified.amount, currency: verified.currency, cart, address: meta?.shippingAddress,
+    }));
     after(() => sendTikTokPurchase({
       reference: verified.reference, email: verified.customerEmail ?? "",
       phone: meta?.shippingAddress?.phone, amount: paidAmountRand, currency: verified.currency,
@@ -123,6 +128,10 @@ export async function GET(request: Request) {
     if (checkoutTotal(cart) * 100 !== verified.amount || checkoutTotal(cart) <= 0 || verified.currency !== "ZAR") {
       return Response.json({ error: "Payment total does not match the order." }, { status: 409 });
     }
+    after(() => tryOrderConfirmation({
+      reference: verified.reference, email: verified.customerEmail ?? "",
+      amount: verified.amount, currency: verified.currency, cart, address: meta?.shippingAddress,
+    }));
     after(() => sendTikTokPurchase({
       reference: verified.reference, email: verified.customerEmail ?? "",
       phone: meta?.shippingAddress?.phone, amount: Math.round(verified.amount / 100),

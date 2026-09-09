@@ -10,10 +10,10 @@ export const COLORS = {
 } as const;
 
 export const FONT_STACK =
-  '"Space Grotesk", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif';
+  "'Space Grotesk', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif";
 
 /** Absolute URL for email assets/links. base defaults to SITE_URL env. */
-export function absoluteUrl(path: string, base = process.env.SITE_URL ?? ""): string {
+export function absoluteUrl(path: string, base = process.env.SITE_URL || "https://saunahat.co.za"): string {
   const b = base.replace(/\/$/, "");
   const p = path.startsWith("/") ? path : `/${path}`;
   return `${b}${p}`;
