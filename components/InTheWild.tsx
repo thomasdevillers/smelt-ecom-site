@@ -1,3 +1,5 @@
+import SocialLinks from "@/components/SocialLinks";
+import { SOCIAL_HANDLE } from "@/content/social";
 import Image from "next/image";
 import SectionLabel from "./ui/SectionLabel";
 import styles from "./InTheWild.module.css";
@@ -52,6 +54,10 @@ export default function InTheWild() {
             </div>
           </div>
         ))}
+      </div>
+      <div className={styles.social}>
+        <p className={styles.copy}>Find us on Instagram and TikTok {SOCIAL_HANDLE}.</p>
+        <SocialLinks />
       </div>
     </section>
   );

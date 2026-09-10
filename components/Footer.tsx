@@ -1,3 +1,5 @@
+import SocialLinks from "@/components/SocialLinks";
+import { SOCIAL_HANDLE } from "@/content/social";
 import Link from "next/link";
 import styles from "./Footer.module.css";
 
@@ -9,6 +11,8 @@ export default function Footer() {
           <div>
             <div className={styles.brand}>Smelt</div>
             <p className={styles.blurb}>Sauna hats made in Cape Town. Less heat on your head, more time on the bench.</p>
+            <div className={styles.socialHandle}>{SOCIAL_HANDLE}</div>
+            <SocialLinks />
           </div>
           <div>
             <div className={styles.colTitle}>Shop</div>

@@ -7,6 +7,7 @@ import styles from "./Header.module.css";
 const NAV = [
   { href: "/product", label: "Shop" },
   { href: "/policies", label: "Policies" },
+  { href: "/contact", label: "Contact" },
 ];
 
 export default function Header() {

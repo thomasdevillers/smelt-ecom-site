@@ -11,3 +11,5 @@
 
 @media (min-width: 640px) { .grid { grid-template-columns: 1fr 1fr; } }
 @media (min-width: 880px) { .inner { padding: 64px 32px 32px; } .grid { grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 36px; } }
+
+.socialHandle { font-size: 14px; color: var(--peach); }

@@ -23,3 +23,5 @@
 
 .back { display: inline-block; margin-top: 24px; font-weight: 600; }
 @media (min-width: 880px) { .card { padding: 40px 36px; } }
+
+.social { margin-top: 24px; text-align: left; }

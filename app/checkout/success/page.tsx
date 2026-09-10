@@ -1,4 +1,6 @@
 "use client";
+import SocialLinks from "@/components/SocialLinks";
+import { SOCIAL_HANDLE } from "@/content/social";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
@@ -127,6 +129,12 @@ export default function CheckoutSuccessPage() {
                 <span>Reference</span>
                 <span>{state.reference}</span>
               </div>
+            </div>
+            <div className={styles.social}>
+              <p className={styles.copy}>
+                See you on the bench. Tag {SOCIAL_HANDLE} when your hat arrives.
+              </p>
+              <SocialLinks />
             </div>
           </>
         )}
