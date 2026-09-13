@@ -2,6 +2,18 @@ import { describe, expect, it } from "vitest";
 import { checkoutTotal, sanitizeCart } from "./checkoutShared";
 
 describe("checkoutTotal", () => {
+  it("charges full founder delivery for single and multiple hats", () => {
+    expect(checkoutTotal({ green: 1, cream: 0 }, "founders")).toBe(5450);
+    expect(checkoutTotal({ green: 1, cream: 1 }, "founders")).toBe(5900);
+    expect(checkoutTotal({ green: 0, cream: 0 }, "founders")).toBe(0);
+  });
+
+  it("rejects unknown shipping methods instead of accepting a cheaper default", () => {
+    for (const method of ["free", "", null, { price: 0 }]) {
+      expect(checkoutTotal({ green: 1, cream: 0 }, method)).toBeNaN();
+    }
+  });
+
   it("does not add shipping to an empty cart", () => {
     expect(checkoutTotal({ green: 0, cream: 0 })).toBe(0);
   });

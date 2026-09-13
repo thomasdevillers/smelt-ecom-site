@@ -3,12 +3,13 @@ import { cartSubtotal, type CartState } from "@/lib/cartReducer";
 import { PRODUCT } from "@/lib/product";
 import { initializeTransaction, isPaystackConfigured } from "@/lib/paystack";
 import { checkoutTotal, sanitizeCart } from "@/lib/checkoutShared";
+import { parseShippingMethod } from "@/lib/pricing";
 import { sanitizeAddress } from "@/lib/address";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
-  let body: { email?: unknown; cart?: unknown; name?: unknown; address?: unknown; tiktokClient?: unknown };
+  let body: { shippingMethod?: unknown; email?: unknown; cart?: unknown; name?: unknown; address?: unknown; tiktokClient?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -36,7 +37,11 @@ export async function POST(request: Request) {
   if (subtotal <= 0) {
     return Response.json({ error: "Your bag is empty." }, { status: 400 });
   }
-  const amount = checkoutTotal(cart);
+  const shippingMethod = parseShippingMethod(body.shippingMethod);
+  if (!shippingMethod) {
+    return Response.json({ error: "Please choose a valid shipping option." }, { status: 400 });
+  }
+  const amount = checkoutTotal(cart, shippingMethod);
 
   // Do not accept an order unless the live payment provider is configured.
   if (!isPaystackConfigured()) {
@@ -53,7 +58,7 @@ export async function POST(request: Request) {
       email,
       amount,
       callbackUrl: `${origin}/checkout/success`,
-      metadata: { cart, items, amountRand: amount, customerName, shippingAddress, tiktokClient: tiktokUser(body.tiktokClient, request) },
+      metadata: { cart, items, amountRand: amount, customerName, shippingAddress, shippingMethod, tiktokClient: tiktokUser(body.tiktokClient, request) },
     });
     return Response.json({ configured: true, authorizationUrl, reference });
   } catch (err) {

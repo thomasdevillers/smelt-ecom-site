@@ -61,6 +61,7 @@ export async function POST(request: Request) {
         metaClient?: MetaClientContext;
         tiktokClient?: TikTokClientContext;
         shippingAddress?: { phone?: unknown };
+        shippingMethod?: unknown;
       };
     };
   };
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
     // Paystack actually confirms was charged (`d.amount`) rather than
     // whatever amountRand the client claims in metadata.
     const cart = sanitizeCart(d.metadata?.cart);
-    const expectedAmountRand = checkoutTotal(cart);
+    const expectedAmountRand = checkoutTotal(cart, d.metadata?.shippingMethod);
     const amountMatches = expectedAmountRand > 0 && d.amount === expectedAmountRand * 100 && d.currency === "ZAR";
 
     if (!amountMatches) {
@@ -103,7 +104,7 @@ export async function POST(request: Request) {
     try {
       await sendOrderConfirmation({
         reference: d.reference ?? "", email: d.customer?.email ?? "",
-        amount: d.amount!, currency: d.currency!, cart, address: d.metadata?.shippingAddress,
+        amount: d.amount!, currency: d.currency!, cart, address: d.metadata?.shippingAddress, shippingMethod: d.metadata?.shippingMethod,
       });
     } catch (error) {
       logOrderConfirmationFailure(d.reference ?? "", error);

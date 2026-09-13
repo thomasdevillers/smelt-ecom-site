@@ -41,10 +41,10 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 
-function webhookRequest(amount = order.amount, signatureValid = true) {
+function webhookRequest(amount = order.amount, signatureValid = true, shippingMethod?: unknown) {
   const body = JSON.stringify({ event: "charge.success", data: {
     ...order, amount, status: "success", customer: { email: order.email },
-    metadata: { cart: order.cart, shippingAddress: order.address },
+    metadata: { cart: order.cart, shippingAddress: order.address, shippingMethod },
   } });
   const signature = createHmac("sha512", "fake-paystack").update(body).digest("hex");
   return new Request("https://example.com/api/paystack/webhook", { method: "POST", body,
@@ -118,6 +118,35 @@ describe("confirmation delivery", () => {
 });
 
 describe("payment route integration", () => {
+  it.each(["POST", "GET", "webhook"])("reconciles founder delivery through %s and includes it in the receipt", async (route) => {
+    const amount = 545000;
+    mocks.verify.mockResolvedValue({ ...order, amount, status: "success", customerEmail: order.email,
+      metadata: { cart: order.cart, shippingAddress: order.address, shippingMethod: "founders" } });
+    const response = route === "webhook"
+      ? await webhook(webhookRequest(amount, true, "founders"))
+      : route === "GET"
+        ? await verifyGet(new Request(`https://example.com/api/checkout/verify?reference=${order.reference}`))
+        : await verifyPost(new Request("https://example.com/api/checkout/verify", { method: "POST", body: JSON.stringify({ reference: order.reference }) }));
+    expect(response.status).toBe(200);
+    await flush();
+    expect(mocks.send).toHaveBeenCalledTimes(1);
+    const message = mocks.send.mock.calls[0][0];
+    expect(message.text).toContain("R5 450");
+    expect(message.text).toContain("Hand delivered by founders");
+    expect(message.text).toContain("next business day");
+    expect(message.text).not.toContain("tracking");
+  });
+
+  it.each(["founders", "unknown", null])("rejects underpaid or invalid shipping %s in both verification routes and webhook", async (shippingMethod) => {
+    mocks.verify.mockResolvedValue({ ...order, status: "success", customerEmail: order.email,
+      metadata: { cart: order.cart, shippingMethod } });
+    expect((await verifyPost(new Request("https://example.com/api/checkout/verify", { method: "POST", body: JSON.stringify({ reference: order.reference, shippingMethod: "aramex" }) }))).status).toBe(409);
+    expect((await verifyGet(new Request(`https://example.com/api/checkout/verify?reference=${order.reference}`))).status).toBe(409);
+    expect((await webhook(webhookRequest(order.amount, true, shippingMethod))).status).toBe(200);
+    await flush();
+    expect(mocks.send).not.toHaveBeenCalled();
+  });
+
   it("sends once across a signed webhook, browser POST, GET, and webhook replay", async () => {
     expect((await webhook(webhookRequest())).status).toBe(200);
     expect((await verifyPost(new Request("https://example.com/api/checkout/verify", { method: "POST", body: JSON.stringify({ reference: order.reference }) }))).status).toBe(200);

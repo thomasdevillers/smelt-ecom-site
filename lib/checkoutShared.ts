@@ -1,5 +1,5 @@
 import { cartSubtotal, type CartState } from "./cartReducer";
-import { grandTotal } from "./pricing";
+import { grandTotal, parseShippingMethod } from "./pricing";
 
 // Never trust a total sent from the browser. We only accept the cart quantities
 // and recompute the amount server-side with the same pricing logic the UI uses.
@@ -11,7 +11,9 @@ export function sanitizeCart(input: unknown): CartState {
 }
 
 /** Recompute the complete amount Paystack should charge, including shipping. */
-export function checkoutTotal(cart: CartState): number {
+export function checkoutTotal(cart: CartState, shippingMethod?: unknown): number {
+  const method = parseShippingMethod(shippingMethod);
+  if (!method) return Number.NaN;
   const subtotal = cartSubtotal(cart);
-  return subtotal > 0 ? grandTotal(subtotal) : 0;
+  return subtotal > 0 ? grandTotal(subtotal, method) : 0;
 }

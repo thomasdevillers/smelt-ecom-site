@@ -6,7 +6,7 @@ import { sanitizeAddress } from "./address";
 import { checkoutTotal, sanitizeCart } from "./checkoutShared";
 import { PRODUCT } from "./product";
 import type { CartState } from "./cartReducer";
-import { formatMoney } from "./pricing";
+import { formatMoney, parseShippingMethod } from "./pricing";
 
 export interface ConfirmedOrder {
   reference: string;
@@ -15,6 +15,7 @@ export interface ConfirmedOrder {
   currency: string;
   cart: unknown;
   address?: unknown;
+  shippingMethod?: unknown;
 }
 
 type Message = { from: string; to: string; subject: string; html: string; text: string };
@@ -31,7 +32,7 @@ export async function sendOrderConfirmation(order: ConfirmedOrder): Promise<void
   const email = typeof order.email === "string" ? order.email.trim() : "";
   const cart = sanitizeCart(order.cart);
   if (!reference || !/^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(email) ||
-      checkoutTotal(cart) <= 0 || order.currency !== "ZAR" || checkoutTotal(cart) * 100 !== order.amount) {
+      checkoutTotal(cart, order.shippingMethod) <= 0 || order.currency !== "ZAR" || checkoutTotal(cart, order.shippingMethod) * 100 !== order.amount) {
     throw new Error("order_confirmation_invalid_payment_data");
   }
   if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
@@ -56,6 +57,7 @@ export async function sendOrderConfirmation(order: ConfirmedOrder): Promise<void
       .map((colour) => ({ colour, name: PRODUCT.variants[colour].name, qty: cart[colour] }));
     const message = orderConfirmationEmail({
       reference, total: formatMoney(order.amount / 100), items,
+      shippingMethod: parseShippingMethod(order.shippingMethod)!,
       address: order.address ? sanitizeAddress(order.address) : null,
     });
     receipt = await db.eval<unknown[], Receipt>(PREPARE_CONFIRMATION, [key], [JSON.stringify({

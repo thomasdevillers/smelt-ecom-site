@@ -4,7 +4,7 @@ import { SOCIAL_HANDLE } from "@/content/social";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
-import { formatMoney } from "@/lib/pricing";
+import { formatMoney, parseShippingMethod, SHIPPING_OPTIONS, type ShippingMethod } from "@/lib/pricing";
 import { META_CURRENCY, metaContentId } from "@/lib/meta";
 import { trackMetaEvent } from "@/lib/metaPixel";
 import { COLOURS, type Colour } from "@/lib/product";
@@ -20,7 +20,7 @@ interface PaidItem {
 
 type State =
   | { kind: "verifying" }
-  | { kind: "paid"; amount: number; reference: string; items: PaidItem[] }
+  | { kind: "paid"; amount: number; reference: string; items: PaidItem[]; shippingMethod: ShippingMethod }
   | { kind: "failed"; message: string };
 
 export default function CheckoutSuccessPage() {
@@ -86,6 +86,7 @@ export default function CheckoutSuccessPage() {
             amount: data.amountRand,
             reference: data.reference,
             items: data.items ?? [],
+            shippingMethod: parseShippingMethod(data.shippingMethod) ?? "aramex",
           });
         } else {
           setState({
@@ -116,15 +117,21 @@ export default function CheckoutSuccessPage() {
             <div className={styles.badge}>Payment confirmed</div>
             <h1 className={styles.h1}>Your order is confirmed. Warm regards.</h1>
             <p className={styles.copy}>
-              We&rsquo;ve received {formatMoney(state.amount)}. Your hat is in stock,
-              and we&rsquo;ll email tracking as soon as it&rsquo;s on the way. A receipt is
-              heading to your inbox now.
+              We&rsquo;ve received {formatMoney(state.amount)}.{" "}
+              {state.shippingMethod === "founders"
+                ? "Our founders will hand deliver your hat on the next business day. We’ll be in touch to coordinate your delivery."
+                : "Your hat is in stock, and we’ll email tracking as soon as it’s on the way."}{" "}
+              A receipt is heading to your inbox now.
             </p>
             <p className={styles.copy}>
               Can&rsquo;t find your order confirmation email? Please check your spam
               or junk folder.
             </p>
             <div className={styles.summary}>
+              <div className={styles.row}>
+                <span>Shipping</span>
+                <span>{SHIPPING_OPTIONS[state.shippingMethod].label}</span>
+              </div>
               <div className={styles.row}>
                 <span>Reference</span>
                 <span>{state.reference}</span>

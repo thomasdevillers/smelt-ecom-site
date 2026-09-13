@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart";
 import { COLOURS, PRODUCT } from "@/lib/product";
-import { formatMoney, lineTotal, shippingFee, grandTotal } from "@/lib/pricing";
+import { formatMoney, lineTotal, shippingFee, grandTotal, SHIPPING_METHODS, SHIPPING_OPTIONS, type ShippingMethod } from "@/lib/pricing";
 import { AddressAutocomplete, type ParsedPlaceAddress } from "@/components/AddressAutocomplete";
 import type { ShippingAddress } from "@/lib/address";
 import { META_CURRENCY, metaCartContents } from "@/lib/meta";
@@ -26,6 +26,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const checkoutTracked = useRef(false);
 
+  const [shippingMethod, setShippingMethod] = useState<ShippingMethod>("aramex");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [address, setAddress] = useState<ShippingAddress>({
@@ -65,18 +66,18 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (checkoutTracked.current || subtotal <= 0) return;
     checkoutTracked.current = true;
-    trackVercelEvent("InitiateCheckout", vercelCartData(cart, grandTotal(subtotal)));
-    trackTikTokEvent("InitiateCheckout", tiktokCartParameters(cart, grandTotal(subtotal)));
+    trackVercelEvent("InitiateCheckout", vercelCartData(cart, grandTotal(subtotal, shippingMethod)));
+    trackTikTokEvent("InitiateCheckout", tiktokCartParameters(cart, grandTotal(subtotal, shippingMethod)));
     const contents = metaCartContents(cart);
     trackMetaEvent("InitiateCheckout", {
       content_ids: contents.map((item) => item.id),
       contents,
       content_type: "product",
       currency: META_CURRENCY,
-      value: grandTotal(subtotal),
+      value: grandTotal(subtotal, shippingMethod),
       num_items: contents.reduce((total, item) => total + item.quantity, 0),
     });
-  }, [cart, subtotal]);
+  }, [cart, subtotal, shippingMethod]);
 
   const onSuccess = async (trx: PaystackSuccess) => {
     setStatus("verifying");
@@ -140,7 +141,7 @@ export default function CheckoutPage() {
       qty: cart[c],
     }));
 
-    const totalAmount = grandTotal(subtotal);
+    const totalAmount = grandTotal(subtotal, shippingMethod);
 
     // Paystack (and, downstream, the order confirmation email) should get the
     // full formatted address in line1 — paste-ready for Aramex's "Street
@@ -171,9 +172,15 @@ export default function CheckoutPage() {
         amountRand: totalAmount,
         customerName: name,
         shippingAddress: paystackAddress,
+        shippingMethod,
         metaClient: getMetaClientContext(),
         tiktokClient: getTikTokClientContext(),
         custom_fields: [
+          {
+            display_name: "Shipping method",
+            variable_name: "shipping_method",
+            value: SHIPPING_OPTIONS[shippingMethod].label,
+          },
           {
             display_name: "Cart",
             variable_name: "cart",
@@ -210,7 +217,7 @@ export default function CheckoutPage() {
     });
   }
 
-  const totalAmount = grandTotal(subtotal);
+  const totalAmount = grandTotal(subtotal, shippingMethod);
 
   return (
     <main className={styles.page}>
@@ -220,7 +227,7 @@ export default function CheckoutPage() {
         <h1 className={styles.h1}>Almost warm.</h1>
         <p className={styles.copy}>
           Your hat is in stock. Enter your delivery details and pay securely,
-          and we&rsquo;ll send tracking as soon as it&rsquo;s on the way.
+          and we&rsquo;ll keep you updated on your delivery.
         </p>
 
         {lines.length > 0 ? (
@@ -238,14 +245,14 @@ export default function CheckoutPage() {
               <span>{formatMoney(subtotal)}</span>
             </div>
             <div className={styles.row}>
-              <span>Shipping</span>
+              <span>{SHIPPING_OPTIONS[shippingMethod].label}</span>
               <span>
-                {shippingFee(subtotal) === 0
+                {shippingFee(subtotal, shippingMethod) === 0
                   ? "FREE"
-                  : formatMoney(shippingFee(subtotal))}
+                  : formatMoney(shippingFee(subtotal, shippingMethod))}
               </span>
             </div>
-            <div className={styles.total}>
+            <div className={styles.total} aria-live="polite" aria-atomic="true">
               <span>Total</span>
               <span>{formatMoney(totalAmount)}</span>
             </div>
@@ -256,6 +263,30 @@ export default function CheckoutPage() {
 
         {lines.length > 0 && (
           <form className={styles.form} onSubmit={handlePay}>
+            <fieldset className={styles.shippingOptions} disabled={status === "submitting" || status === "verifying"}>
+              <legend className={styles.label}>Choose your shipping</legend>
+              {SHIPPING_METHODS.map((method) => (
+                <label key={method} className={styles.shippingOption}>
+                  <input
+                    type="radio"
+                    name="shippingMethod"
+                    value={method}
+                    checked={shippingMethod === method}
+                    onChange={() => setShippingMethod(method)}
+                  />
+                  <span className={styles.shippingDetails}>
+                    <span className={styles.shippingHeading}>
+                      <strong>{SHIPPING_OPTIONS[method].label}</strong>
+                      <span className={styles.shippingPrice}>
+                        {shippingFee(subtotal, method) === 0 ? "FREE" : formatMoney(shippingFee(subtotal, method))}
+                      </span>
+                    </span>
+                    <span className={styles.shippingDescription}>{SHIPPING_OPTIONS[method].description}</span>
+                    {method === "aramex" && <span className={styles.shippingDescription}>Free with two or more hats.</span>}
+                  </span>
+                </label>
+              ))}
+            </fieldset>
             <label className={styles.field}>
               <span className={styles.label}>Email for your order and checkout support</span>
               <input
