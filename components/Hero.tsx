@@ -20,7 +20,7 @@ export default function Hero() {
           </Button>
         </div>
         <div className={styles.stars}>
-          <StarMark className={styles.starRow} size={15} /> 100% merino wool.
+          <StarMark className={styles.starRow} size={15} /> 100% wool.
         </div>
       </div>
       <div className={styles.imgWrap}>

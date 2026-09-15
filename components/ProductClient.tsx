@@ -50,7 +50,7 @@ export default function ProductClient() {
           <SectionLabel>The collection (all two of them)</SectionLabel>
           <h1 className={styles.h1}>{PRODUCT.name}</h1>
           <div className={styles.price}>{formatMoney(BASE_PRICE)}</div>
-          <p className={styles.desc}>100% merino wool felt, embroidered (never printed) with &ldquo;Smelt&rdquo; on the front and &ldquo;Warm regards&rdquo; on the back. One size fits most heads. Made to sweat in.</p>
+          <p className={styles.desc}>100% wool felt, embroidered (never printed) with &ldquo;Smelt&rdquo; on the front and &ldquo;Warm regards&rdquo; on the back. One size fits most heads. Made to sweat in.</p>
 
           <div className={styles.opt}>
             <div className={styles.optLabel}>Colourway</div>
@@ -77,7 +77,7 @@ export default function ProductClient() {
           <div className={styles.accordions}>
             <Accordion title="Details" defaultOpen>
               <ul>
-                <li>100% merino wool felt</li>
+                <li>100% wool felt</li>
                 <li>Embroidered lettering, front and back</li>
                 <li>One size fits most heads</li>
                 <li>Hang to dry between sessions</li>

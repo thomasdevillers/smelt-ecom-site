@@ -43,12 +43,12 @@ export const metadata: Metadata = {
     template: '%s · Smelt',
   },
   description:
-    'Smelt makes 100% merino wool felt sauna hats. Embroidered, not printed. Two colourways, in stock and shipping nationwide from Cape Town.',
+    'Smelt makes 100% wool felt sauna hats. Embroidered, not printed. Two colourways, in stock and shipping nationwide from Cape Town.',
   applicationName: 'Smelt',
   keywords: [
     'sauna hat',
     'wool felt sauna hat',
-    'merino wool sauna hat',
+    'wool sauna hat',
     'Finnish sauna hat',
     'sauna cap',
     'sauna accessories',
@@ -78,7 +78,7 @@ const organizationLd = {
   url: SITE_URL,
   logo: abs('/images/hat-green-front.jpeg'),
   description:
-    'Smelt makes 100% merino wool felt sauna hats — embroidered, never printed. Made in Cape Town.',
+    'Smelt makes 100% wool felt sauna hats — embroidered, never printed. Made in Cape Town.',
   address: {
     '@type': 'PostalAddress',
     addressLocality: 'Cape Town',
