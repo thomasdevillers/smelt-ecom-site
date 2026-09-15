@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Smelt · Sauna hats",
     short_name: "Smelt",
     description:
-      "100% merino wool felt sauna hats. Embroidered, not printed. Warm regards from Cape Town.",
+      "100% wool felt sauna hats. Embroidered, not printed. Warm regards from Cape Town.",
     start_url: "/",
     display: "standalone",
     background_color: "#EFE4C4",

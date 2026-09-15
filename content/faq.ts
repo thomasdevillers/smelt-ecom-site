@@ -14,7 +14,7 @@ export const FAQ: FaqItem[] = [
   },
   {
     q: "What is it made of?",
-    a: "100% merino wool felt. Nothing synthetic, no blends. Wool naturally handles heat and moisture, which is exactly why it has been used for sauna hats for generations.",
+    a: "100% wool felt. Nothing synthetic, no blends. Wool naturally handles heat and moisture, which is exactly why it has been used for sauna hats for generations.",
   },
   {
     q: "One size? Will it fit me?",

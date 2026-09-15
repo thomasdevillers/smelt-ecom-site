@@ -10,7 +10,7 @@ export default function RitualBanner() {
         <div>
           <SectionLabel tone="peach">The felt</SectionLabel>
           <h2 className={styles.h2}>Wool up top, so your brain stays chill.</h2>
-          <p className={styles.p}>Dense merino felt insulates your scalp from sauna heat, the traditional trick that keeps you in the room longer. Ours just happen to have opinions embroidered on them.</p>
+          <p className={styles.p}>Dense wool felt insulates your scalp from sauna heat, the traditional trick that keeps you in the room longer. Ours just happen to have opinions embroidered on them.</p>
           <Button href="/product" variant="paper">Get yours <span>→</span></Button>
         </div>
         <div className={styles.imgWrap}>

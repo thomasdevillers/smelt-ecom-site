@@ -7,12 +7,12 @@ import { abs, breadcrumbLd, jsonLdScript } from "@/lib/seo";
 export const metadata: Metadata = {
   title: "Smelt Sauna Hat · 100% wool felt, embroidered",
   description:
-    "The Smelt sauna hat: 100% merino wool felt, embroidered front and back, one size. Forest Green or Natural Cream. In stock and shipping nationwide from Cape Town.",
+    "The Smelt sauna hat: 100% wool felt, embroidered front and back, one size. Forest Green or Natural Cream. In stock and shipping nationwide from Cape Town.",
   alternates: { canonical: "/product" },
   openGraph: {
     title: "Smelt Sauna Hat · 100% wool felt, embroidered",
     description:
-      "100% merino wool felt, embroidered not printed. Forest Green or Natural Cream. In stock now.",
+      "100% wool felt, embroidered not printed. Forest Green or Natural Cream. In stock now.",
     url: abs("/product"),
     type: "website",
   },
@@ -28,13 +28,13 @@ const productLd = {
   "@type": "Product",
   name: PRODUCT.name,
   description:
-    "100% merino wool felt sauna hat, embroidered front and back. One size fits most heads.",
+    "100% wool felt sauna hat, embroidered front and back. One size fits most heads.",
   image: [
     abs(PRODUCT.variants.green.images.front),
     abs(PRODUCT.variants.cream.images.front),
   ],
   brand: { "@type": "Brand", name: "Smelt" },
-  material: "100% merino wool felt",
+  material: "100% wool felt",
   offers: {
     "@type": "Offer",
     url: abs("/product"),
