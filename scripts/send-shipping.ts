@@ -2,6 +2,7 @@ import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { resolve, join, basename } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { Resend } from "resend";
+import { sendManualShipping } from "../lib/admin/shipping";
 import { shippingEmail } from "../lib/emails/shipping";
 import { escapeHtml } from "../lib/emails/theme";
 import { parseShipments, sendShipmentOnce } from "../lib/shippingBatch";
@@ -38,6 +39,7 @@ async function main() {
   const resend = new Resend(apiKey);
   for (const { shipment, message } of prepared) {
     const result = await sendShipmentOnce(shipment, resolve(".local/shipping/receipts"), async (idempotencyKey) => {
+      if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) return sendManualShipping(shipment);
       const response = await resend.emails.send({ from, to: shipment.email, ...message }, { idempotencyKey });
       if (response.error || !response.data?.id) throw new Error(`Resend did not confirm acceptance for ${shipment.email}. Check its dashboard and the pending receipt before retrying.`);
       return response.data.id;

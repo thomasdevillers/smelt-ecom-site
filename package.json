@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "email:shipping": "tsx --env-file-if-exists=.env.local scripts/send-shipping.ts"
+    "email:shipping": "tsx --env-file-if-exists=.env.local scripts/send-shipping.ts",
+    "admin:setup": "tsx scripts/setup-admin.ts",
+    "admin:import-shipping": "tsx --env-file-if-exists=.env.local scripts/import-shipping-receipts.ts"
   },
   "dependencies": {
     "@paystack/inline-js": "^2.23.1",
