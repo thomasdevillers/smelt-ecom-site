@@ -11,6 +11,7 @@ import { digest } from "./store";
 import { GET as ordersGET, PATCH as ordersPATCH } from "@/app/api/admin/orders/route";
 import { GET as analyticsGET } from "@/app/api/admin/analytics/route";
 import { POST as shippingPOST } from "@/app/api/admin/shipping/route";
+import { GET as reviewsGET, POST as reviewsPOST } from "@/app/api/admin/reviews/route";
 import type { ShippingReceipt } from "./types";
 const transaction = { reference: "order-1", status: "success", amount: 54000, currency: "ZAR", customer: { email: "customer@example.com" }, metadata: { cart: { green: 1 }, shippingAddress: { line1: "1 Test St", city: "Cape Town" }, customerName: "Test Customer" } };
 const pending = (): ShippingReceipt & { message: object } => ({ status: "pending", trackingNumber: "25249853610844", email: "customer@example.com", reference: "order-1", startedAt: Date.now(), source: "dashboard", message: { from: "Smelt <orders@example.com>", to: "customer@example.com", subject: "Original subject", html: "Original HTML", text: "Original text" } });
@@ -96,11 +97,13 @@ describe("admin access", () => {
   it("protects order reads and sends without exposing data", async () => {
     expect((await ordersGET(new Request("https://saunahat.co.za/api/admin/orders"))).status).toBe(401);
     expect((await analyticsGET(new Request("https://saunahat.co.za/api/admin/analytics"))).status).toBe(401);
+    expect((await reviewsGET(new Request("https://saunahat.co.za/api/admin/reviews"))).status).toBe(401);
     expect((await shippingPOST(request({ reference: "order-1", trackingNumber: "25249853610844" }))).status).toBe(401);
     expect(mocks.fetch).not.toHaveBeenCalled(); expect(mocks.send).not.toHaveBeenCalled();
   });
   it("rejects cross-origin mutations before authentication or email calls", async () => {
     expect((await shippingPOST(request({}, "https://evil.example"))).status).toBe(403);
+    expect((await reviewsPOST(request({}, "https://evil.example"))).status).toBe(403);
     expect(mocks.get).not.toHaveBeenCalled(); expect(mocks.send).not.toHaveBeenCalled();
   });
   it("rate limits login and issues only opaque HttpOnly sessions", async () => {

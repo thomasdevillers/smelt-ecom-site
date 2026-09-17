@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import ProductClient from "@/components/ProductClient";
-import CustomerNotes from "@/components/CustomerNotes";
 import { PRODUCT } from "@/lib/product";
 import { BASE_PRICE, SHIPPING_FEE } from "@/lib/pricing";
 import { abs, breadcrumbLd, jsonLdScript } from "@/lib/seo";
@@ -80,7 +79,7 @@ export default function ProductPage() {
     <>
       <script {...jsonLdScript(productLd)} />
       <script {...jsonLdScript(crumbsLd)} />
-      <ProductClient customerNotes={<CustomerNotes />} />
+      <ProductClient />
     </>
   );
 }

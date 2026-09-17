@@ -14,6 +14,15 @@ import { META_PIXEL_ID } from '@/lib/meta'
 export default function SiteChrome({ children, structuredData }: { children: React.ReactNode; structuredData: React.ReactNode }) {
   const pathname = usePathname();
   if (pathname === '/admin' || pathname.startsWith('/admin/')) return <>{children}</>;
+  // Review invitation paths contain a private, single-use token. Keep the
+  // familiar store chrome, but never expose that URL to analytics providers.
+  if (pathname.startsWith('/review/')) return <CartProvider>
+    <Ticker />
+    <Header />
+    {children}
+    <Footer />
+    <CartDrawer />
+  </CartProvider>;
   return <>
         <Script id="tiktok-pixel" strategy="afterInteractive">
           {`!function (w, d, t) {

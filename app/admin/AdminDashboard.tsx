@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import type { AdminOrder, OrdersPage, ShippingReceipt } from "@/lib/admin/types";
 import AnalyticsPanel from "./AnalyticsPanel";
 import WaybillScanner from "./WaybillScanner";
+import ReviewsPanel from "./ReviewsPanel";
 import styles from "./admin.module.css";
 
 class RequestError extends Error { constructor(message: string, public status: number) { super(message); } }
@@ -24,6 +25,28 @@ function status(receipt: ShippingReceipt | null) {
   if (receipt.status === "pending") return "Send unconfirmed";
   const labels: Record<string, string> = { delivered: "Email delivered", opened: "Email opened", clicked: "Email clicked", bounced: "Email bounced", complained: "Marked as spam", failed: "Email failed", delivery_delayed: "Delivery delayed", suppressed: "Email suppressed", sent: "Email sent" };
   return labels[receipt.lastEvent || ""] || "Email accepted";
+}
+function ReviewInvite({ reference, onExpired }: { reference: string; onExpired: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [url, setUrl] = useState("");
+  const [message, setMessage] = useState("");
+  async function create() {
+    setBusy(true); setMessage("");
+    try {
+      const result = await api<{ reviewUrl: string }>("reviews", { method: "POST", body: JSON.stringify({ reference }) });
+      setUrl(result.reviewUrl);
+      try { await navigator.clipboard.writeText(result.reviewUrl); setMessage("New link copied. It replaces any older review link for this order."); }
+      catch { setMessage("New link created. Copy it below."); }
+    } catch (caught) {
+      if (caught instanceof RequestError && caught.status === 401) onExpired();
+      setMessage(caught instanceof Error ? caught.message : "Could not create a review link.");
+    } finally { setBusy(false); }
+  }
+  return <div className={styles.reviewInvite}>
+    <button type="button" className={styles.secondary} disabled={busy} onClick={() => void create()}>{busy ? "Creating…" : url ? "Replace review link" : "Create review link"}</button>
+    {url && <div><input aria-label="Review invitation link" readOnly value={url} onFocus={event => event.currentTarget.select()} /><button type="button" onClick={() => void navigator.clipboard.writeText(url).then(() => setMessage("Link copied."), () => setMessage("Select and copy the link manually."))}>Copy</button></div>}
+    {message && <p className={styles.note} role="status">{message}</p>}
+  </div>;
 }
 function OrderRow({ order, onReceipt, onExpired, onMoved }: { order: AdminOrder; onReceipt: (receipt: ShippingReceipt) => void; onExpired: () => void; onMoved: () => void }) {
   const [waybill, setWaybill] = useState(order.receipt?.trackingNumber || "");
@@ -84,6 +107,7 @@ function OrderRow({ order, onReceipt, onExpired, onMoved }: { order: AdminOrder;
       {order.completedAt ? <div className={styles.completionActions}>
         <p className={styles.note}>Completed {date(order.completedAt)}</p>
         <button className={styles.secondary} type="button" disabled={busy} onClick={() => void moveOrder(false)}>{busy ? "Moving…" : "Reopen order"}</button>
+        <ReviewInvite reference={order.reference} onExpired={onExpired} />
       </div> : accepted ? <div className={styles.completionActions}>
         <button type="button" disabled={busy} onClick={() => void moveOrder(true)}>{busy ? "Updating…" : "Mark complete ✓"}</button>
         <button className={styles.secondary} type="button" disabled={busy} onClick={() => void run(true)}>Check email status</button>
@@ -120,7 +144,7 @@ export default function AdminDashboard() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [view, setView] = useState<"active" | "completed">("active");
-  const [section, setSection] = useState<"orders" | "analytics">("orders");
+  const [section, setSection] = useState<"orders" | "analytics" | "reviews">("orders");
   const [notice, setNotice] = useState("");
   const generation = useRef(0);
   const expire = useCallback(() => { generation.current++; setAuth(false); setData(null); setError("Your session has ended. Sign in again to continue."); }, []);
@@ -155,6 +179,11 @@ export default function AdminDashboard() {
     catch { setError("Could not sign out. Please try again."); }
     finally { setBusy(false); }
   }
+  const sectionCopy = {
+    orders: { eyebrow: "SMELT / FULFILMENT", title: <>The dispatch desk<span>.</span></>, description: "Paste a waybill. Send the good news." },
+    analytics: { eyebrow: "SMELT / COMMERCE", title: <>Store performance<span>.</span></>, description: "Traffic, intent and verified sales in one view." },
+    reviews: { eyebrow: "SMELT / CUSTOMER PROOF", title: <>Reviews, reviewed<span>.</span></>, description: "Approve the real thing. Publish only what customers sent." },
+  }[section];
   return <div className={styles.shell}>
     <header className={styles.topbar}><Link href="/" className={styles.wordmark}>smelt<span>®</span></Link><span className={styles.privateLabel}>THE BACK OFFICE</span>{auth && <button className={styles.logout} disabled={busy} onClick={() => void signOut()}>Sign out ↗</button>}</header>
     <main className={styles.main}>
@@ -163,10 +192,11 @@ export default function AdminDashboard() {
         <form onSubmit={signIn}><label htmlFor="admin-password">Admin password</label><input id="admin-password" type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required disabled={busy} /><button disabled={busy}>{busy ? "Signing in…" : "Open dispatch desk ↗"}</button></form>
         {error && <p role="alert" className={styles.error}>{error}</p>}
       </section> : <>
-        <section className={styles.heading}><div><span className={styles.eyebrow}>{section === "orders" ? "SMELT / FULFILMENT" : "SMELT / COMMERCE"}</span><h1>{section === "orders" ? <>The dispatch desk<span>.</span></> : <>Store performance<span>.</span></>}</h1><p>{section === "orders" ? "Paste a waybill. Send the good news." : "Traffic, intent and verified sales in one view."}</p></div>{section === "orders" ? <div className={styles.total}><strong>{data?.total ?? "—"}</strong><span>{view === "completed" ? "COMPLETED ORDERS" : "ACTIVE ORDERS"}</span></div> : <div className={styles.analyticsStamp}><span>VERCEL</span><b>＋</b><span>PAYSTACK</span></div>}</section>
+        <section className={styles.heading}><div><span className={styles.eyebrow}>{sectionCopy.eyebrow}</span><h1>{sectionCopy.title}</h1><p>{sectionCopy.description}</p></div>{section === "orders" ? <div className={styles.total}><strong>{data?.total ?? "—"}</strong><span>{view === "completed" ? "COMPLETED ORDERS" : "ACTIVE ORDERS"}</span></div> : section === "analytics" ? <div className={styles.analyticsStamp}><span>VERCEL</span><b>＋</b><span>PAYSTACK</span></div> : <div className={styles.analyticsStamp}><span>PAYSTACK</span><b>＋</b><span>BLOB</span></div>}</section>
         <nav className={styles.primarySections} aria-label="Admin sections">
           <button type="button" aria-pressed={section === "orders"} onClick={() => setSection("orders")}>Orders</button>
           <button type="button" aria-pressed={section === "analytics"} onClick={() => setSection("analytics")}>Store performance</button>
+          <button type="button" aria-pressed={section === "reviews"} onClick={() => setSection("reviews")}>Reviews</button>
         </nav>
         {section === "orders" ? <>
         <nav className={styles.sections} aria-label="Order sections">
@@ -182,8 +212,8 @@ export default function AdminDashboard() {
           <div className={styles.orders}>{data.orders.map(order => <OrderRow key={order.reference} order={order} onExpired={expire} onMoved={() => { setNotice(view === "active" ? "Order moved to Completed orders." : "Order moved back to Active orders."); if (data.orders.length === 1 && data.page > 1) setPage(data.page - 1); else void load(); }} onReceipt={receipt => setData(current => current ? { ...current, orders: current.orders.map(o => o.reference === order.reference ? { ...o, receipt } : o) } : null)} />)}</div>
           {!data.orders.length && <div className={styles.empty}><h2>{search ? "No matching orders" : view === "completed" ? "No completed orders yet" : "All caught up"}</h2><p>{search ? "Search using the full customer email address or payment reference." : view === "completed" ? "Orders appear here after you mark them complete." : "New paid orders will appear here."}</p></div>}
           <nav className={styles.pagination} aria-label="Order pages"><span>{data.total ? `Page ${data.page} of ${Math.max(1, data.pageCount)}` : "0 orders"}</span><div><button className={styles.secondary} disabled={loading || data.page <= 1} onClick={() => setPage(data.page - 1)}>← Previous</button><button className={styles.secondary} disabled={loading || data.page >= data.pageCount} onClick={() => setPage(data.page + 1)}>Next →</button></div></nav></>}
-        </> : <AnalyticsPanel onExpired={expire} />}
-        <footer className={styles.footnote}>Made with care. Measured with care.<span>{section === "orders" ? "Email delivery status refers to the notification, not the parcel." : "Payment totals come from successful Paystack transactions."}</span></footer>
+        </> : section === "analytics" ? <AnalyticsPanel onExpired={expire} /> : <ReviewsPanel onExpired={expire} />}
+        <footer className={styles.footnote}>Made with care. Measured with care.<span>{section === "orders" ? "Email delivery status refers to the notification, not the parcel." : section === "analytics" ? "Payment totals come from successful Paystack transactions." : "Customer reviews remain private until approved."}</span></footer>
       </>}
     </main>
   </div>;

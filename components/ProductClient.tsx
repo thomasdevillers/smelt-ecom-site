@@ -1,10 +1,10 @@
 "use client";
 import Link from "next/link";
-import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import ProductGallery from "@/components/ProductGallery";
 import Accordion from "@/components/Accordion";
 import HairPSA from "@/components/HairPSA";
+import ProductReviews from "@/components/ProductReviews";
 import { POLICIES } from "@/content/policies";
 import SectionLabel from "@/components/ui/SectionLabel";
 import { PRODUCT, type Colour } from "@/lib/product";
@@ -20,7 +20,7 @@ import styles from "@/app/product/product.module.css";
 type PurchaseOption = "single" | "bundle";
 type BundleMix = "mixed" | "green" | "cream";
 
-export default function ProductClient({ customerNotes }: { customerNotes?: ReactNode }) {
+export default function ProductClient() {
   const viewed = useRef(false);
   const [colour, setColour] = useState<Colour>("green");
   const [purchaseOption, setPurchaseOption] = useState<PurchaseOption>("single");
@@ -152,7 +152,7 @@ export default function ProductClient({ customerNotes }: { customerNotes?: React
         </div>
       </div>
 
-      {customerNotes}
+      <ProductReviews />
       <HairPSA />
       <div className={styles.stickyBar}>
         <div className={styles.stickyInfo}>{selectionLabel} · {formatMoney(total)}</div>

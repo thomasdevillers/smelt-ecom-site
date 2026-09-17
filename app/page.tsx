@@ -7,7 +7,6 @@ import InTheWild from "@/components/InTheWild";
 import Faq from "@/components/Faq";
 import Policies from "@/components/Policies";
 import RitualBanner from "@/components/RitualBanner";
-import CustomerNotes from "@/components/CustomerNotes";
 import { FAQ } from "@/content/faq";
 
 export const metadata = {
@@ -37,7 +36,6 @@ export default function Home() {
       />
       <Hero />
       <ProductExplorer />
-      <CustomerNotes />
       <Features />
       <InTheWild />
       <HairPSA />
