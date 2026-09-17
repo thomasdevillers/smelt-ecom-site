@@ -36,8 +36,11 @@ describe("conversion analytics", () => {
       current: { start: "2026-09-11", end: "2026-09-17", visitors: 20, productViews: 15, addToCarts: 6, checkoutStarts: 3, orders: 2, revenue: 135000 },
     });
     const calls = vi.mocked(fetch).mock.calls.map(([input]) => String(input));
-    expect(calls.filter(url => url.includes("api.vercel.com"))).toHaveLength(4);
-    expect(calls.find(url => url.includes("/visits/"))).toContain("requestPath+ne+%27%2Fadmin%27");
+    const vercelCalls = calls.filter(url => url.includes("api.vercel.com"));
+    expect(vercelCalls).toHaveLength(8);
+    expect(vercelCalls.find(url => url.includes("/visits/"))).toContain("requestPath+ne+%27%2Fadmin%27");
+    expect(vercelCalls.every(value => new URL(value).searchParams.get("limit") === "100")).toBe(true);
+    expect(new Set(vercelCalls.map(value => new URL(value).searchParams.get("since"))).size).toBe(2);
     expect(calls.find(url => url.includes("api.paystack.co"))).toContain("status=success");
   });
 

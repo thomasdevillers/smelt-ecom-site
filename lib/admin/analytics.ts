@@ -34,7 +34,7 @@ function config() {
 
 async function vercelDaily(dataset: "visits" | "events", since: string, until: string, eventName?: FunnelEvent) {
   const { token, projectId, teamId } = config();
-  const query = new URLSearchParams({ projectId, since, until, by: "day", limit: "400" });
+  const query = new URLSearchParams({ projectId, since, until, by: "day", limit: "100" });
   if (teamId) query.set("teamId", teamId);
   if (eventName) query.set("filter", `eventName eq '${eventName}'`);
   else query.set("filter", "requestPath ne '/admin'");
@@ -52,6 +52,16 @@ async function vercelDaily(dataset: "visits" | "events", since: string, until: s
     throw new AdminError("Could not load traffic data from Vercel. Please try again.", 502);
   }
   return data;
+}
+
+async function trafficForRange(start: string, end: string) {
+  const [visitors, productViews, addToCarts, checkoutStarts] = await Promise.all([
+    vercelDaily("visits", start, end),
+    vercelDaily("events", start, end, "ViewContent"),
+    vercelDaily("events", start, end, "AddToCart"),
+    vercelDaily("events", start, end, "InitiateCheckout"),
+  ]);
+  return { visitors, productViews, addToCarts, checkoutStarts };
 }
 
 async function paidTransactions(from: Date, to: Date) {
@@ -113,31 +123,28 @@ export async function getConversionAnalytics(days: AnalyticsDays, now = new Date
   const currentStart = shiftDays(today, -(days - 1));
   const previousEnd = shiftDays(currentStart, -1);
   const previousStart = shiftDays(previousEnd, -(days - 1));
-  const since = dateKey(previousStart), until = dateKey(today);
-  const [visits, productViews, addToCarts, checkoutStarts, transactions] = await Promise.all([
-    vercelDaily("visits", since, until),
-    vercelDaily("events", since, until, "ViewContent"),
-    vercelDaily("events", since, until, "AddToCart"),
-    vercelDaily("events", since, until, "InitiateCheckout"),
-    paidTransactions(previousStart, now),
-  ]);
   const ranges = {
     current: { start: dateKey(currentStart), end: dateKey(today) },
     previous: { start: dateKey(previousStart), end: dateKey(previousEnd) },
   };
-  const build = ({ start, end }: { start: string; end: string }): AnalyticsPeriod => ({
+  const [currentTraffic, previousTraffic, transactions] = await Promise.all([
+    trafficForRange(ranges.current.start, ranges.current.end),
+    trafficForRange(ranges.previous.start, ranges.previous.end),
+    paidTransactions(previousStart, now),
+  ]);
+  const build = ({ start, end }: { start: string; end: string }, traffic: Awaited<ReturnType<typeof trafficForRange>>): AnalyticsPeriod => ({
     start, end,
-    visitors: sumVisitors(visits, start, end),
-    productViews: sumVisitors(productViews, start, end),
-    addToCarts: sumVisitors(addToCarts, start, end),
-    checkoutStarts: sumVisitors(checkoutStarts, start, end),
+    visitors: sumVisitors(traffic.visitors, start, end),
+    productViews: sumVisitors(traffic.productViews, start, end),
+    addToCarts: sumVisitors(traffic.addToCarts, start, end),
+    checkoutStarts: sumVisitors(traffic.checkoutStarts, start, end),
     ...sales(transactions, start, end),
   });
   return {
     days,
     generatedAt: now.toISOString(),
     mode: process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_") ? "live" : "test",
-    current: build(ranges.current),
-    previous: build(ranges.previous),
+    current: build(ranges.current, currentTraffic),
+    previous: build(ranges.previous, previousTraffic),
   };
 }
