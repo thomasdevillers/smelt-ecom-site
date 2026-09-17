@@ -5,6 +5,7 @@ import type { AdminOrder, OrdersPage, ShippingReceipt } from "@/lib/admin/types"
 import AnalyticsPanel from "./AnalyticsPanel";
 import WaybillScanner from "./WaybillScanner";
 import ReviewsPanel from "./ReviewsPanel";
+import { reviewWhatsAppUrl } from "@/lib/whatsapp";
 import styles from "./admin.module.css";
 
 class RequestError extends Error { constructor(message: string, public status: number) { super(message); } }
@@ -26,7 +27,7 @@ function status(receipt: ShippingReceipt | null) {
   const labels: Record<string, string> = { delivered: "Email delivered", opened: "Email opened", clicked: "Email clicked", bounced: "Email bounced", complained: "Marked as spam", failed: "Email failed", delivery_delayed: "Delivery delayed", suppressed: "Email suppressed", sent: "Email sent" };
   return labels[receipt.lastEvent || ""] || "Email accepted";
 }
-function ReviewInvite({ reference, onExpired }: { reference: string; onExpired: () => void }) {
+function ReviewInvite({ reference, customerName, phone, onExpired }: { reference: string; customerName: string; phone?: string; onExpired: () => void }) {
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState("");
   const [message, setMessage] = useState("");
@@ -42,9 +43,12 @@ function ReviewInvite({ reference, onExpired }: { reference: string; onExpired: 
       setMessage(caught instanceof Error ? caught.message : "Could not create a review link.");
     } finally { setBusy(false); }
   }
+  const whatsappUrl = url && phone ? reviewWhatsAppUrl({ phone, customerName, reviewUrl: url }) : null;
   return <div className={styles.reviewInvite}>
     <button type="button" className={styles.secondary} disabled={busy} onClick={() => void create()}>{busy ? "Creating…" : url ? "Replace review link" : "Create review link"}</button>
     {url && <div><input aria-label="Review invitation link" readOnly value={url} onFocus={event => event.currentTarget.select()} /><button type="button" onClick={() => void navigator.clipboard.writeText(url).then(() => setMessage("Link copied."), () => setMessage("Select and copy the link manually."))}>Copy</button></div>}
+    {whatsappUrl && <a className={styles.whatsappLink} href={whatsappUrl} target="_blank" rel="noreferrer" aria-label={`WhatsApp ${customerName || "customer"} with their review link`}>WhatsApp customer ↗</a>}
+    {url && !whatsappUrl && <p className={styles.note}>No valid customer phone number is available for WhatsApp.</p>}
     {message && <p className={styles.note} role="status">{message}</p>}
   </div>;
 }
@@ -107,7 +111,7 @@ function OrderRow({ order, onReceipt, onExpired, onMoved }: { order: AdminOrder;
       {order.completedAt ? <div className={styles.completionActions}>
         <p className={styles.note}>Completed {date(order.completedAt)}</p>
         <button className={styles.secondary} type="button" disabled={busy} onClick={() => void moveOrder(false)}>{busy ? "Moving…" : "Reopen order"}</button>
-        <ReviewInvite reference={order.reference} onExpired={onExpired} />
+        <ReviewInvite reference={order.reference} customerName={order.name} phone={address.phone} onExpired={onExpired} />
       </div> : accepted ? <div className={styles.completionActions}>
         <button type="button" disabled={busy} onClick={() => void moveOrder(true)}>{busy ? "Updating…" : "Mark complete ✓"}</button>
         <button className={styles.secondary} type="button" disabled={busy} onClick={() => void run(true)}>Check email status</button>

@@ -55,6 +55,8 @@ beforeEach(() => {
   vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "test");
   vi.stubEnv("PAYSTACK_SECRET_KEY", "sk_test_example");
   vi.stubEnv("BLOB_READ_WRITE_TOKEN", "blob-test");
+  vi.stubEnv("BLOB_STORE_ID", "");
+  vi.stubEnv("BLOB_WEBHOOK_PUBLIC_KEY", "");
   mocks.paidOrder.mockResolvedValue(order);
   mocks.hashes.set("orders:completed", new Map([["order-1", "2026-09-17T12:00:00.000Z"]]));
 });
@@ -93,6 +95,14 @@ describe("review invitations and verified submission", () => {
 });
 
 describe("review photos and moderation", () => {
+  it("enables photo uploads for a Blob store connected with OIDC", async () => {
+    vi.stubEnv("BLOB_READ_WRITE_TOKEN", "");
+    vi.stubEnv("BLOB_STORE_ID", "store_test");
+    vi.stubEnv("BLOB_WEBHOOK_PUBLIC_KEY", "public-key");
+    const { visible } = await invitation();
+    expect(visible).toMatchObject({ photoUploadsEnabled: true, photoUploadMode: "presigned" });
+  });
+
   it("accepts only invitation-scoped Blob photos and caps upload authorization at three", async () => {
     const { token, visible } = await invitation();
     const pathname = `reviews/pending/${visible.uploadKey}/photo.webp`;

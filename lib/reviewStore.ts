@@ -24,6 +24,14 @@ const currentInviteKey = (reference: string) => `${prefix()}:order:${digest(refe
 const claimKey = (tokenDigest: string) => `${prefix()}:claim:${tokenDigest}`;
 const uploadCountKey = (tokenDigest: string) => `${prefix()}:uploads:${tokenDigest}`;
 
+// New Vercel Blob connections use short-lived OIDC credentials at runtime and
+// expose the connected store through BLOB_STORE_ID. Older connections can
+// still authenticate with a long-lived BLOB_READ_WRITE_TOKEN.
+function blobUploadMode(): "presigned" | "client-token" | undefined {
+  if (process.env.BLOB_STORE_ID && process.env.BLOB_WEBHOOK_PUBLIC_KEY) return "presigned";
+  if (process.env.BLOB_READ_WRITE_TOKEN) return "client-token";
+}
+
 export interface ReviewInvitation {
   reference: string;
   email: string;
@@ -42,6 +50,7 @@ export interface PublicInvitation {
   colours?: Colour[];
   uploadKey?: string;
   photoUploadsEnabled?: boolean;
+  photoUploadMode?: "presigned" | "client-token";
 }
 
 function parseStored<T>(value: T | string | null): T | null {
@@ -91,6 +100,7 @@ async function invitationForToken(token: string): Promise<{ invitation: ReviewIn
 export async function getPublicInvitation(token: string): Promise<PublicInvitation> {
   const found = await invitationForToken(token);
   if (!found) return { valid: false, used: false };
+  const photoUploadMode = blobUploadMode();
   return {
     valid: true,
     used: Boolean(await adminStore().get(claimKey(found.tokenDigest))),
@@ -98,7 +108,8 @@ export async function getPublicInvitation(token: string): Promise<PublicInvitati
     suggestedName: found.invitation.suggestedName,
     colours: found.invitation.colours,
     uploadKey: found.invitation.uploadKey,
-    photoUploadsEnabled: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
+    photoUploadsEnabled: Boolean(photoUploadMode),
+    photoUploadMode,
   };
 }
 
@@ -203,7 +214,7 @@ export async function moderateReview(id: string, status: "published" | "rejected
   await db.hset(recordsKey(), { [id]: updated });
   await Promise.all((["pending", "published", "rejected"] as ReviewStatus[]).map(value => db.zrem(statusKey(value), id)));
   await db.zadd(statusKey(status), { score: Date.parse(updated.submittedAt), member: id });
-  if (status === "rejected" && review.photos.length && process.env.BLOB_READ_WRITE_TOKEN) {
+  if (status === "rejected" && review.photos.length && blobUploadMode()) {
     await del(review.photos.map(photo => photo.url));
     updated.photos = [];
     await db.hset(recordsKey(), { [id]: updated });
@@ -217,7 +228,7 @@ export async function removeReviewPhoto(id: string, url: string) {
   if (!review) throw new AdminError("Review not found.", 404);
   const photo = review.photos.find(item => item.url === url);
   if (!photo) throw new AdminError("Photo not found.", 404);
-  if (process.env.BLOB_READ_WRITE_TOKEN) await del(photo.url);
+  if (blobUploadMode()) await del(photo.url);
   const updated = { ...review, photos: review.photos.filter(item => item.url !== url) };
   await db.hset(recordsKey(), { [id]: updated });
   return updated;

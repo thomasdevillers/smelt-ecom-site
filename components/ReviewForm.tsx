@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { upload } from "@vercel/blob/client";
+import { upload, uploadPresigned } from "@vercel/blob/client";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { REVIEW_MAX_PHOTO_BYTES, REVIEW_MAX_PHOTOS, REVIEW_PHOTO_TYPES } from "@/lib/reviews";
 import type { Colour } from "@/lib/product";
 import styles from "./ReviewForm.module.css";
 
-type Invitation = { valid: boolean; used: boolean; suggestedName?: string; colours?: Colour[]; uploadKey?: string; photoUploadsEnabled?: boolean; error?: string };
+type Invitation = { valid: boolean; used: boolean; suggestedName?: string; colours?: Colour[]; uploadKey?: string; photoUploadsEnabled?: boolean; photoUploadMode?: "presigned" | "client-token"; error?: string };
 
 async function reencodePhoto(file: File): Promise<File> {
   const image = document.createElement("img");
@@ -69,7 +69,8 @@ export default function ReviewForm({ token }: { token: string }) {
       const photoUrls: string[] = [];
       for (const file of files) {
         const ready = await reencodePhoto(file);
-        const blob = await upload(`reviews/pending/${invitation.uploadKey}/${ready.name}`, ready, {
+        const uploadPhoto = invitation.photoUploadMode === "presigned" ? uploadPresigned : upload;
+        const blob = await uploadPhoto(`reviews/pending/${invitation.uploadKey}/${ready.name}`, ready, {
           access: "public",
           handleUploadUrl: "/api/reviews/upload",
           clientPayload: JSON.stringify({ token }),
