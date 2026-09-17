@@ -1,21 +1,37 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PRODUCT, type Colour } from "@/lib/product";
 import { BASE_PRICE, formatMoney } from "@/lib/pricing";
 import { useCart } from "@/lib/cart";
 import HatSwap from "./HatSwap";
 import SectionLabel from "./ui/SectionLabel";
 import styles from "./ProductExplorer.module.css";
+import { trackVercelEvent, vercelProductData } from "@/lib/vercelAnalytics";
 
 export default function ProductExplorer() {
   const [colour, setColour] = useState<Colour>("green");
+  const sectionRef = useRef<HTMLElement>(null);
+  const viewed = useRef(false);
   const { dispatch, openCart } = useCart();
   const v = PRODUCT.variants[colour];
 
   const add = () => { dispatch({ type: "add", colour, qty: 1 }); openCart(); };
 
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section || viewed.current) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry?.isIntersecting || viewed.current) return;
+      viewed.current = true;
+      trackVercelEvent("ViewContent", vercelProductData(colour, 1));
+      observer.disconnect();
+    }, { threshold: 0.35 });
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, [colour]);
+
   return (
-    <section id="shop" className={styles.section}>
+    <section ref={sectionRef} id="shop" className={styles.section}>
       <div className={styles.header}>
         <div>
           <SectionLabel>The collection (all two of them)</SectionLabel>

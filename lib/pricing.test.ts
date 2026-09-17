@@ -9,6 +9,7 @@ import {
   qualifiesForFreeShipping,
   shippingFee,
   grandTotal,
+  SHIPPING_OPTIONS,
 } from "./pricing";
 
 describe("pricing", () => {
@@ -36,5 +37,11 @@ describe("pricing", () => {
     expect(shippingFee(500)).toBe(0);
     expect(grandTotal(450)).toBe(540);
     expect(grandTotal(500)).toBe(500);
+  });
+
+  it("quotes dispatch and transit honestly instead of promising overnight delivery", () => {
+    expect(SHIPPING_OPTIONS.aramex.description).toContain("Dispatched in 1–3 business days");
+    expect(SHIPPING_OPTIONS.aramex.description).toContain("3–5");
+    expect(SHIPPING_OPTIONS.aramex.description.toLowerCase()).not.toContain("overnight");
   });
 });

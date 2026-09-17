@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 vi.mock("@vercel/analytics", () => ({ track: vi.fn() }));
 import { track } from "@vercel/analytics";
-import { trackVercelPurchase, vercelCartData, vercelProductData } from "./vercelAnalytics";
+import { trackVercelEvent, trackVercelPurchase, vercelCartData, vercelProductData } from "./vercelAnalytics";
 const paid = { paid: true, reference: "verified-1", amountRand: 540, currency: "ZAR", items: [{ colour: "green", qty: 1 }] };
 beforeEach(() => {
   vi.mocked(track).mockReset();
@@ -13,6 +13,15 @@ afterEach(() => vi.unstubAllGlobals());
 it("stays within the two custom properties available on Vercel Pro", () => {
   expect(vercelProductData("cream", 2)).toEqual({ colour: "cream", quantity: 2 });
   expect(vercelCartData({ green: 1, cream: 1 })).toEqual({ colour: "mixed", quantity: 2 });
+});
+it("tracks checkout diagnostic stages without customer or payment data", () => {
+  const properties = vercelCartData({ green: 1, cream: 1 });
+  trackVercelEvent("PaymentOpened", properties);
+  trackVercelEvent("PaymentCancelled", properties);
+  trackVercelEvent("CheckoutError", properties);
+  expect(track).toHaveBeenNthCalledWith(1, "PaymentOpened", { colour: "mixed", quantity: 2 });
+  expect(track).toHaveBeenNthCalledWith(2, "PaymentCancelled", { colour: "mixed", quantity: 2 });
+  expect(track).toHaveBeenNthCalledWith(3, "CheckoutError", { colour: "mixed", quantity: 2 });
 });
 it("only counts confirmed payments once and sends no payment reference or customer data", async () => {
   trackVercelPurchase({ ...paid, paid: false });

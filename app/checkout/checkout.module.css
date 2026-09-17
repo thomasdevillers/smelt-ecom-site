@@ -13,13 +13,32 @@
 .label { font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: rgba(14,59,42,.7); }
 .input { width: 100%; font-family: inherit; font-size: 16px; color: var(--ink); background: var(--paper); border: var(--border-ink-soft); border-radius: 14px; padding: 14px 16px; }
 .input:focus { outline: 3px solid var(--terracotta); outline-offset: 1px; }
+.addressSummary { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 14px 16px; border: 1px solid rgba(14,59,42,.28); border-radius: 14px; background: rgba(14,59,42,.045); }
+.addressSummary div { display: grid; gap: 4px; min-width: 0; }
+.addressSummary span { color: rgba(14,59,42,.62); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.addressSummary strong { font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
+.addressSummary button, .addressHelp button, .optionalAddress > button { padding: 0; border: 0; background: transparent; color: var(--ink); cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.addressSummary button { flex: 0 0 auto; }
+.addressHelp { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: -8px; color: rgba(14,59,42,.66); font-size: 12px; line-height: 1.45; }
+.addressHelp button { flex: 0 0 auto; }
+.addressDetails { display: grid; gap: 16px; padding: 18px; border: var(--border-ink-soft); border-radius: 14px; background: rgba(14,59,42,.025); }
+.addressDetailsHead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.addressDetailsHead strong { font-size: 14px; }
+.addressDetailsHead button { padding: 0; border: 0; background: transparent; color: var(--ink); cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.optionalAddress { display: grid; justify-items: start; gap: 14px; margin-top: -4px; }
+.optionalGrid { width: 100%; display: grid; gap: 16px; }
+.label small { font-size: 10px; font-weight: 500; letter-spacing: .04em; opacity: .72; }
 .pay { display: flex; align-items: center; justify-content: center; background: var(--ink); color: var(--paper); border: none; border-radius: 14px; padding: 16px; font-weight: 600; font-size: 16px; cursor: pointer; min-height: 52px; }
 .pay:disabled { opacity: .6; cursor: default; }
 .err { color: #b3261e; font-size: 14px; margin: 0; }
 .secure { text-align: center; font-size: 13px; color: rgba(14,59,42,.6); margin: 0; }
 
 .fieldRow { display: grid; gap: 16px; }
-@media (min-width: 560px) { .fieldRow { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 560px) { .fieldRow, .optionalGrid { grid-template-columns: 1fr 1fr; } }
+
+@media (max-width: 559px) {
+  .addressSummary, .addressHelp { flex-direction: column; }
+}
 
 .back { display: inline-block; margin-top: 24px; font-weight: 600; }
 @media (min-width: 880px) { .card { padding: 40px 36px; } }
@@ -37,4 +56,10 @@
 .shippingHeading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; font-size: 15px; line-height: 1.4; }
 .shippingPrice { white-space: nowrap; font-weight: 700; }
 .shippingDescription { font-size: 13px; line-height: 1.5; color: rgba(14,59,42,.8); }
+.specialDelivery { border: 1px dashed rgba(14,59,42,.28); border-radius: 14px; background: rgba(14,59,42,.025); }
+.specialDelivery summary { display: grid; gap: 3px; padding: 14px 16px; cursor: pointer; list-style-position: inside; }
+.specialDelivery summary span { font-size: 13px; font-weight: 700; }
+.specialDelivery summary small { padding-left: 17px; color: rgba(14,59,42,.62); font-size: 11px; }
+.specialDelivery[open] summary { border-bottom: var(--border-ink-soft); }
+.specialDelivery .shippingOption { margin: 12px; background: var(--paper); }
 .row { gap: 16px; }

@@ -5,7 +5,9 @@ import { useCart } from "@/lib/cart";
 import { PRODUCT, COLOURS } from "@/lib/product";
 import {
   formatMoney,
+  grandTotal,
   lineTotal,
+  shippingFee,
   unitPrice,
   qualifiesForFreeShipping,
 } from "@/lib/pricing";
@@ -16,6 +18,8 @@ export default function CartDrawer() {
   const lines = COLOURS.filter((c) => cart[c] > 0);
   const freeShip = qualifiesForFreeShipping(subtotal);
   const shipProgress = freeShip ? 100 : 50;
+  const delivery = shippingFee(subtotal);
+  const total = grandTotal(subtotal);
 
   return (
     <>
@@ -121,16 +125,24 @@ export default function CartDrawer() {
                   style={{ width: `${shipProgress}%` }}
                 />
               </div>
-              <div className={styles.subtotal}>
+              <div className={styles.costRow}>
                 <span>Subtotal</span>
                 <span>{formatMoney(subtotal)}</span>
+              </div>
+              <div className={styles.costRow}>
+                <span>Express delivery</span>
+                <span>{delivery === 0 ? "FREE" : formatMoney(delivery)}</span>
+              </div>
+              <div className={styles.total}>
+                <span>Total</span>
+                <span>{formatMoney(total)}</span>
               </div>
               <Link
                 href="/checkout"
                 className={styles.checkout}
                 onClick={closeCart}
               >
-                Checkout · {formatMoney(subtotal)}
+                Checkout securely · {formatMoney(total)}
               </Link>
               <Link href="/cart" className={styles.viewBag} onClick={closeCart}>
                 View full bag

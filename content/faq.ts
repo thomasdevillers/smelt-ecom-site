@@ -30,10 +30,10 @@ export const FAQ: FaqItem[] = [
   },
   {
     q: "When will my order ship?",
-    a: "The hats are in stock and ready to go. You'll get an email with tracking the moment yours is on its way from Cape Town.",
+    a: "The hats are in stock and dispatched from Cape Town within 1 to 3 business days. Courier transit is usually 1 to 2 business days around Cape Town, 2 to 3 business days to national main centres, and 3 to 5 business days to regional or outlying areas. You'll get an email with tracking as soon as your order leaves us.",
   },
   {
     q: "What if I don't love it?",
-    a: "Then it wasn't for you, and that's fine. Reach out and we'll sort out a return or exchange. We would rather have a happy head than a kept sale.",
+    a: "You can return a completely unopened, unused and sealed hat within 7 days of delivery, with return shipping for your account. Because sauna hats are personal, high-sweat items, we cannot accept opened or used hats for change-of-mind returns. If your hat arrives damaged or has a manufacturing defect, contact us within 6 months and we'll arrange collection at our cost and offer a refund or replacement.",
   },
 ];

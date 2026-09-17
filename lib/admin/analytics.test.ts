@@ -19,7 +19,13 @@ describe("conversion analytics", () => {
         { reference: "other-business", status: "success", amount: 200000, currency: "ZAR", paid_at: "2026-09-14T10:00:00Z", metadata: {} },
       ] });
       const filter = url.searchParams.get("filter");
-      const values = filter?.includes("ViewContent") ? [8, 15] : filter?.includes("AddToCart") ? [4, 6] : filter?.includes("InitiateCheckout") ? [2, 3] : [10, 20];
+      const values = filter?.includes("ViewContent") ? [8, 15]
+        : filter?.includes("AddToCart") ? [4, 6]
+        : filter?.includes("InitiateCheckout") ? [2, 3]
+        : filter?.includes("PaymentOpened") ? [2, 3]
+        : filter?.includes("PaymentCancelled") ? [1, 1]
+        : filter?.includes("CheckoutError") ? [1, 2]
+        : [10, 20];
       return json({ data: [
         { timestamp: "2026-09-05T00:00:00.000Z", visitors: values[0] },
         { timestamp: "2026-09-12T00:00:00.000Z", visitors: values[1] },
@@ -32,12 +38,12 @@ describe("conversion analytics", () => {
     const result = await getConversionAnalytics(7, new Date("2026-09-17T10:00:00Z"));
     expect(result).toMatchObject({
       mode: "live", days: 7,
-      previous: { start: "2026-09-04", end: "2026-09-10", visitors: 10, productViews: 8, addToCarts: 4, checkoutStarts: 2, orders: 1, revenue: 45000 },
-      current: { start: "2026-09-11", end: "2026-09-17", visitors: 20, productViews: 15, addToCarts: 6, checkoutStarts: 3, orders: 2, revenue: 135000 },
+      previous: { start: "2026-09-04", end: "2026-09-10", visitors: 10, productViews: 8, addToCarts: 4, checkoutStarts: 2, paymentOpened: 2, paymentCancelled: 1, checkoutErrors: 1, orders: 1, revenue: 45000 },
+      current: { start: "2026-09-11", end: "2026-09-17", visitors: 20, productViews: 15, addToCarts: 6, checkoutStarts: 3, paymentOpened: 3, paymentCancelled: 1, checkoutErrors: 2, orders: 2, revenue: 135000 },
     });
     const calls = vi.mocked(fetch).mock.calls.map(([input]) => String(input));
     const vercelCalls = calls.filter(url => url.includes("api.vercel.com"));
-    expect(vercelCalls).toHaveLength(8);
+    expect(vercelCalls).toHaveLength(14);
     expect(vercelCalls.find(url => url.includes("/visits/"))).toContain("requestPath+ne+%27%2Fadmin%27");
     expect(vercelCalls.every(value => new URL(value).searchParams.get("limit") === "100")).toBe(true);
     expect(new Set(vercelCalls.map(value => new URL(value).searchParams.get("since"))).size).toBe(2);

@@ -35,8 +35,9 @@ function derived(period: AnalyticsPeriod) {
     storeConversion: percent(period.orders, period.visitors),
     productConversion: percent(period.orders, period.productViews),
     cartRate: percent(period.addToCarts, period.productViews),
-    checkoutStartRate: percent(period.checkoutStarts, period.productViews),
-    checkoutCompletion: percent(period.orders, period.checkoutStarts),
+    cartToCheckout: percent(period.checkoutStarts, period.addToCarts),
+    paymentOpenRate: percent(period.paymentOpened, period.checkoutStarts),
+    paymentCompletion: percent(period.orders, period.paymentOpened),
     averageOrder: period.orders ? period.revenue / period.orders : 0,
     revenuePerVisitor: period.visitors ? period.revenue / period.visitors : 0,
   };
@@ -78,8 +79,9 @@ export default function AnalyticsPanel({ onExpired }: { onExpired: () => void })
     { label: "Store visitors", value: data.current.visitors, note: "Daily unique visitors" },
     { label: "Product viewers", value: data.current.productViews, note: `${formatPercent(percent(data.current.productViews, data.current.visitors))} of visitors` },
     { label: "Added to bag", value: data.current.addToCarts, note: `${formatPercent(current!.cartRate)} of product viewers` },
-    { label: "Started checkout", value: data.current.checkoutStarts, note: `${formatPercent(current!.checkoutStartRate)} of product viewers` },
-    { label: "Paid orders", value: data.current.orders, note: `${formatPercent(current!.checkoutCompletion)} of checkout starts` },
+    { label: "Started checkout", value: data.current.checkoutStarts, note: `${formatPercent(current!.cartToCheckout)} of shoppers who added` },
+    { label: "Opened payment", value: data.current.paymentOpened, note: `${formatPercent(current!.paymentOpenRate)} of checkout visitors` },
+    { label: "Paid orders", value: data.current.orders, note: `${formatPercent(current!.paymentCompletion)} of payment openers` },
   ] : [];
 
   return <section className={styles.analytics} aria-labelledby="analytics-title">
@@ -106,7 +108,9 @@ export default function AnalyticsPanel({ onExpired }: { onExpired: () => void })
         <Metric label="Revenue / visitor" value={formatMoney(current.revenuePerVisitor)} note="Commercial yield" trend={change(current.revenuePerVisitor, previous.revenuePerVisitor)} />
         <Metric label="Product conversion" value={formatPercent(current.productConversion)} note="Orders / product viewers" trend={change(current.productConversion, previous.productConversion, true)} />
         <Metric label="Add-to-bag rate" value={formatPercent(current.cartRate)} note="Unique adders / viewers" trend={change(current.cartRate, previous.cartRate, true)} />
-        <Metric label="Checkout completion" value={formatPercent(current.checkoutCompletion)} note="Orders / checkout starters" trend={change(current.checkoutCompletion, previous.checkoutCompletion, true)} />
+        <Metric label="Cart → checkout" value={formatPercent(current.cartToCheckout)} note="Checkout visitors / adders" trend={change(current.cartToCheckout, previous.cartToCheckout, true)} />
+        <Metric label="Payment-open rate" value={formatPercent(current.paymentOpenRate)} note="Payment openers / checkout visitors" trend={change(current.paymentOpenRate, previous.paymentOpenRate, true)} />
+        <Metric label="Payment completion" value={formatPercent(current.paymentCompletion)} note="Orders / payment openers" trend={change(current.paymentCompletion, previous.paymentCompletion, true)} />
       </div>
       <section className={styles.funnelSection} aria-labelledby="funnel-title">
         <div className={styles.sectionIntro}><span>PATH TO PURCHASE</span><h2 id="funnel-title">Where the warmth escapes.</h2><p>Unique daily visitors at each browser-tracked stage, ending with verified Paystack orders.</p></div>
@@ -121,6 +125,7 @@ export default function AnalyticsPanel({ onExpired }: { onExpired: () => void })
       <div className={styles.analyticsNotes}>
         <p><strong>How to read this:</strong> Paystack is the sales truth. Vercel events diagnose where shoppers drop off; browser blocking or a closed tab can make those stages undercount.</p>
         <p>Vercel’s privacy-friendly visitor identity resets daily, so a person returning on another day is counted again. Rates are most useful as consistent trends, not permanent person-level attribution.</p>
+        <p><strong>Checkout signals this period:</strong> {formatNumber(data.current.paymentCancelled)} payment {data.current.paymentCancelled === 1 ? "cancellation" : "cancellations"} and {formatNumber(data.current.checkoutErrors)} checkout {data.current.checkoutErrors === 1 ? "error" : "errors"}. These browser events are diagnostic and may be blocked. Payment-stage tracking starts with this release, so use a range fully after deployment before treating its rates as a baseline.</p>
       </div>
     </>}
   </section>;

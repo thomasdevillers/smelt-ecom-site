@@ -3,6 +3,8 @@ import { POLICIES } from "@/content/policies";
 import styles from "./Policies.module.css";
 
 export default function Policies() {
+  const [defectiveBeforeEmail, defectiveAfterEmail = ""] = POLICIES.returns.defective.split("Email returns@saunahat.co.za");
+
   return (
     <section id="policies" className={styles.section}>
       <div className={styles.header}>
@@ -55,11 +57,11 @@ export default function Policies() {
           <div className={styles.item}>
             <span className={styles.itemLabel}>Defective Goods</span>
             <p className={styles.itemText}>
-              We stand by the quality of our products. If your hat arrives damaged or has a manufacturing defect, please contact us within 6 Months of delivery. Email{" "}
+              {defectiveBeforeEmail}Email{" "}
               <a className={styles.emailLink} href="mailto:returns@saunahat.co.za">
                 returns@saunahat.co.za
               </a>{" "}
-              with your order number and clear photos of the issue. We will arrange collection at our cost and provide either a full refund or a free replacement. <small>(Note: This does not cover normal wear and tear or improper washing).</small>
+              {defectiveAfterEmail}
             </p>
           </div>
         </div>

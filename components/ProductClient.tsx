@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import ProductGallery from "@/components/ProductGallery";
 import Accordion from "@/components/Accordion";
@@ -7,7 +8,7 @@ import HairPSA from "@/components/HairPSA";
 import { POLICIES } from "@/content/policies";
 import SectionLabel from "@/components/ui/SectionLabel";
 import { PRODUCT, type Colour } from "@/lib/product";
-import { BASE_PRICE, formatMoney, lineTotal } from "@/lib/pricing";
+import { BASE_PRICE, SHIPPING_FEE, formatMoney, lineTotal } from "@/lib/pricing";
 import { useCart } from "@/lib/cart";
 import { META_CURRENCY, metaVariantContent } from "@/lib/meta";
 import { trackMetaEvent } from "@/lib/metaPixel";
@@ -16,14 +17,34 @@ import { trackTikTokEvent } from "@/lib/tiktokPixel";
 import { trackVercelEvent, vercelProductData } from "@/lib/vercelAnalytics";
 import styles from "@/app/product/product.module.css";
 
-export default function ProductClient() {
+type PurchaseOption = "single" | "bundle";
+type BundleMix = "mixed" | "green" | "cream";
+
+export default function ProductClient({ customerNotes }: { customerNotes?: ReactNode }) {
   const viewed = useRef(false);
   const [colour, setColour] = useState<Colour>("green");
-  const [qty, setQty] = useState(1);
+  const [purchaseOption, setPurchaseOption] = useState<PurchaseOption>("single");
+  const [bundleMix, setBundleMix] = useState<BundleMix>("mixed");
   const { dispatch, openCart } = useCart();
   const v = PRODUCT.variants[colour];
-  const total = lineTotal(qty);
-  const add = () => { dispatch({ type: "add", colour, qty }); openCart(); };
+  const quantity = purchaseOption === "bundle" ? 2 : 1;
+  const total = lineTotal(quantity);
+  const selectionLabel = purchaseOption === "single"
+    ? v.name
+    : bundleMix === "mixed"
+      ? "One of each"
+      : `Two ${PRODUCT.variants[bundleMix].name}`;
+  const add = () => {
+    if (purchaseOption === "single") {
+      dispatch({ type: "add", colour, qty: 1 });
+    } else if (bundleMix === "mixed") {
+      dispatch({ type: "add", colour: "green", qty: 1 });
+      dispatch({ type: "add", colour: "cream", qty: 1 });
+    } else {
+      dispatch({ type: "add", colour: bundleMix, qty: 2 });
+    }
+    openCart();
+  };
 
   useEffect(() => {
     if (viewed.current) return;
@@ -51,28 +72,64 @@ export default function ProductClient() {
           <h1 className={styles.h1}>{PRODUCT.name}</h1>
           <div className={styles.price}>{formatMoney(BASE_PRICE)}</div>
           <p className={styles.desc}>100% wool felt, embroidered (never printed) with &ldquo;Smelt&rdquo; on the front and &ldquo;Warm regards&rdquo; on the back. One size fits most heads. Made to sweat in.</p>
+          <ul className={styles.benefits}>
+            <li>Insulates your scalp and ears from intense sauna heat</li>
+            <li>Dense 100% wool felt with no synthetic blend</li>
+            <li>Relaxed one-size shape designed to sit loose, not clamp</li>
+          </ul>
 
-          <div className={styles.opt}>
+          <fieldset className={styles.purchaseOptions}>
+            <legend className={styles.optLabel}>Choose your order</legend>
+            <label className={`${styles.purchaseCard} ${purchaseOption === "single" ? styles.purchaseCardOn : ""}`}>
+              <input type="radio" name="purchaseOption" value="single" checked={purchaseOption === "single"} onChange={() => setPurchaseOption("single")} />
+              <span><strong>One hat</strong><small>{formatMoney(BASE_PRICE)} + {formatMoney(SHIPPING_FEE)} delivery</small></span>
+              <b>{formatMoney(BASE_PRICE + SHIPPING_FEE)} total</b>
+            </label>
+            <label className={`${styles.purchaseCard} ${purchaseOption === "bundle" ? styles.purchaseCardOn : ""}`}>
+              <input type="radio" name="purchaseOption" value="bundle" checked={purchaseOption === "bundle"} onChange={() => setPurchaseOption("bundle")} />
+              <span><strong>Two-hat bundle <em>Free delivery</em></strong><small>{formatMoney(lineTotal(2))} · Save {formatMoney(SHIPPING_FEE)} on delivery</small></span>
+              <b>{formatMoney(lineTotal(2))} total</b>
+            </label>
+          </fieldset>
+
+          {purchaseOption === "single" ? <div className={styles.opt}>
             <div className={styles.optLabel}>Colourway</div>
             <div className={styles.chips}>
               {(["green", "cream"] as Colour[]).map((c) => (
-                <button key={c} className={`${styles.chip} ${colour === c ? styles.chipOn : ""}`} onClick={() => { setColour(c); }}>{PRODUCT.variants[c].name}</button>
+                <button key={c} className={`${styles.chip} ${colour === c ? styles.chipOn : ""}`} onClick={() => setColour(c)}>{PRODUCT.variants[c].name}</button>
               ))}
             </div>
-          </div>
-
-          <div className={styles.opt}>
-            <div className={styles.optLabel}>Quantity</div>
-            <div className={styles.qty}>
-              <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Decrease quantity">−</button>
-              <span>{qty}</span>
-              <button onClick={() => setQty((q) => q + 1)} aria-label="Increase quantity">+</button>
+          </div> : <div className={styles.opt}>
+            <div className={styles.optLabel}>Choose your two hats</div>
+            <div className={styles.bundleChoices}>
+              {([
+                ["mixed", "One of each"],
+                ["green", "Two green"],
+                ["cream", "Two cream"],
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={`${styles.bundleChoice} ${bundleMix === value ? styles.bundleChoiceOn : ""}`}
+                  onClick={() => {
+                    setBundleMix(value);
+                    if (value !== "mixed") setColour(value);
+                  }}
+                  aria-pressed={bundleMix === value}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
+          </div>}
+
+          <button className={styles.add} onClick={add}>{purchaseOption === "bundle" ? "Add two hats" : "Add to bag"} · {formatMoney(total)}</button>
+
+          <div className={styles.reassure}>
+            <span><strong>In stock</strong> · Dispatched from Cape Town within 1–3 business days</span>
+            <span>R90 nationwide delivery · <strong>Free when you buy two or more</strong></span>
+            <span>Secure checkout powered by Paystack</span>
           </div>
-
-          <button className={styles.add} onClick={add}>Add to bag · {formatMoney(total)}</button>
-
-          <p className={styles.reassure}>Ships from Cape Town · Dispatched within 1–3 business days.<br />Free nationwide delivery when you buy two or more hats.</p>
 
           <div className={styles.accordions}>
             <Accordion title="Details" defaultOpen>
@@ -95,10 +152,11 @@ export default function ProductClient() {
         </div>
       </div>
 
+      {customerNotes}
       <HairPSA />
       <div className={styles.stickyBar}>
-        <div className={styles.stickyInfo}>{v.name} · {formatMoney(total)}</div>
-        <button className={styles.stickyAdd} onClick={add}>Add to bag</button>
+        <div className={styles.stickyInfo}>{selectionLabel} · {formatMoney(total)}</div>
+        <button className={styles.stickyAdd} onClick={add}>{purchaseOption === "bundle" ? "Add two" : "Add to bag"}</button>
       </div>
     </main>
   );

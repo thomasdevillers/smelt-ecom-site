@@ -6,7 +6,7 @@ export type ShippingMethod = (typeof SHIPPING_METHODS)[number];
 export const SHIPPING_OPTIONS = {
   aramex: {
     label: "Express shipping",
-    description: "Overnight to main business centres; 24–72 hours for outlying areas.",
+    description: "Dispatched in 1–3 business days. Transit is 1–3 business days to main centres and 3–5 to regional or outlying areas.",
   },
   founders: {
     label: "Hand delivered by founders",

@@ -45,6 +45,9 @@ export interface AnalyticsPeriod {
   productViews: number;
   addToCarts: number;
   checkoutStarts: number;
+  paymentOpened: number;
+  paymentCancelled: number;
+  checkoutErrors: number;
   orders: number;
   revenue: number;
 }

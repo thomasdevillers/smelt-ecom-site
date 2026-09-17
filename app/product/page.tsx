@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import ProductClient from "@/components/ProductClient";
+import CustomerNotes from "@/components/CustomerNotes";
 import { PRODUCT } from "@/lib/product";
 import { BASE_PRICE, SHIPPING_FEE } from "@/lib/pricing";
 import { abs, breadcrumbLd, jsonLdScript } from "@/lib/seo";
@@ -48,9 +49,10 @@ const productLd = {
       applicableCountry: "ZA",
       returnPolicyCategory:
         "https://schema.org/MerchantReturnFiniteReturnWindow",
-      merchantReturnDays: 30,
+      merchantReturnDays: 7,
       returnMethod: "https://schema.org/ReturnByMail",
-      returnFees: "https://schema.org/FreeReturn",
+      returnFees: "https://schema.org/ReturnFeesCustomerResponsibility",
+      itemCondition: "https://schema.org/NewCondition",
     },
     shippingDetails: {
       "@type": "OfferShippingDetails",
@@ -78,7 +80,7 @@ export default function ProductPage() {
     <>
       <script {...jsonLdScript(productLd)} />
       <script {...jsonLdScript(crumbsLd)} />
-      <ProductClient />
+      <ProductClient customerNotes={<CustomerNotes />} />
     </>
   );
 }

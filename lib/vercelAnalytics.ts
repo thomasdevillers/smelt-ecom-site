@@ -4,7 +4,14 @@ import { track } from "@vercel/analytics";
 import { cartCount, type CartState } from "./cartReducer";
 import type { Colour } from "./product";
 
-type EventName = "ViewContent" | "AddToCart" | "InitiateCheckout" | "Purchase";
+type EventName =
+  | "ViewContent"
+  | "AddToCart"
+  | "InitiateCheckout"
+  | "PaymentOpened"
+  | "PaymentCancelled"
+  | "CheckoutError"
+  | "Purchase";
 type Properties = { colour: string; quantity: number };
 const purchases = new Set<string>();
 

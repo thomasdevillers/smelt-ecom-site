@@ -5,7 +5,9 @@ import { useCart } from "@/lib/cart";
 import { PRODUCT, COLOURS } from "@/lib/product";
 import {
   formatMoney,
+  grandTotal,
   lineTotal,
+  shippingFee,
   unitPrice,
   qualifiesForFreeShipping,
 } from "@/lib/pricing";
@@ -15,6 +17,8 @@ export default function CartPage() {
   const { cart, dispatch, subtotal } = useCart();
   const lines = COLOURS.filter((c) => cart[c] > 0);
   const freeShip = qualifiesForFreeShipping(subtotal);
+  const delivery = shippingFee(subtotal);
+  const total = grandTotal(subtotal);
 
   return (
     <main className={styles.page}>
@@ -90,11 +94,15 @@ export default function CartPage() {
               <span>{formatMoney(subtotal)}</span>
             </div>
             <div className={styles.rowMuted}>
-              <span>Shipping</span>
-              <span>{freeShip ? "FREE" : "R90"}</span>
+              <span>Express delivery</span>
+              <span>{delivery === 0 ? "FREE" : formatMoney(delivery)}</span>
+            </div>
+            <div className={styles.total}>
+              <span>Total</span>
+              <span>{formatMoney(total)}</span>
             </div>
             <Link href="/checkout" className={styles.checkout}>
-              Checkout · {formatMoney(subtotal)}
+              Checkout securely · {formatMoney(total)}
             </Link>
             <Link href="/product" className={styles.keep}>
               Keep shopping

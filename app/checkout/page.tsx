@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart";
 import { COLOURS, PRODUCT } from "@/lib/product";
-import { formatMoney, lineTotal, shippingFee, grandTotal, SHIPPING_METHODS, SHIPPING_OPTIONS, type ShippingMethod } from "@/lib/pricing";
+import { formatMoney, lineTotal, shippingFee, grandTotal, SHIPPING_OPTIONS, type ShippingMethod } from "@/lib/pricing";
 import { AddressAutocomplete, type ParsedPlaceAddress } from "@/components/AddressAutocomplete";
-import type { ShippingAddress } from "@/lib/address";
+import { isCompleteAddress, type ShippingAddress } from "@/lib/address";
 import { META_CURRENCY, metaCartContents } from "@/lib/meta";
 import { getMetaClientContext, trackMetaEvent } from "@/lib/metaPixel";
 import { tiktokCartParameters } from "@/lib/tiktok";
@@ -27,8 +27,11 @@ export default function CheckoutPage() {
   const checkoutTracked = useRef(false);
 
   const [shippingMethod, setShippingMethod] = useState<ShippingMethod>("aramex");
+  const [specialDeliveryOpen, setSpecialDeliveryOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [manualAddress, setManualAddress] = useState(false);
+  const [showOptionalAddress, setShowOptionalAddress] = useState(false);
   const [address, setAddress] = useState<ShippingAddress>({
     line1: "",
     suburb: "",
@@ -57,11 +60,15 @@ export default function CheckoutPage() {
       lng: parsed.lng ?? prev.lng,
       placeId: parsed.placeId ?? prev.placeId,
     }));
+    setManualAddress(false);
   };
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
   const [followupStage, setFollowupStage] = useState<"details" | "payment_opened" | "payment_closed">("details");
   useCheckoutFollowup({ email, name, cart, activity: address, stage: error ? "checkout_error" : followupStage });
+  const trackCheckoutStage = (event: "PaymentOpened" | "PaymentCancelled" | "CheckoutError") => {
+    trackVercelEvent(event, vercelCartData(cart));
+  };
 
   useEffect(() => {
     if (checkoutTracked.current || subtotal <= 0) return;
@@ -97,6 +104,7 @@ export default function CheckoutPage() {
       const data = await res.json();
 
       if (!res.ok) {
+        trackCheckoutStage("CheckoutError");
         setError(data.error || "Verification failed. Please try again.");
         setStatus("error");
         return;
@@ -108,6 +116,7 @@ export default function CheckoutPage() {
         `/checkout/success?reference=${encodeURIComponent(trx.reference)}`,
       );
     } catch {
+      trackCheckoutStage("CheckoutError");
       setError("Network error. Please try again.");
       setStatus("error");
     }
@@ -117,13 +126,23 @@ export default function CheckoutPage() {
     e.preventDefault();
     setError("");
 
+    if (!isCompleteAddress(address)) {
+      trackCheckoutStage("CheckoutError");
+      setManualAddress(true);
+      setError("Please check the street, city, postal code and province for your delivery address.");
+      setStatus("error");
+      return;
+    }
+
     if (!address.phone?.trim()) {
+      trackCheckoutStage("CheckoutError");
       setError("Please enter a contact phone number for your delivery.");
       setStatus("error");
       return;
     }
 
     if (process.env.NEXT_PUBLIC_PAYSTACK_CONFIGURED !== "true") {
+      trackCheckoutStage("CheckoutError");
       setError("Checkout is temporarily unavailable. Please try again shortly.");
       setStatus("error");
       return;
@@ -152,72 +171,112 @@ export default function CheckoutPage() {
       line1: address.formattedAddress || address.line1,
     };
 
-    // Dynamically import PaystackPop to prevent window is not defined error during SSR
-    const PaystackPop = (await import("@paystack/inline-js")).default;
-    const paystack = new PaystackPop();
-    await paystack.checkout({
-      key: PAYSTACK_KEY!,
-      email,
-      amount: Math.round(totalAmount * 100),
-      currency: "ZAR",
-      channels: ["card", "apple_pay"],
-      // @paystack/inline-js's shipped types only declare `custom_fields` here
-      // (its module uses `export =`, which can't be augmented). The flat
-      // fields below are what our server actually reads back (see
-      // app/api/checkout/verify and app/api/paystack/webhook); custom_fields
-      // is purely for Paystack's own dashboard/receipt display.
-      metadata: {
-        cart,
-        items,
-        amountRand: totalAmount,
-        customerName: name,
-        shippingAddress: paystackAddress,
-        shippingMethod,
-        metaClient: getMetaClientContext(),
-        tiktokClient: getTikTokClientContext(),
-        custom_fields: [
-          {
-            display_name: "Shipping method",
-            variable_name: "shipping_method",
-            value: SHIPPING_OPTIONS[shippingMethod].label,
-          },
-          {
-            display_name: "Cart",
-            variable_name: "cart",
-            value: JSON.stringify(cart),
-          },
-          {
-            display_name: "Items",
-            variable_name: "items",
-            value: JSON.stringify(items),
-          },
-          {
-            display_name: "Amount (ZAR)",
-            variable_name: "amount_rand",
-            value: totalAmount,
-          },
-          {
-            display_name: "Customer Name",
-            variable_name: "customer_name",
-            value: name,
-          },
-          {
-            display_name: "Shipping Address",
-            variable_name: "shipping_address",
-            value: JSON.stringify(paystackAddress),
-          },
-        ],
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any,
-      onSuccess,
-      onCancel: () => {
-        setStatus("idle");
-        setFollowupStage("payment_closed");
-      },
-    });
+    try {
+      // Dynamically import PaystackPop to prevent window is not defined error during SSR
+      const PaystackPop = (await import("@paystack/inline-js")).default;
+      const paystack = new PaystackPop();
+      trackCheckoutStage("PaymentOpened");
+      await paystack.checkout({
+        key: PAYSTACK_KEY!,
+        email,
+        amount: Math.round(totalAmount * 100),
+        currency: "ZAR",
+        // @paystack/inline-js's shipped types only declare `custom_fields` here
+        // (its module uses `export =`, which can't be augmented). The flat
+        // fields below are what our server actually reads back (see
+        // app/api/checkout/verify and app/api/paystack/webhook); custom_fields
+        // is purely for Paystack's own dashboard/receipt display.
+        metadata: {
+          cart,
+          items,
+          amountRand: totalAmount,
+          customerName: name,
+          shippingAddress: paystackAddress,
+          shippingMethod,
+          metaClient: getMetaClientContext(),
+          tiktokClient: getTikTokClientContext(),
+          custom_fields: [
+            {
+              display_name: "Shipping method",
+              variable_name: "shipping_method",
+              value: SHIPPING_OPTIONS[shippingMethod].label,
+            },
+            {
+              display_name: "Cart",
+              variable_name: "cart",
+              value: JSON.stringify(cart),
+            },
+            {
+              display_name: "Items",
+              variable_name: "items",
+              value: JSON.stringify(items),
+            },
+            {
+              display_name: "Amount (ZAR)",
+              variable_name: "amount_rand",
+              value: totalAmount,
+            },
+            {
+              display_name: "Customer Name",
+              variable_name: "customer_name",
+              value: name,
+            },
+            {
+              display_name: "Shipping Address",
+              variable_name: "shipping_address",
+              value: JSON.stringify(paystackAddress),
+            },
+          ],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any,
+        onSuccess,
+        onCancel: () => {
+          trackCheckoutStage("PaymentCancelled");
+          setStatus("idle");
+          setFollowupStage("payment_closed");
+        },
+      });
+    } catch {
+      trackCheckoutStage("CheckoutError");
+      setError("Could not open secure payment. Please try again.");
+      setStatus("error");
+    }
   }
 
   const totalAmount = grandTotal(subtotal, shippingMethod);
+  const addressSummary = [
+    address.line1,
+    address.addressLine2,
+    address.company,
+    address.suburb,
+    address.city,
+    address.postalCode,
+    address.province,
+  ].filter(Boolean).join(", ");
+  const shippingChoice = (method: ShippingMethod) => (
+    <label className={styles.shippingOption}>
+      <input
+        type="radio"
+        name="shippingMethod"
+        value={method}
+        checked={shippingMethod === method}
+        onChange={() => {
+          setShippingMethod(method);
+          setSpecialDeliveryOpen(method === "founders");
+        }}
+      />
+      <span className={styles.shippingDetails}>
+        <span className={styles.shippingHeading}>
+          <strong>{SHIPPING_OPTIONS[method].label}</strong>
+          <span className={styles.shippingPrice}>
+            {shippingFee(subtotal, method) === 0 ? "FREE" : formatMoney(shippingFee(subtotal, method))}
+          </span>
+        </span>
+        <span className={styles.shippingDescription}>{SHIPPING_OPTIONS[method].description}</span>
+        {method === "aramex" && <span className={styles.shippingDescription}>Free with two or more hats.</span>}
+      </span>
+    </label>
+  );
 
   return (
     <main className={styles.page}>
@@ -265,33 +324,18 @@ export default function CheckoutPage() {
           <form className={styles.form} onSubmit={handlePay}>
             <fieldset className={styles.shippingOptions} disabled={status === "submitting" || status === "verifying"}>
               <legend className={styles.label}>Choose your shipping</legend>
-              {SHIPPING_METHODS.map((method) => (
-                <label key={method} className={styles.shippingOption}>
-                  <input
-                    type="radio"
-                    name="shippingMethod"
-                    value={method}
-                    checked={shippingMethod === method}
-                    onChange={() => setShippingMethod(method)}
-                  />
-                  <span className={styles.shippingDetails}>
-                    <span className={styles.shippingHeading}>
-                      <strong>{SHIPPING_OPTIONS[method].label}</strong>
-                      <span className={styles.shippingPrice}>
-                        {shippingFee(subtotal, method) === 0 ? "FREE" : formatMoney(shippingFee(subtotal, method))}
-                      </span>
-                    </span>
-                    <span className={styles.shippingDescription}>{SHIPPING_OPTIONS[method].description}</span>
-                    {method === "aramex" && <span className={styles.shippingDescription}>Free with two or more hats.</span>}
-                  </span>
-                </label>
-              ))}
+              {shippingChoice("aramex")}
+              <details className={styles.specialDelivery} open={specialDeliveryOpen} onToggle={(event) => setSpecialDeliveryOpen(event.currentTarget.open)}>
+                <summary><span>Special delivery options</span><small>For a particularly warm hand-off</small></summary>
+                {shippingChoice("founders")}
+              </details>
             </fieldset>
             <label className={styles.field}>
               <span className={styles.label}>Email for your order and checkout support</span>
               <input
                 className={styles.input}
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
@@ -303,6 +347,7 @@ export default function CheckoutPage() {
               <input
                 className={styles.input}
                 type="text"
+                autoComplete="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Thandi Mokoena"
@@ -314,88 +359,132 @@ export default function CheckoutPage() {
               <AddressAutocomplete
                 className={styles.input}
                 value={address.line1}
-                onChange={(v) => setAddr("line1", v)}
+                onChange={(value) => setAddress((current) => ({
+                  ...current,
+                  line1: value,
+                  formattedAddress: undefined,
+                  suburb: "",
+                  city: "",
+                  postalCode: "",
+                  province: "",
+                  lat: undefined,
+                  lng: undefined,
+                  placeId: undefined,
+                }))}
                 onPlaceSelect={handlePlaceSelect}
                 required
               />
             </label>
-            <label className={styles.field}>
-              <span className={styles.label}>Address line 2 (optional)</span>
-              <input
-                className={styles.input}
-                type="text"
-                value={address.addressLine2}
-                onChange={(e) => setAddr("addressLine2", e.target.value)}
-                placeholder="Unit, floor, complex name, etc."
-              />
-            </label>
-            <label className={styles.field}>
-              <span className={styles.label}>Company / business park / estate (optional)</span>
-              <input
-                className={styles.input}
-                type="text"
-                name="company"
-                value={address.company ?? ""}
-                onChange={(e) => setAddr("company", e.target.value)}
-                placeholder="Acme Business Park"
-              />
-            </label>
-            <label className={styles.field}>
-              <span className={styles.label}>Suburb</span>
-              <input
-                className={styles.input}
-                type="text"
-                value={address.suburb}
-                onChange={(e) => setAddr("suburb", e.target.value)}
-                placeholder="Sea Point"
-                required
-              />
-            </label>
-            <div className={styles.fieldRow}>
+            {address.placeId && !manualAddress ? (
+              <div className={styles.addressSummary} aria-live="polite">
+                <div><span>Delivering to</span><strong>{addressSummary}</strong></div>
+                <button type="button" onClick={() => setManualAddress(true)}>Check or edit details</button>
+              </div>
+            ) : !manualAddress ? (
+              <div className={styles.addressHelp}>
+                <span>Choose an address from the suggestions to fill the delivery details.</span>
+                <button type="button" onClick={() => setManualAddress(true)}>Enter address manually</button>
+              </div>
+            ) : null}
+
+            {manualAddress && <div className={styles.addressDetails}>
+              <div className={styles.addressDetailsHead}>
+                <strong>Check your delivery details</strong>
+                <button type="button" onClick={() => setManualAddress(false)}>Use address search</button>
+              </div>
+              <div className={styles.optionalGrid}>
+                <label className={styles.field}>
+                  <span className={styles.label}>Unit, floor or complex <small>Optional</small></span>
+                  <input
+                    className={styles.input}
+                    type="text"
+                    autoComplete="address-line2"
+                    value={address.addressLine2}
+                    onChange={(e) => setAddr("addressLine2", e.target.value)}
+                    placeholder="Unit 4, Sauna Heights"
+                  />
+                </label>
+                <label className={styles.field}>
+                  <span className={styles.label}>Company or estate <small>Optional</small></span>
+                  <input
+                    className={styles.input}
+                    type="text"
+                    name="company"
+                    autoComplete="organization"
+                    value={address.company ?? ""}
+                    onChange={(e) => setAddr("company", e.target.value)}
+                    placeholder="Company, park or estate"
+                  />
+                </label>
+              </div>
               <label className={styles.field}>
-                <span className={styles.label}>City</span>
+                <span className={styles.label}>Suburb</span>
                 <input
                   className={styles.input}
                   type="text"
-                  value={address.city}
-                  onChange={(e) => setAddr("city", e.target.value)}
-                  placeholder="Cape Town"
+                  autoComplete="address-level3"
+                  value={address.suburb}
+                  onChange={(e) => setAddr("suburb", e.target.value)}
+                  placeholder="Sea Point"
                   required
                 />
               </label>
+              <div className={styles.fieldRow}>
+                <label className={styles.field}>
+                  <span className={styles.label}>City</span>
+                  <input
+                    className={styles.input}
+                    type="text"
+                    autoComplete="address-level2"
+                    value={address.city}
+                    onChange={(e) => setAddr("city", e.target.value)}
+                    placeholder="Cape Town"
+                    required
+                  />
+                </label>
+                <label className={styles.field}>
+                  <span className={styles.label}>Postal code</span>
+                  <input
+                    className={styles.input}
+                    type="text"
+                    autoComplete="postal-code"
+                    value={address.postalCode}
+                    onChange={(e) => setAddr("postalCode", e.target.value)}
+                    placeholder="8001"
+                    required
+                  />
+                </label>
+              </div>
               <label className={styles.field}>
-                <span className={styles.label}>Postal code</span>
+                <span className={styles.label}>Province</span>
                 <input
                   className={styles.input}
                   type="text"
-                  value={address.postalCode}
-                  onChange={(e) => setAddr("postalCode", e.target.value)}
-                  placeholder="8001"
+                  autoComplete="address-level1"
+                  value={address.province}
+                  onChange={(e) => setAddr("province", e.target.value)}
+                  placeholder="Western Cape"
                   required
                 />
               </label>
-            </div>
-            <label className={styles.field}>
-              <span className={styles.label}>Province</span>
-              <input
-                className={styles.input}
-                type="text"
-                value={address.province}
-                onChange={(e) => setAddr("province", e.target.value)}
-                placeholder="Western Cape"
-                required
-              />
-            </label>
-            <label className={styles.field}>
-              <span className={styles.label}>Country</span>
-              <input
-                className={styles.input}
-                type="text"
-                value={address.country}
-                onChange={(e) => setAddr("country", e.target.value)}
-                required
-              />
-            </label>
+            </div>}
+
+            {!manualAddress && address.placeId && <div className={styles.optionalAddress}>
+              <button type="button" onClick={() => setShowOptionalAddress((shown) => !shown)} aria-expanded={showOptionalAddress}>
+                {showOptionalAddress ? "Hide optional delivery details" : "+ Add a unit, complex, estate or company"}
+              </button>
+              {showOptionalAddress && <div className={styles.optionalGrid}>
+                <label className={styles.field}>
+                  <span className={styles.label}>Unit, floor or complex <small>Optional</small></span>
+                  <input className={styles.input} type="text" autoComplete="address-line2" value={address.addressLine2} onChange={(e) => setAddr("addressLine2", e.target.value)} placeholder="Unit 4, Sauna Heights" />
+                </label>
+                <label className={styles.field}>
+                  <span className={styles.label}>Company or estate <small>Optional</small></span>
+                  <input className={styles.input} type="text" name="company" autoComplete="organization" value={address.company ?? ""} onChange={(e) => setAddr("company", e.target.value)} placeholder="Company, park or estate" />
+                </label>
+              </div>}
+            </div>}
+
             <label className={styles.field}>
               <span className={styles.label}>Contact phone number</span>
               <input
@@ -421,7 +510,7 @@ export default function CheckoutPage() {
                   ? "Verifying payment…"
                   : `Pay ${formatMoney(totalAmount)} securely`}
             </button>
-            <p className={styles.secure}>Payments secured by Paystack.</p>
+            <p className={styles.secure}>Card and available secure payment methods powered by Paystack.</p>
           </form>
         )}
 

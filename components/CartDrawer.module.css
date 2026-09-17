@@ -21,6 +21,7 @@
 .shipBar { height: 6px; border-radius: var(--radius-pill); background: rgba(14,59,42,.12); overflow: hidden; margin-bottom: 14px; }
 .shipFill { height: 100%; border-radius: var(--radius-pill); background: var(--terracotta); transition: width .35s ease; }
 .shipFull { background: var(--ink); }
-.subtotal { display: flex; justify-content: space-between; font-weight: 700; font-size: 18px; margin-bottom: 14px; }
+.costRow { display: flex; justify-content: space-between; gap: 16px; font-size: 14px; color: rgba(14,59,42,.72); margin-bottom: 8px; }
+.total { display: flex; justify-content: space-between; gap: 16px; font-weight: 700; font-size: 18px; border-top: var(--border-ink-soft); padding-top: 12px; margin: 4px 0 14px; }
 .checkout { display: flex; align-items: center; justify-content: center; background: var(--ink); color: var(--paper); border-radius: 14px; padding: 16px; font-weight: 600; text-decoration: none; min-height: 52px; }
 .viewBag { display: block; text-align: center; margin-top: 10px; font-size: 14px; }

@@ -4,7 +4,7 @@ import { normalizeOrder } from "./orders";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const JOHANNESBURG_OFFSET_MS = 2 * 60 * 60 * 1000;
-type FunnelEvent = "ViewContent" | "AddToCart" | "InitiateCheckout";
+type FunnelEvent = "ViewContent" | "AddToCart" | "InitiateCheckout" | "PaymentOpened" | "PaymentCancelled" | "CheckoutError";
 
 type DailyMetric = { timestamp?: unknown; visitors?: unknown };
 type PaidTransaction = { reference?: unknown; status?: unknown; amount?: unknown; currency?: unknown; paid_at?: unknown };
@@ -55,13 +55,16 @@ async function vercelDaily(dataset: "visits" | "events", since: string, until: s
 }
 
 async function trafficForRange(start: string, end: string) {
-  const [visitors, productViews, addToCarts, checkoutStarts] = await Promise.all([
+  const [visitors, productViews, addToCarts, checkoutStarts, paymentOpened, paymentCancelled, checkoutErrors] = await Promise.all([
     vercelDaily("visits", start, end),
     vercelDaily("events", start, end, "ViewContent"),
     vercelDaily("events", start, end, "AddToCart"),
     vercelDaily("events", start, end, "InitiateCheckout"),
+    vercelDaily("events", start, end, "PaymentOpened"),
+    vercelDaily("events", start, end, "PaymentCancelled"),
+    vercelDaily("events", start, end, "CheckoutError"),
   ]);
-  return { visitors, productViews, addToCarts, checkoutStarts };
+  return { visitors, productViews, addToCarts, checkoutStarts, paymentOpened, paymentCancelled, checkoutErrors };
 }
 
 async function paidTransactions(from: Date, to: Date) {
@@ -138,6 +141,9 @@ export async function getConversionAnalytics(days: AnalyticsDays, now = new Date
     productViews: sumVisitors(traffic.productViews, start, end),
     addToCarts: sumVisitors(traffic.addToCarts, start, end),
     checkoutStarts: sumVisitors(traffic.checkoutStarts, start, end),
+    paymentOpened: sumVisitors(traffic.paymentOpened, start, end),
+    paymentCancelled: sumVisitors(traffic.paymentCancelled, start, end),
+    checkoutErrors: sumVisitors(traffic.checkoutErrors, start, end),
     ...sales(transactions, start, end),
   });
   return {
