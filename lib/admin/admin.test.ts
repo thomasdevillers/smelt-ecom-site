@@ -9,6 +9,7 @@ import { publicReceipt } from "./receipts";
 import { hasAdminSession, login, logout } from "./auth";
 import { digest } from "./store";
 import { GET as ordersGET, PATCH as ordersPATCH } from "@/app/api/admin/orders/route";
+import { GET as analyticsGET } from "@/app/api/admin/analytics/route";
 import { POST as shippingPOST } from "@/app/api/admin/shipping/route";
 import type { ShippingReceipt } from "./types";
 const transaction = { reference: "order-1", status: "success", amount: 54000, currency: "ZAR", customer: { email: "customer@example.com" }, metadata: { cart: { green: 1 }, shippingAddress: { line1: "1 Test St", city: "Cape Town" }, customerName: "Test Customer" } };
@@ -94,6 +95,7 @@ describe("shipping lifecycle", () => {
 describe("admin access", () => {
   it("protects order reads and sends without exposing data", async () => {
     expect((await ordersGET(new Request("https://saunahat.co.za/api/admin/orders"))).status).toBe(401);
+    expect((await analyticsGET(new Request("https://saunahat.co.za/api/admin/analytics"))).status).toBe(401);
     expect((await shippingPOST(request({ reference: "order-1", trackingNumber: "25249853610844" }))).status).toBe(401);
     expect(mocks.fetch).not.toHaveBeenCalled(); expect(mocks.send).not.toHaveBeenCalled();
   });
@@ -128,6 +130,21 @@ describe("order completion", () => {
     expect(await setOrderCompleted("order-1", true)).toBe("2026-09-16T12:00:00.000Z");
     expect(mocks.hsetnx).toHaveBeenCalledWith(completionKey(), "order-1", expect.any(String));
     expect(mocks.send).not.toHaveBeenCalled();
+  });
+  it("completes without sending when the operator confirms accepted customer history", async () => {
+    mocks.get.mockResolvedValue({ status: "pending" });
+    mocks.hgetall.mockResolvedValue({ legacy: { ...pending(), status: "accepted", reference: undefined, id: "previous-email" } });
+    mocks.hget.mockResolvedValue("2026-09-17T12:00:00.000Z");
+    await expect(setOrderCompleted("order-1", true)).rejects.toThrow("confirm an accepted previous shipment");
+    expect(await setOrderCompleted("order-1", true, true)).toBe("2026-09-17T12:00:00.000Z");
+    expect(mocks.hsetnx).toHaveBeenCalledWith(completionKey(), "order-1", expect.any(String));
+    expect(mocks.send).not.toHaveBeenCalled();
+  });
+  it("rejects history completion when the previous email was not accepted", async () => {
+    mocks.get.mockResolvedValue({ status: "pending" });
+    mocks.hgetall.mockResolvedValue({ legacy: pending() });
+    await expect(setOrderCompleted("order-1", true, true)).rejects.toThrow("No accepted previous shipping email");
+    expect(mocks.hsetnx).not.toHaveBeenCalled();
   });
   it("reopens an order without deleting its shipping receipt or sending email", async () => {
     expect(await setOrderCompleted("order-1", false)).toBeNull();

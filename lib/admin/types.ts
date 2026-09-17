@@ -35,3 +35,24 @@ export interface OrdersPage {
   activeTotal: number;
   completedTotal: number;
 }
+
+export type AnalyticsDays = 7 | 28 | 90;
+
+export interface AnalyticsPeriod {
+  start: string;
+  end: string;
+  visitors: number;
+  productViews: number;
+  addToCarts: number;
+  checkoutStarts: number;
+  orders: number;
+  revenue: number;
+}
+
+export interface ConversionAnalytics {
+  days: AnalyticsDays;
+  generatedAt: string;
+  mode: "live" | "test";
+  current: AnalyticsPeriod;
+  previous: AnalyticsPeriod;
+}

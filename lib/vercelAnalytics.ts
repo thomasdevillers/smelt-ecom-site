@@ -2,22 +2,20 @@
 
 import { track } from "@vercel/analytics";
 import { cartCount, type CartState } from "./cartReducer";
-import { PRODUCT, type Colour } from "./product";
-import { lineTotal } from "./pricing";
+import type { Colour } from "./product";
 
 type EventName = "ViewContent" | "AddToCart" | "InitiateCheckout" | "Purchase";
-type Properties = { product: string; colour: string; quantity: number; value: number; currency: string };
+type Properties = { colour: string; quantity: number };
 const purchases = new Set<string>();
 
 export function vercelProductData(colour: Colour, quantity: number): Properties {
-  return { product: PRODUCT.name, colour, quantity, value: lineTotal(quantity), currency: "ZAR" };
+  return { colour, quantity };
 }
 
-export function vercelCartData(cart: CartState, value: number): Properties {
+export function vercelCartData(cart: CartState): Properties {
   return {
-    product: PRODUCT.name,
     colour: cart.green > 0 && cart.cream > 0 ? "mixed" : cart.green > 0 ? "green" : "cream",
-    quantity: cartCount(cart), value, currency: "ZAR",
+    quantity: cartCount(cart),
   };
 }
 
@@ -49,7 +47,7 @@ export function trackVercelPurchase(input: {
     }
   }
   if (!cartCount(cart)) return;
-  if (trackVercelEvent("Purchase", vercelCartData(cart, input.amountRand!))) {
+  if (trackVercelEvent("Purchase", vercelCartData(cart))) {
     purchases.add(key);
     try { sessionStorage.setItem(key, "1"); } catch { /* Memory fallback. */ }
   }

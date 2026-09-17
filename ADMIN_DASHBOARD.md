@@ -2,6 +2,10 @@
 
 Open `/admin` on the deployed Smelt site. The dashboard lists successful Paystack payments, newest first, with 25 orders per page. Use **Active orders** and **Completed orders** to switch sections. Search by full customer email or payment reference within either section. Unpaid checkout attempts are not orders in this view.
 
+Use **Store performance** for the conversion scorecard. It combines production Vercel Web Analytics traffic with successful Paystack payments over rolling 7-, 28-, or 90-day periods and compares each period with the immediately preceding period. Paystack is the source of truth for orders and revenue; browser events are diagnostic funnel signals.
+
+The official store conversion rate is **successful Paystack orders / Vercel daily unique visitors**. Vercel resets its privacy-friendly visitor identity daily, so a person who returns on another day is counted again. Product views, add-to-bag activity, and checkout starts use unique visitors to the existing custom events. Browser blocking or closing the tab can make those stages undercount; it does not remove a verified Paystack order.
+
 ## Daily workflow
 
 1. Sign in with the shared admin password.
@@ -9,9 +13,10 @@ Open `/admin` on the deployed Smelt site. The dashboard lists successful Paystac
 3. Paste the Aramex waybill next to the order and click **Send email**.
 4. The existing `shippingEmail()` template sends the tracking link and care guide. The recipient comes from Paystack, never from the browser.
 5. After acceptance, **Mark complete** replaces the waybill form. It moves the order to **Completed orders**, retains its tracking link and records the completion date. **Reopen order** moves it back without resending an email.
-6. **Email accepted** means Resend accepted the request. Click **Check status** to retrieve delivery, bounce or delay status. Email delivery does not mean parcel delivery.
+6. When an order shows an accepted previous shipping email for that customer, review the displayed waybill, tick the confirmation box, and use **Mark complete — no email**. The server checks the accepted history again and moves the order without contacting Resend.
+7. **Email accepted** means Resend accepted the request. Click **Check status** to retrieve delivery, bounce or delay status. Email delivery does not mean parcel delivery.
 
-Each order can receive one shipping notification through this dashboard. Accepted sends are locked. Recent uncertain sends can retry the same frozen email and provider idempotency key; attempts older than 23 hours require manual reconciliation. Changed waybills require operator review, not an automatic second email. Founder-delivery orders are visible but cannot send an Aramex notification.
+Each order can receive one shipping notification through this dashboard. Accepted sends are locked. Recent uncertain sends can retry the same frozen email and provider idempotency key; attempts older than 23 hours require manual reconciliation. Changed waybills require operator review, not an automatic second email. Completing from customer history requires an accepted previous record and explicit operator confirmation; pending or unconfirmed history cannot bypass the send step. Founder-delivery orders are visible but cannot send an Aramex notification.
 
 ## Configuration
 
@@ -22,6 +27,9 @@ Set these **server-side** environment variables in Vercel Production:
 - `PAYSTACK_SECRET_KEY`: the **live** key for real orders. Test keys display test payments.
 - `RESEND_API_KEY` and `ORDER_FROM_EMAIL`: the existing verified sender.
 - `SITE_URL`: `https://saunahat.co.za`.
+- `VERCEL_ANALYTICS_TOKEN`: a server-only Vercel access token that can read the project.
+- `VERCEL_ANALYTICS_PROJECT_ID`: the `prj_...` project ID. This is optional on Vercel when its automatic `VERCEL_PROJECT_ID` variable is available.
+- `VERCEL_ANALYTICS_TEAM_ID`: the `team_...` ID for a team-owned project; omit it for a personal project.
 
 Run `npm run admin:setup` to generate a password in `.env.local` and save it privately to `.local/admin/login.txt`. It preserves a nonempty existing password. Add the same password to Vercel and redeploy. Never commit `.env.local` or `.local/`.
 
@@ -59,6 +67,6 @@ npm run lint
 npm run build
 ```
 
-Manual checks after deployment: sign in from desktop and phone; open older pages; search an exact email; inspect an order; enter a waybill; send only for an intended shipment; refresh and confirm the same receipt remains; check its delivery status; sign out and confirm `/api/admin/orders` returns 401. Tests mock outbound email; they do not email customers.
+Manual checks after deployment: sign in from desktop and phone; open **Store performance** and compare its 28-day visitors with Vercel and its paid orders/revenue with Paystack; switch all three date ranges; then open older order pages, search an exact email, inspect an order, enter a waybill, send only for an intended shipment, refresh and confirm the same receipt remains, check its delivery status, sign out, and confirm `/api/admin/orders` and `/api/admin/analytics` return 401. Tests mock provider requests and outbound email; they do not email customers.
 
-API references: [Paystack transactions](https://paystack.com/docs/api/transaction/) and [Resend idempotency](https://resend.com/docs/dashboard/emails/idempotency-keys).
+API references: [Vercel Web Analytics API](https://vercel.com/docs/analytics/web-analytics-api), [Paystack transactions](https://paystack.com/docs/api/transaction/), and [Resend idempotency](https://resend.com/docs/dashboard/emails/idempotency-keys).

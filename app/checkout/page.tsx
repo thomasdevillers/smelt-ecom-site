@@ -66,7 +66,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (checkoutTracked.current || subtotal <= 0) return;
     checkoutTracked.current = true;
-    trackVercelEvent("InitiateCheckout", vercelCartData(cart, grandTotal(subtotal, shippingMethod)));
+    trackVercelEvent("InitiateCheckout", vercelCartData(cart));
     trackTikTokEvent("InitiateCheckout", tiktokCartParameters(cart, grandTotal(subtotal, shippingMethod)));
     const contents = metaCartContents(cart);
     trackMetaEvent("InitiateCheckout", {
