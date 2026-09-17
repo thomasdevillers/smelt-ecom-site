@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import type { AdminOrder, OrdersPage, ShippingReceipt } from "@/lib/admin/types";
 import AnalyticsPanel from "./AnalyticsPanel";
+import WaybillScanner from "./WaybillScanner";
 import styles from "./admin.module.css";
 
 class RequestError extends Error { constructor(message: string, public status: number) { super(message); } }
@@ -33,6 +34,7 @@ function OrderRow({ order, onReceipt, onExpired, onMoved }: { order: AdminOrder;
   const hasHistory = order.history.length > 0;
   const hasAcceptedHistory = order.history.some(previous => previous.status === "accepted");
   const [reviewedHistory, setReviewedHistory] = useState(false);
+  const [scanning, setScanning] = useState(false);
   async function run(refresh: boolean) {
     if (busy) return;
     setBusy(true); setError("");
@@ -91,9 +93,15 @@ function OrderRow({ order, onReceipt, onExpired, onMoved }: { order: AdminOrder;
       </div> : order.canShip || receipt ? <form onSubmit={e => { e.preventDefault(); void run(false); }}>
         <label htmlFor={`waybill-${order.reference}`}>Aramex waybill number</label>
         <div className={styles.sendRow}>
-          <input id={`waybill-${order.reference}`} inputMode="numeric" autoComplete="off" placeholder="Paste waybill number" pattern="[0-9]{6,30}" maxLength={30} required value={receipt?.trackingNumber || waybill} readOnly={!!receipt} disabled={busy} onChange={e => setWaybill(e.target.value)} />
+          <div className={styles.waybillField}>
+            <input id={`waybill-${order.reference}`} inputMode="numeric" autoComplete="off" placeholder="Paste or scan waybill number" pattern="[0-9]{6,30}" maxLength={30} required value={receipt?.trackingNumber || waybill} readOnly={!!receipt} disabled={busy} onChange={e => setWaybill(e.target.value)} />
+            {!receipt && <button className={styles.scanButton} type="button" disabled={busy} title="Scan the waybill barcode with your camera" aria-label="Scan the waybill barcode with your camera" onClick={() => setScanning(true)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 8.5V7a2 2 0 0 1 2-2h1.6a1 1 0 0 0 .8-.4l.7-1a1 1 0 0 1 .8-.4h4.2a1 1 0 0 1 .8.4l.7 1a1 1 0 0 0 .8.4H19a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1.5" /><circle cx="12" cy="12.5" r="3.5" /></svg>
+            </button>}
+          </div>
           <button type="submit" disabled={busy || !waybill.trim() || (hasHistory && !reviewedHistory)}>{busy ? "Sending…" : receipt ? "Retry safely" : "Send email ↗"}</button>
         </div>
+        {scanning && <WaybillScanner onScan={value => { setWaybill(value); setScanning(false); setError(""); }} onClose={() => setScanning(false)} />}
       </form> : <p className={styles.note}>{order.reviewReason}</p>}
       {accepted && <p className={styles.note}>Sent {date(receipt.acceptedAt || null)} · <a target="_blank" rel="noreferrer" href={`https://www.aramex.com/ai/en/track/results?source=aramex&ShipmentNumber=${encodeURIComponent(receipt.trackingNumber)}`}>Track shipment ↗</a></p>}
       {receipt?.status === "pending" && <p className={styles.note}>Keep this waybill unchanged while the send is checked.</p>}
