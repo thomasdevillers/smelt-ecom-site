@@ -78,7 +78,12 @@ export async function setOrderCompleted(reference: string, completed: boolean, c
   await db.hsetnx(completionKey(), reference, timestamp);
   return await db.hget<string>(completionKey(), reference);
 }
-export async function listOrders(page: number, search = "", view: "active" | "completed" = "active"): Promise<OrdersPage> {
+export async function listOrders(
+  page: number,
+  search = "",
+  view: "active" | "completed" = "active",
+  completedSort: "newest" | "oldest" = "newest",
+): Promise<OrdersPage> {
   const query = new URLSearchParams({ status: "success", perPage: "100", page: "1" });
   let orders: AdminOrder[] = [];
   if (search && !search.includes("@")) {
@@ -112,7 +117,9 @@ export async function listOrders(page: number, search = "", view: "active" | "co
   const completedTotal = orders.filter(order => order.completedAt).length;
   const activeTotal = orders.length - completedTotal;
   const filtered = orders.filter(order => view === "completed" ? !!order.completedAt : !order.completedAt);
-  if (view === "completed") filtered.sort((a, b) => b.completedAt!.localeCompare(a.completedAt!));
+  if (view === "completed") filtered.sort((a, b) => completedSort === "oldest"
+    ? a.completedAt!.localeCompare(b.completedAt!)
+    : b.completedAt!.localeCompare(a.completedAt!));
   const pageCount = Math.ceil(filtered.length / 25);
   const currentPage = Math.min(page, Math.max(1, pageCount));
   const result: OrdersPage = { orders: filtered.slice((currentPage - 1) * 25, currentPage * 25), page: currentPage, pageCount, total: filtered.length, activeTotal, completedTotal };

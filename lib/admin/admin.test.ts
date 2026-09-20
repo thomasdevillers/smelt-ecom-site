@@ -162,7 +162,7 @@ describe("order completion", () => {
   it("filters across Paystack pages before paginating active and completed orders", async () => {
     mocks.fetch.mockImplementation(async (url: string) => ({ ok: true, status: 200, json: async () => ({ status: true,
       data: Array.from({length: url.includes("page=1") ? 100 : 2}, (_, i) => ({ ...transaction, reference: `order-${url.includes("page=1") ? i : i+100}` })), meta: {total: 102, pageCount: 2} }) }));
-    mocks.hgetall.mockResolvedValue(Object.fromEntries(Array.from({length: 90}, (_, i) => [`order-${i}`, "2026-09-16T12:00:00.000Z"])));
+    mocks.hgetall.mockResolvedValue(Object.fromEntries(Array.from({length: 90}, (_, i) => [`order-${i}`, new Date(Date.UTC(2026, 8, 16, 12, 0, i)).toISOString()])));
     const active = await listOrders(1);
     expect(active).toMatchObject({ total: 12, activeTotal: 12, completedTotal: 90, pageCount: 1 });
     expect(active.orders[0].reference).toBe("order-90");
@@ -171,6 +171,11 @@ describe("order completion", () => {
     expect(completed).toMatchObject({ total: 90, page: 2, pageCount: 4 });
     expect(completed.orders).toHaveLength(25);
     expect(completed.orders.every(o => !!o.completedAt)).toBe(true);
+    expect(completed.orders[0].reference).toBe("order-64");
+    expect(completed.orders[24].reference).toBe("order-40");
+    const completedOldest = await listOrders(2, "", "completed", "oldest");
+    expect(completedOldest.orders[0].reference).toBe("order-25");
+    expect(completedOldest.orders[24].reference).toBe("order-49");
   });
   it("protects completion mutations with session and origin checks", async () => {
     expect((await ordersPATCH(request({ reference: "order-1", completed: true }))).status).toBe(401);

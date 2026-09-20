@@ -10,7 +10,9 @@ export async function GET(request: Request) {
     if (!Number.isSafeInteger(page) || page < 1 || page > 100000 || search.length > 200) throw new AdminError("Invalid search or page.");
     const view = params.get("view") || "active";
     if (view !== "active" && view !== "completed") throw new AdminError("Invalid order section.");
-    return adminJson(await listOrders(page, search, view));
+    const sort = params.get("sort") || "newest";
+    if (sort !== "newest" && sort !== "oldest") throw new AdminError("Invalid completed-order sort.");
+    return adminJson(await listOrders(page, search, view, sort));
   } catch (error) { return adminFailure(error); }
 }
 

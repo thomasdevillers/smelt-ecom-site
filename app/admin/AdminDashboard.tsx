@@ -148,6 +148,7 @@ export default function AdminDashboard() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [view, setView] = useState<"active" | "completed">("active");
+  const [completedSort, setCompletedSort] = useState<"newest" | "oldest">("newest");
   const [section, setSection] = useState<"orders" | "analytics" | "reviews">("orders");
   const [notice, setNotice] = useState("");
   const generation = useRef(0);
@@ -157,14 +158,14 @@ export default function AdminDashboard() {
     const current = ++generation.current;
     setLoading(true); setError(""); setData(null);
     try {
-      const result = await api<OrdersPage>(`orders?page=${page}&view=${view}&search=${encodeURIComponent(search)}`);
+      const result = await api<OrdersPage>(`orders?page=${page}&view=${view}&sort=${completedSort}&search=${encodeURIComponent(search)}`);
       if (generation.current === current) setData(result);
     } catch (e) {
       if (generation.current !== current) return;
       if (e instanceof RequestError && e.status === 401) expire();
       else setError(e instanceof Error ? e.message : "Could not load orders.");
     } finally { if (generation.current === current) setLoading(false); }
-  }, [page, search, view, expire]);
+  }, [page, search, view, completedSort, expire]);
   const invalidate = useCallback(() => { generation.current++; }, []);
   useEffect(() => {
     let active = true;
@@ -208,8 +209,8 @@ export default function AdminDashboard() {
           <button type="button" aria-pressed={view === "completed"} onClick={() => { setView("completed"); setPage(1); setNotice(""); }}>Completed orders {data && <span>{data.completedTotal}</span>}</button>
         </nav>
         {notice && <p className={styles.notice} role="status">{notice}</p>}
-        <div className={styles.toolbar}><form onSubmit={e => { e.preventDefault(); setPage(1); if (search === query.trim() && page === 1) void load(); else setSearch(query.trim()); }}><label className={styles.srOnly} htmlFor="order-search">Search by exact customer email or order reference</label><input id="order-search" type="search" placeholder="Customer email or order reference" value={query} onChange={e => setQuery(e.target.value)} /><button disabled={loading}>Search</button>{search && <button type="button" className={styles.secondary} onClick={() => { setQuery(""); setSearch(""); setPage(1); }}>Clear</button>}</form><button className={styles.refresh} disabled={loading} onClick={() => void load()}>{loading ? "Refreshing…" : "Refresh orders ↻"}</button></div>
-        <p className={styles.help}>{view === "completed" ? "Completed orders, most recently completed first. Reopen an order to move it back to active orders." : "Send tracking and mark complete, or review an accepted previous shipping email and complete the order without sending again."}</p>
+        <div className={styles.toolbar}><form onSubmit={e => { e.preventDefault(); setPage(1); if (search === query.trim() && page === 1) void load(); else setSearch(query.trim()); }}><label className={styles.srOnly} htmlFor="order-search">Search by exact customer email or order reference</label><input id="order-search" type="search" placeholder="Customer email or order reference" value={query} onChange={e => setQuery(e.target.value)} /><button disabled={loading}>Search</button>{search && <button type="button" className={styles.secondary} onClick={() => { setQuery(""); setSearch(""); setPage(1); }}>Clear</button>}</form><div className={styles.orderActions}>{view === "completed" && <label className={styles.sortControl} htmlFor="completed-order-sort"><span>Sort completed</span><select id="completed-order-sort" value={completedSort} disabled={loading} onChange={e => { setCompletedSort(e.target.value as "newest" | "oldest"); setPage(1); }}><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></label>}<button className={styles.refresh} disabled={loading} onClick={() => void load()}>{loading ? "Refreshing…" : "Refresh orders ↻"}</button></div></div>
+        <p className={styles.help}>{view === "completed" ? `Completed orders, ${completedSort === "oldest" ? "oldest" : "most recently"} completed first. Reopen an order to move it back to active orders.` : "Send tracking and mark complete, or review an accepted previous shipping email and complete the order without sending again."}</p>
         {error && <p className={styles.error} role="alert">{error}</p>}
         {loading && <div className={styles.loading} role="status">Loading orders…</div>}
         {data && <><div className={styles.columnHead}><span>CUSTOMER / ORDER</span><span>IN THE BAG</span><span>TRACKING & EMAIL</span></div>
