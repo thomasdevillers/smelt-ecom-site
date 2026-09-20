@@ -121,7 +121,8 @@ export async function reservePhotoUpload(token: string, pathname: string) {
   const found = await invitationForToken(token);
   if (!found) throw new AdminError("This review link is invalid or has expired.", 404);
   if (found.used) throw new AdminError("This review link has already been used.", 409);
-  if (!pathname.startsWith(`reviews/pending/${found.invitation.uploadKey}/`) || !pathname.endsWith(".webp"))
+  const prefix = `reviews/pending/${found.invitation.uploadKey}/`;
+  if (!pathname.startsWith(prefix) || !/^[^/]+\.(?:webp|jpg)$/.test(pathname.slice(prefix.length)))
     throw new AdminError("Invalid photo path.");
   const allowed = await adminStore().eval(`
 if redis.call('SISMEMBER', KEYS[1], ARGV[1]) == 1 then return 1 end

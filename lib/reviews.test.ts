@@ -123,7 +123,7 @@ describe("review photos and moderation", () => {
     )).toMatchObject({ pathname: `reviews/pending/${visible.uploadKey}/photo-providerSuffix.webp` });
     expect(photoFromInvitation("https://evil.example/photo.webp", visible.uploadKey!)).toBeNull();
     expect(photoFromInvitation(
-      `https://store.public.blob.vercel-storage.com/reviews/pending/${visible.uploadKey}/photo.jpg`,
+      `https://store.public.blob.vercel-storage.com/reviews/pending/${visible.uploadKey}/photo.svg`,
       visible.uploadKey!,
     )).toBeNull();
     expect(photoFromInvitation(
@@ -152,6 +152,18 @@ describe("review photos and moderation", () => {
     expect((await listPublishedReviews()).reviews[0].photos[0].url).toBe(`/api/reviews/photos/${submitted.id}/0`);
     await moderateReview(submitted.id, "rejected");
     expect(await getReviewPhoto(submitted.id, 0)).toBeNull();
+  });
+
+  it("authorizes and submits invitation-scoped JPEG fallback photos", async () => {
+    const { token, visible } = await invitation();
+    const pathname = `reviews/pending/${visible.uploadKey}/photo.jpg`;
+    const url = `https://store_example.private.blob.vercel-storage.com/${pathname}`;
+    await expect(reservePhotoUpload(token, pathname)).resolves.toBe(visible.uploadKey);
+    expect(photoFromInvitation(url, visible.uploadKey!)).toMatchObject({ pathname });
+    expect(photoFromInvitation(url, "another-invitation")).toBeNull();
+    await expect(reservePhotoUpload(token, pathname.replace("photo.jpg", "nested/photo.jpg"))).rejects.toThrow("Invalid photo path");
+    const submitted = await submitReview(token, { rating: 5, body: "Great hat", displayName: "Tumi", photoUrls: [url], consent: true });
+    expect(await getReviewPhoto(submitted.id, 0, true)).toMatchObject({ url, pathname });
   });
 
   it("publishes approved reviews, calculates aggregates and deletes rejected media", async () => {

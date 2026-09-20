@@ -2,7 +2,7 @@ import { issueSignedToken } from "@vercel/blob";
 import { handleUpload, handleUploadPresigned, type HandleUploadBody, type HandleUploadPresignedBody } from "@vercel/blob/client";
 import { AdminError, requireSameOrigin } from "@/lib/admin/store";
 import { reservePhotoUpload } from "@/lib/reviewStore";
-import { REVIEW_MAX_PHOTO_BYTES } from "@/lib/reviews";
+import { REVIEW_MAX_PHOTO_BYTES, REVIEW_UPLOAD_PHOTO_TYPES } from "@/lib/reviews";
 
 export const runtime = "nodejs";
 
@@ -29,12 +29,12 @@ export async function POST(request: Request) {
               token: await issueSignedToken({
                 pathname,
                 operations: ["put"],
-                allowedContentTypes: ["image/webp"],
+                allowedContentTypes: REVIEW_UPLOAD_PHOTO_TYPES,
                 maximumSizeInBytes: REVIEW_MAX_PHOTO_BYTES,
                 validUntil,
               }),
               urlOptions: {
-                allowedContentTypes: ["image/webp"],
+                allowedContentTypes: REVIEW_UPLOAD_PHOTO_TYPES,
                 maximumSizeInBytes: REVIEW_MAX_PHOTO_BYTES,
                 // ReviewForm already uses a crypto.randomUUID() filename. Keep
                 // the stored pathname stable so submission validation does not
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
           onBeforeGenerateToken: async (pathname, clientPayload) => {
             await reservePhotoUpload(readReviewToken(clientPayload), pathname);
             return {
-              allowedContentTypes: ["image/webp"],
+              allowedContentTypes: REVIEW_UPLOAD_PHOTO_TYPES,
               maximumSizeInBytes: REVIEW_MAX_PHOTO_BYTES,
               addRandomSuffix: false,
             };

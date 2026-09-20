@@ -5,6 +5,7 @@ export const REVIEW_INVITATION_DAYS = 90;
 export const REVIEW_MAX_PHOTOS = 3;
 export const REVIEW_MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 export const REVIEW_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+export const REVIEW_UPLOAD_PHOTO_TYPES = ["image/webp", "image/jpeg"];
 
 export type ReviewStatus = "pending" | "published" | "rejected";
 
@@ -92,8 +93,8 @@ export function photoFromInvitation(url: string, uploadKey: string): ReviewPhoto
     if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.port ||
       !/^[a-z0-9_-]+\.(?:public|private)\.blob\.vercel-storage\.com$/i.test(parsed.hostname)) return null;
     const filename = pathname.slice(`reviews/pending/${uploadKey}/`.length);
-    const isWebpPath = /^[^/]+\.webp(?:-[A-Za-z0-9_-]+)?$/i.test(filename);
-    if (!pathname.startsWith(`reviews/pending/${uploadKey}/`) || !isWebpPath) return null;
+    const isPhotoPath = /^[^/]+\.(?:webp|jpg)(?:-[A-Za-z0-9_-]+)?$/i.test(filename);
+    if (!pathname.startsWith(`reviews/pending/${uploadKey}/`) || !isPhotoPath) return null;
     return { url: parsed.toString(), pathname };
   } catch {
     return null;

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { upload, uploadPresigned } from "@vercel/blob/client";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { REVIEW_MAX_PHOTO_BYTES, REVIEW_MAX_PHOTOS, REVIEW_PHOTO_TYPES } from "@/lib/reviews";
+import { encodeReviewPhoto } from "@/lib/reviewPhotoEncoding";
 import type { Colour } from "@/lib/product";
 import styles from "./ReviewForm.module.css";
 
@@ -21,11 +22,10 @@ async function reencodePhoto(file: File): Promise<File> {
     canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
     const context = canvas.getContext("2d");
     if (!context) throw new Error("We could not prepare this photo.");
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
-    const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/webp", .84));
-    if (!blob) throw new Error("We could not prepare this photo.");
-    if (blob.size > REVIEW_MAX_PHOTO_BYTES) throw new Error("This photo is still larger than 5 MB after resizing.");
-    return new File([blob], `${crypto.randomUUID()}.webp`, { type: "image/webp" });
+    return await encodeReviewPhoto(canvas);
   } finally { URL.revokeObjectURL(source); }
 }
 
@@ -96,7 +96,7 @@ export default function ReviewForm({ token }: { token: string }) {
             access: "public",
             handleUploadUrl: "/api/reviews/upload",
             clientPayload: JSON.stringify({ token }),
-            contentType: "image/webp",
+            contentType: ready.type,
           });
           url = blob.url;
           uploadedPhotos.current.set(file, url);

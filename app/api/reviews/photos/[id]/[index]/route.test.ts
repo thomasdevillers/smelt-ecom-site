@@ -8,7 +8,7 @@ vi.mock("@/lib/reviewStore", () => ({ getReviewPhoto: mocks.getReviewPhoto }));
 import { GET } from "./route";
 
 const id = "00000000-0000-4000-8000-000000000001";
-const photo = { url: "https://store_example.private.blob.vercel-storage.com/reviews/pending/invite/photo.webp" };
+const photo = { url: "https://store_example.private.blob.vercel-storage.com/reviews/pending/invite/photo.webp", pathname: "reviews/pending/invite/photo.webp" };
 const request = () => GET(new Request(`https://saunahat.co.za/api/reviews/photos/${id}/0`), { params: Promise.resolve({ id, index: "0" }) });
 
 beforeEach(() => {
@@ -48,5 +48,12 @@ describe("review photo delivery", () => {
     mocks.getReviewPhoto.mockResolvedValue(publicPhoto);
     expect((await request()).status).toBe(200);
     expect(mocks.get).toHaveBeenCalledWith(publicPhoto.url, { access: "public" });
+  });
+
+  it("serves JPEG fallback photos with the correct content type", async () => {
+    mocks.getReviewPhoto.mockResolvedValue({ url: photo.url.replace(".webp", ".jpg"), pathname: photo.pathname.replace(".webp", ".jpg") });
+    const response = await request();
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("image/jpeg");
   });
 });

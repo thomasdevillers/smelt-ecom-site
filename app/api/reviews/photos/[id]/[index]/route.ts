@@ -19,7 +19,8 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       return new Response(null, { status: 404, headers });
     const blob = await get(photo.url, { access: hostname.includes(".private.") ? "private" : "public" });
     if (!blob || blob.statusCode !== 200) return new Response(null, { status: 404, headers });
-    return new Response(blob.stream, { headers: { ...headers, "Content-Type": "image/webp" } });
+    const contentType = /\.jpg(?:-[A-Za-z0-9_-]+)?$/i.test(photo.pathname) ? "image/jpeg" : "image/webp";
+    return new Response(blob.stream, { headers: { ...headers, "Content-Type": contentType } });
   } catch {
     return new Response(null, { status: 503, headers });
   }
