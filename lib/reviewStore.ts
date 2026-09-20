@@ -87,14 +87,18 @@ export async function createReviewInvitation(reference: string) {
   return { token, expiresAt: invitation.expiresAt };
 }
 
-async function invitationForToken(token: string): Promise<{ invitation: ReviewInvitation; tokenDigest: string } | null> {
+async function invitationForToken(token: string): Promise<{ invitation: ReviewInvitation; tokenDigest: string; used: boolean } | null> {
   if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
   const tokenDigest = digest(token);
   const db = adminStore();
   const invitation = parseStored(await db.get<ReviewInvitation>(inviteKey(tokenDigest)));
   if (!invitation || Date.parse(invitation.expiresAt) <= Date.now()) return null;
-  if (await db.get<string>(currentInviteKey(invitation.reference)) !== tokenDigest) return null;
-  return { invitation, tokenDigest };
+  const [current, claim] = await Promise.all([
+    db.get<string>(currentInviteKey(invitation.reference)),
+    db.get(claimKey(tokenDigest)),
+  ]);
+  if (current !== tokenDigest) return null;
+  return { invitation, tokenDigest, used: Boolean(claim) };
 }
 
 export async function getPublicInvitation(token: string): Promise<PublicInvitation> {
@@ -103,7 +107,7 @@ export async function getPublicInvitation(token: string): Promise<PublicInvitati
   const photoUploadMode = blobUploadMode();
   return {
     valid: true,
-    used: Boolean(await adminStore().get(claimKey(found.tokenDigest))),
+    used: found.used,
     expiresAt: found.invitation.expiresAt,
     suggestedName: found.invitation.suggestedName,
     colours: found.invitation.colours,
@@ -116,7 +120,7 @@ export async function getPublicInvitation(token: string): Promise<PublicInvitati
 export async function reservePhotoUpload(token: string, pathname: string) {
   const found = await invitationForToken(token);
   if (!found) throw new AdminError("This review link is invalid or has expired.", 404);
-  if (await adminStore().get(claimKey(found.tokenDigest))) throw new AdminError("This review link has already been used.", 409);
+  if (found.used) throw new AdminError("This review link has already been used.", 409);
   if (!pathname.startsWith(`reviews/pending/${found.invitation.uploadKey}/`) || !pathname.endsWith(".webp"))
     throw new AdminError("Invalid photo path.");
   const allowed = await adminStore().eval(`
@@ -141,7 +145,7 @@ return 1`;
 export async function submitReview(token: string, input: unknown) {
   const found = await invitationForToken(token);
   if (!found) throw new AdminError("This review link is invalid or has expired.", 404);
-  if (await adminStore().get(claimKey(found.tokenDigest)))
+  if (found.used)
     throw new AdminError("This review link has already been used.", 409);
   const submission = validateReviewSubmission(input);
   const photos = submission.photoUrls.map(url => photoFromInvitation(url, found.invitation.uploadKey));
