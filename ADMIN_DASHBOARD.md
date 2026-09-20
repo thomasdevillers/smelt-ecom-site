@@ -22,7 +22,7 @@ Each order can receive one shipping notification through this dashboard. Accepte
 
 Set these **server-side** environment variables in Vercel Production:
 
-- `ADMIN_PASSWORD`: at least 16 characters; use a unique generated password.
+- `ADMIN_PASSWORD`: at least 5 characters. A unique generated password is strongly recommended.
 - `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`: the existing Smelt Redis database.
 - `PAYSTACK_SECRET_KEY`: the **live** key for real orders. Test keys display test payments.
 - `RESEND_API_KEY` and `ORDER_FROM_EMAIL`: the existing verified sender.

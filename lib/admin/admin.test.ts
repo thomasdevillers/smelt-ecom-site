@@ -94,6 +94,11 @@ describe("shipping lifecycle", () => {
   });
 });
 describe("admin access", () => {
+  it("accepts an explicitly configured five-character password", async () => {
+    vi.stubEnv("ADMIN_PASSWORD", "12345");
+    await login(request({}), "12345");
+    expect(mocks.cookies.set).toHaveBeenCalledWith("smelt_admin", expect.stringMatching(/^[a-f0-9]{64}$/), expect.objectContaining({ httpOnly: true }));
+  });
   it("protects order reads and sends without exposing data", async () => {
     expect((await ordersGET(new Request("https://saunahat.co.za/api/admin/orders"))).status).toBe(401);
     expect((await analyticsGET(new Request("https://saunahat.co.za/api/admin/analytics"))).status).toBe(401);

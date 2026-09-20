@@ -4,10 +4,11 @@ import { adminStore, AdminError, digest } from "./store";
 
 export const SESSION_COOKIE = "smelt_admin";
 export const SESSION_SECONDS = 12 * 60 * 60;
+const MIN_PASSWORD_LENGTH = 5;
 const sessionKey = (token: string) => `smelt:admin:session:v1:${digest(token)}`;
 function password() {
   const value = process.env.ADMIN_PASSWORD;
-  if (!value || value.length < 16) throw new AdminError("Admin access has not been configured.", 503);
+  if (!value || value.length < MIN_PASSWORD_LENGTH) throw new AdminError("Admin access has not been configured.", 503);
   return value;
 }
 export function passwordMatches(input: string) {
