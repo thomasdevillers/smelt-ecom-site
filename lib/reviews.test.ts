@@ -108,7 +108,23 @@ describe("review photos and moderation", () => {
     const pathname = `reviews/pending/${visible.uploadKey}/photo.webp`;
     const url = `https://store.public.blob.vercel-storage.com/${pathname}`;
     expect(photoFromInvitation(url, visible.uploadKey!)).toMatchObject({ pathname });
+    expect(photoFromInvitation(
+      `https://store.public.blob.vercel-storage.com/${pathname}-providerSuffix`,
+      visible.uploadKey!,
+    )).toMatchObject({ pathname: `${pathname}-providerSuffix` });
+    expect(photoFromInvitation(
+      `https://store.public.blob.vercel-storage.com/reviews/pending/${visible.uploadKey}/photo-providerSuffix.webp`,
+      visible.uploadKey!,
+    )).toMatchObject({ pathname: `reviews/pending/${visible.uploadKey}/photo-providerSuffix.webp` });
     expect(photoFromInvitation("https://evil.example/photo.webp", visible.uploadKey!)).toBeNull();
+    expect(photoFromInvitation(
+      `https://store.public.blob.vercel-storage.com/reviews/pending/${visible.uploadKey}/photo.jpg`,
+      visible.uploadKey!,
+    )).toBeNull();
+    expect(photoFromInvitation(
+      `https://store.public.blob.vercel-storage.com/reviews/pending/${visible.uploadKey}/nested/photo.webp`,
+      visible.uploadKey!,
+    )).toBeNull();
     await expect(reservePhotoUpload(token, pathname)).resolves.toBe(visible.uploadKey);
     await reservePhotoUpload(token, pathname); await reservePhotoUpload(token, pathname);
     await expect(reservePhotoUpload(token, pathname)).rejects.toThrow("three photo uploads");

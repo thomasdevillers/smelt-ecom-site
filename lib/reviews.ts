@@ -90,7 +90,9 @@ export function photoFromInvitation(url: string, uploadKey: string): ReviewPhoto
     const parsed = new URL(url);
     const pathname = decodeURIComponent(parsed.pathname.replace(/^\//, ""));
     if (parsed.protocol !== "https:" || !parsed.hostname.endsWith(".public.blob.vercel-storage.com")) return null;
-    if (!pathname.startsWith(`reviews/pending/${uploadKey}/`) || !pathname.endsWith(".webp")) return null;
+    const filename = pathname.slice(`reviews/pending/${uploadKey}/`.length);
+    const isWebpPath = /^[^/]+\.webp(?:-[A-Za-z0-9_-]+)?$/i.test(filename);
+    if (!pathname.startsWith(`reviews/pending/${uploadKey}/`) || !isWebpPath) return null;
     return { url: parsed.toString(), pathname };
   } catch {
     return null;

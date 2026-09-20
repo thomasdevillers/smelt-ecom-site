@@ -36,7 +36,10 @@ export async function POST(request: Request) {
               urlOptions: {
                 allowedContentTypes: ["image/webp"],
                 maximumSizeInBytes: REVIEW_MAX_PHOTO_BYTES,
-                addRandomSuffix: true,
+                // ReviewForm already uses a crypto.randomUUID() filename. Keep
+                // the stored pathname stable so submission validation does not
+                // have to reconstruct provider-added filename variants.
+                addRandomSuffix: false,
                 validUntil,
               },
             };
@@ -50,7 +53,7 @@ export async function POST(request: Request) {
             return {
               allowedContentTypes: ["image/webp"],
               maximumSizeInBytes: REVIEW_MAX_PHOTO_BYTES,
-              addRandomSuffix: true,
+              addRandomSuffix: false,
             };
           },
         });
