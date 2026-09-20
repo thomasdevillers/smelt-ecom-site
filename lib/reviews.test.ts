@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => {
   const strings = new Map<string, unknown>();
   const hashes = new Map<string, Map<string, unknown>>();
   const counts = new Map<string, number>();
+  const uploadPaths = new Map<string, Set<string>>();
   const db = {
     get: vi.fn(async (key: string) => strings.get(key) ?? null),
     set: vi.fn(async (key: string, value: unknown) => { strings.set(key, value); return "OK"; }),
@@ -16,8 +17,11 @@ const mocks = vi.hoisted(() => {
     hgetall: vi.fn(async (key: string) => Object.fromEntries(hashes.get(key) || [])),
     zadd: vi.fn(async () => 1), zrem: vi.fn(async () => 1),
     eval: vi.fn(async (script: string, keys: string[], args: string[]) => {
-      if (script.includes("local count")) {
-        const count = (counts.get(keys[0]) || 0) + 1; counts.set(keys[0], count); return count <= 3 ? 1 : 0;
+      if (script.includes("SISMEMBER")) {
+        const paths = uploadPaths.get(keys[0]) ?? new Set<string>();
+        if (paths.has(args[0])) return 1;
+        if (paths.size >= 3) return 0;
+        paths.add(args[0]); uploadPaths.set(keys[0], paths); return 1;
       }
       if (!strings.has(keys[0]) || strings.get(keys[1]) !== args[0]) return -1;
       if (strings.has(keys[2])) return 0;
@@ -27,7 +31,7 @@ const mocks = vi.hoisted(() => {
       return 1;
     }),
   };
-  return { strings, hashes, counts, db, paidOrder: vi.fn(), blobDelete: vi.fn() };
+  return { strings, hashes, counts, uploadPaths, db, paidOrder: vi.fn(), blobDelete: vi.fn() };
 });
 
 vi.mock("@upstash/redis", () => ({ Redis: class { constructor() { return mocks.db; } } }));
@@ -37,6 +41,7 @@ vi.mock("./admin/orders", () => ({ completionKey: () => "orders:completed", getP
 import {
   createReviewInvitation,
   getPublicInvitation,
+  getReviewPhoto,
   listPublishedReviews,
   moderateReview,
   reservePhotoUpload,
@@ -50,7 +55,7 @@ const order = {
 };
 
 beforeEach(() => {
-  vi.clearAllMocks(); mocks.strings.clear(); mocks.hashes.clear(); mocks.counts.clear();
+  vi.clearAllMocks(); mocks.strings.clear(); mocks.hashes.clear(); mocks.counts.clear(); mocks.uploadPaths.clear();
   vi.stubEnv("UPSTASH_REDIS_REST_URL", "https://redis.example.com");
   vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "test");
   vi.stubEnv("PAYSTACK_SECRET_KEY", "sk_test_example");
@@ -127,7 +132,26 @@ describe("review photos and moderation", () => {
     )).toBeNull();
     await expect(reservePhotoUpload(token, pathname)).resolves.toBe(visible.uploadKey);
     await reservePhotoUpload(token, pathname); await reservePhotoUpload(token, pathname);
-    await expect(reservePhotoUpload(token, pathname)).rejects.toThrow("three photo uploads");
+    await reservePhotoUpload(token, pathname.replace("photo.webp", "second.webp"));
+    await reservePhotoUpload(token, pathname.replace("photo.webp", "third.webp"));
+    await expect(reservePhotoUpload(token, pathname.replace("photo.webp", "fourth.webp"))).rejects.toThrow("three photo uploads");
+    await expect(reservePhotoUpload(token, pathname)).resolves.toBe(visible.uploadKey);
+  });
+
+  it("accepts private Blob photos and only exposes them after approval or to an admin", async () => {
+    const { token, visible } = await invitation();
+    const url = `https://store_example.private.blob.vercel-storage.com/reviews/pending/${visible.uploadKey}/photo.webp`;
+    expect(photoFromInvitation(url, visible.uploadKey!)).not.toBeNull();
+    expect(photoFromInvitation(url, "different-invitation")).toBeNull();
+    expect(photoFromInvitation(url.replace(".com/", ".com.evil.example/"), visible.uploadKey!)).toBeNull();
+    const submitted = await submitReview(token, { rating: 5, body: "Great hat", displayName: "Tumi", photoUrls: [url], consent: true });
+    expect(await getReviewPhoto(submitted.id, 0)).toBeNull();
+    expect(await getReviewPhoto(submitted.id, 0, true)).toMatchObject({ url });
+    await moderateReview(submitted.id, "published");
+    expect(await getReviewPhoto(submitted.id, 0)).toMatchObject({ url });
+    expect((await listPublishedReviews()).reviews[0].photos[0].url).toBe(`/api/reviews/photos/${submitted.id}/0`);
+    await moderateReview(submitted.id, "rejected");
+    expect(await getReviewPhoto(submitted.id, 0)).toBeNull();
   });
 
   it("publishes approved reviews, calculates aggregates and deletes rejected media", async () => {

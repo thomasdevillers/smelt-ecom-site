@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { ReviewRecord, ReviewStatus } from "@/lib/reviews";
+import { reviewPhotoUrl } from "@/lib/reviews";
 import styles from "./admin.module.css";
 
 class ReviewRequestError extends Error { constructor(message: string, public status: number) { super(message); } }
@@ -64,9 +65,9 @@ export default function ReviewsPanel({ onExpired }: { onExpired: () => void }) {
         <div className={styles.reviewMeta}><span>{"★".repeat(review.rating)}{"☆".repeat(5-review.rating)}</span><b>Verified purchase</b><small>{formatDate(review.submittedAt)}</small></div>
         <blockquote>{review.body}</blockquote>
         <div className={styles.reviewIdentity}><strong>{review.anonymous ? "Anonymous" : review.displayName}</strong><span>{review.customerEmail}</span><code>{review.orderReference}</code></div>
-        {review.photos.length > 0 && <div className={styles.reviewAdminPhotos}>{review.photos.map(photo => <figure key={photo.url}>
+        {review.photos.length > 0 && <div className={styles.reviewAdminPhotos}>{review.photos.map((photo, index) => <figure key={photo.url}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={photo.url} alt="Customer-submitted review" />
+          <img src={reviewPhotoUrl(review.id, index)} alt="Customer-submitted review" />
           <button type="button" disabled={busy === review.id} onClick={() => void removePhoto(review.id, photo.url)}>Remove photo</button>
         </figure>)}</div>}
         <div className={styles.reviewActions}>

@@ -89,7 +89,8 @@ export function photoFromInvitation(url: string, uploadKey: string): ReviewPhoto
   try {
     const parsed = new URL(url);
     const pathname = decodeURIComponent(parsed.pathname.replace(/^\//, ""));
-    if (parsed.protocol !== "https:" || !parsed.hostname.endsWith(".public.blob.vercel-storage.com")) return null;
+    if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.port ||
+      !/^[a-z0-9_-]+\.(?:public|private)\.blob\.vercel-storage\.com$/i.test(parsed.hostname)) return null;
     const filename = pathname.slice(`reviews/pending/${uploadKey}/`.length);
     const isWebpPath = /^[^/]+\.webp(?:-[A-Za-z0-9_-]+)?$/i.test(filename);
     if (!pathname.startsWith(`reviews/pending/${uploadKey}/`) || !isWebpPath) return null;
@@ -97,6 +98,10 @@ export function photoFromInvitation(url: string, uploadKey: string): ReviewPhoto
   } catch {
     return null;
   }
+}
+
+export function reviewPhotoUrl(reviewId: string, index: number): string {
+  return `/api/reviews/photos/${encodeURIComponent(reviewId)}/${index}`;
 }
 
 export function publicReview(review: ReviewRecord): PublicReview | null {
@@ -107,7 +112,7 @@ export function publicReview(review: ReviewRecord): PublicReview | null {
     rating: review.rating,
     body: review.body,
     colours: review.colours,
-    photos: review.photos,
+    photos: review.photos.map((photo, index) => ({ ...photo, url: reviewPhotoUrl(review.id, index) })),
     verifiedPurchase: true,
     publishedAt: review.publishedAt,
   };

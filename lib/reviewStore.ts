@@ -22,7 +22,7 @@ const statusKey = (status: ReviewStatus) => `${prefix()}:status:${status}`;
 const inviteKey = (tokenDigest: string) => `${prefix()}:invite:${tokenDigest}`;
 const currentInviteKey = (reference: string) => `${prefix()}:order:${digest(reference)}:invite`;
 const claimKey = (tokenDigest: string) => `${prefix()}:claim:${tokenDigest}`;
-const uploadCountKey = (tokenDigest: string) => `${prefix()}:uploads:${tokenDigest}`;
+const uploadPathsKey = (tokenDigest: string) => `${prefix()}:upload-paths:${tokenDigest}`;
 
 // New Vercel Blob connections use short-lived OIDC credentials at runtime and
 // expose the connected store through BLOB_STORE_ID. Older connections can
@@ -120,10 +120,11 @@ export async function reservePhotoUpload(token: string, pathname: string) {
   if (!pathname.startsWith(`reviews/pending/${found.invitation.uploadKey}/`) || !pathname.endsWith(".webp"))
     throw new AdminError("Invalid photo path.");
   const allowed = await adminStore().eval(`
-local count = redis.call('INCR', KEYS[1])
-if count == 1 then redis.call('EXPIRE', KEYS[1], 3600) end
-if count > 3 then return 0 end
-return 1`, [uploadCountKey(found.tokenDigest)], []);
+if redis.call('SISMEMBER', KEYS[1], ARGV[1]) == 1 then return 1 end
+if redis.call('SCARD', KEYS[1]) >= 3 then return 0 end
+redis.call('SADD', KEYS[1], ARGV[1])
+if redis.call('SCARD', KEYS[1]) == 1 then redis.call('EXPIRE', KEYS[1], 3600) end
+return 1`, [uploadPathsKey(found.tokenDigest)], [pathname]);
   if (!allowed) throw new AdminError("This review already has three photo uploads.", 409);
   return found.invitation.uploadKey;
 }
@@ -192,6 +193,13 @@ export async function listReviewRecords(status?: ReviewStatus): Promise<ReviewRe
     .map(normalizedRecord)
     .filter((review): review is ReviewRecord => review !== null && (!status || review.status === status))
     .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+}
+
+export async function getReviewPhoto(id: string, index: number, allowUnpublished = false) {
+  if (!/^[0-9a-f-]{36}$/.test(id) || !Number.isSafeInteger(index) || index < 0) return null;
+  const review = normalizedRecord(await adminStore().hget<ReviewRecord | string>(recordsKey(), id) as ReviewRecord | string);
+  if (!review || (review.status !== "published" && !allowUnpublished)) return null;
+  return review.photos[index] ?? null;
 }
 
 export async function listPublishedReviews(): Promise<{ reviews: PublicReview[]; summary: ReturnType<typeof reviewSummary> }> {

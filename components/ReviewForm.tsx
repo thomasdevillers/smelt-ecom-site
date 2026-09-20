@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { upload, uploadPresigned } from "@vercel/blob/client";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { REVIEW_MAX_PHOTO_BYTES, REVIEW_MAX_PHOTOS, REVIEW_PHOTO_TYPES } from "@/lib/reviews";
 import type { Colour } from "@/lib/product";
 import styles from "./ReviewForm.module.css";
@@ -40,11 +40,15 @@ export default function ReviewForm({ token }: { token: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+  const preparedPhotos = useRef(new WeakMap<File, File>());
+  const uploadedPhotos = useRef(new WeakMap<File, string>());
   const previews = useMemo(() => files.map(file => URL.createObjectURL(file)), [files]);
 
   useEffect(() => () => { previews.forEach(URL.revokeObjectURL); }, [previews]);
   useEffect(() => {
     let live = true;
+    preparedPhotos.current = new WeakMap();
+    uploadedPhotos.current = new WeakMap();
     fetch(`/api/reviews/invitation?token=${encodeURIComponent(token)}`, { cache: "no-store" })
       .then(async response => ({ ok: response.ok, body: await response.json() as Invitation }))
       .then(({ body: result }) => { if (live) { setInvitation(result); setDisplayName(result.suggestedName || ""); } })
@@ -68,7 +72,10 @@ export default function ReviewForm({ token }: { token: string }) {
     try {
       const photoUrls: string[] = [];
       for (const file of files) {
-        const ready = await reencodePhoto(file);
+        const uploaded = uploadedPhotos.current.get(file);
+        if (uploaded) { photoUrls.push(uploaded); continue; }
+        const ready = preparedPhotos.current.get(file) ?? await reencodePhoto(file);
+        preparedPhotos.current.set(file, ready);
         const uploadPhoto = invitation.photoUploadMode === "presigned" ? uploadPresigned : upload;
         const blob = await uploadPhoto(`reviews/pending/${invitation.uploadKey}/${ready.name}`, ready, {
           access: "public",
@@ -76,6 +83,7 @@ export default function ReviewForm({ token }: { token: string }) {
           clientPayload: JSON.stringify({ token }),
           contentType: "image/webp",
         });
+        uploadedPhotos.current.set(file, blob.url);
         photoUrls.push(blob.url);
       }
       const response = await fetch("/api/reviews", {
