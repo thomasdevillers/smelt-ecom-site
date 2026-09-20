@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { PublicReview, ReviewSummary } from "@/lib/reviews";
 import styles from "./ProductReviews.module.css";
+import ctaStyles from "./ReviewAccessCta.module.css";
 
 type ReviewsResponse = { reviews: PublicReview[]; summary: ReviewSummary };
 
@@ -22,7 +24,7 @@ export default function ProductReviews() {
     let live = true;
     fetch("/api/reviews", { cache: "no-store" })
       .then(async response => response.ok ? response.json() as Promise<ReviewsResponse> : null)
-      .then(result => { if (live && result?.summary.total) setData(result); })
+      .then(result => { if (live && result) setData(result); })
       .catch(() => undefined);
     return () => { live = false; };
   }, []);
@@ -35,11 +37,9 @@ export default function ProductReviews() {
   }, [activePhoto]);
 
   useEffect(() => {
-    if (!data?.summary.total || window.location.hash !== "#reviews") return;
+    if (!data || window.location.hash !== "#reviews") return;
     requestAnimationFrame(() => document.getElementById("reviews")?.scrollIntoView());
   }, [data]);
-
-  if (!data?.summary.total) return null;
 
   return <section id="reviews" className={styles.section} aria-labelledby="reviews-heading">
     <div className={styles.heading}>
@@ -47,20 +47,24 @@ export default function ProductReviews() {
         <span className={styles.eyebrow}>WORN, WARMED, REVIEWED</span>
         <h2 id="reviews-heading">From the benches.</h2>
       </div>
-      <div className={styles.score}>
+      {data?.summary.total ? <div className={styles.score}>
         <strong>{data.summary.average.toFixed(1)}</strong>
         <div><Stars rating={data.summary.average} /><span>{data.summary.total} verified {data.summary.total === 1 ? "review" : "reviews"}</span></div>
-      </div>
+      </div> : null}
     </div>
 
-    <div className={styles.breakdown} aria-label="Rating breakdown">
+    <div className={ctaStyles.writeReview}>
+      <div><span>OWN A SMELT?</span><strong>Put your sauna sessions on record.</strong><p>We’ll verify your order email before opening the review form.</p></div>
+      <Link href="/review">Write a review →</Link>
+    </div>
+
+    {data?.summary.total ? <><div className={styles.breakdown} aria-label="Rating breakdown">
       {[5, 4, 3, 2, 1].map(rating => <div key={rating}>
         <span>{rating}★</span>
         <div aria-hidden="true"><i style={{ width: `${data.summary.total ? data.summary.distribution[rating as 1 | 2 | 3 | 4 | 5] / data.summary.total * 100 : 0}%` }} /></div>
         <b>{data.summary.distribution[rating as 1 | 2 | 3 | 4 | 5]}</b>
       </div>)}
     </div>
-
     <div className={styles.grid}>
       {data.reviews.map(review => <article className={styles.card} key={review.id}>
         <div className={styles.cardTop}><Stars rating={review.rating} /><span>Verified purchase ✓</span></div>
@@ -73,7 +77,7 @@ export default function ProductReviews() {
         </div>}
         <footer><strong>{review.displayName}</strong><span>{colourLabel(review.colours)} · {new Intl.DateTimeFormat("en-ZA", { month: "short", year: "numeric" }).format(new Date(review.publishedAt))}</span></footer>
       </article>)}
-    </div>
+    </div></> : data ? <p className={ctaStyles.empty}>No reviews yet. Verified buyers can be the first to share their experience.</p> : <p className={ctaStyles.empty} role="status">Loading reviews…</p>}
 
     {activePhoto && <div className={styles.lightbox} role="dialog" aria-modal="true" aria-label="Customer review photo" onClick={() => setActivePhoto(null)}>
       <button type="button" onClick={() => setActivePhoto(null)} aria-label="Close photo">Close ×</button>

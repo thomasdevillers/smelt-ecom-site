@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { del } from "@vercel/blob";
 import { AdminError, adminStore, digest } from "./admin/store";
-import { completionKey, getPaidOrder } from "./admin/orders";
+import { completionKey, findPaidOrdersByEmail, getPaidOrder } from "./admin/orders";
 import { PRODUCT, type Colour } from "./product";
 import {
   REVIEW_INVITATION_DAYS,
@@ -23,6 +23,7 @@ const inviteKey = (tokenDigest: string) => `${prefix()}:invite:${tokenDigest}`;
 const currentInviteKey = (reference: string) => `${prefix()}:order:${digest(reference)}:invite`;
 const claimKey = (tokenDigest: string) => `${prefix()}:claim:${tokenDigest}`;
 const uploadPathsKey = (tokenDigest: string) => `${prefix()}:upload-paths:${tokenDigest}`;
+const accessRateKey = (value: string) => `${prefix()}:access-rate:${digest(value)}`;
 
 // New Vercel Blob connections use short-lived OIDC credentials at runtime and
 // expose the connected store through BLOB_STORE_ID. Older connections can
@@ -85,6 +86,42 @@ export async function createReviewInvitation(reference: string) {
   await db.set(inviteKey(tokenDigest), invitation, { ex: ttl });
   await db.set(currentInviteKey(reference), tokenDigest, { ex: ttl });
   return { token, expiresAt: invitation.expiresAt };
+}
+
+export async function createReviewInvitationForEmail(input: unknown, ip: string) {
+  const email = typeof input === "string" ? input.trim().toLowerCase() : "";
+  if (email.length > 254 || !/^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(email))
+    throw new AdminError("Enter the email address used at checkout.");
+
+  const db = adminStore();
+  const allowed = await db.eval(`
+local ipCount = redis.call('INCR', KEYS[1])
+if ipCount == 1 then redis.call('EXPIRE', KEYS[1], 3600) end
+local emailCount = redis.call('INCR', KEYS[2])
+if emailCount == 1 then redis.call('EXPIRE', KEYS[2], 3600) end
+if ipCount > 30 or emailCount > 6 then return 0 end
+return 1`, [accessRateKey(`ip:${ip}`), accessRateKey(`email:${email}`)], []);
+  if (!allowed) throw new AdminError("Too many attempts. Please try again in an hour.", 429);
+
+  let orders;
+  try { orders = await findPaidOrdersByEmail(email); }
+  catch (error) {
+    if (error instanceof AdminError && error.status === 404)
+      throw new AdminError("We couldn’t find a completed Smelt order for that email. Check the address used at checkout.", 404);
+    throw error;
+  }
+  const [completed, stored] = await Promise.all([
+    db.hgetall<Record<string, string>>(completionKey()),
+    db.hgetall<Record<string, ReviewRecord | string>>(recordsKey()),
+  ]);
+  const reviewed = new Set(Object.values(stored || {}).map(normalizedRecord).filter(Boolean).map(review => review!.orderReference));
+  const order = orders.find(candidate => completed?.[candidate.reference] && !reviewed.has(candidate.reference));
+  if (!order) {
+    if (orders.some(candidate => reviewed.has(candidate.reference)))
+      throw new AdminError("A review has already been submitted for this order.", 409);
+    throw new AdminError("We couldn’t find a completed Smelt order for that email. Check the address used at checkout.", 404);
+  }
+  return createReviewInvitation(order.reference);
 }
 
 async function invitationForToken(token: string): Promise<{ invitation: ReviewInvitation; tokenDigest: string; used: boolean } | null> {

@@ -58,6 +58,25 @@ export async function getPaidOrder(reference: string) {
   if (data?.reference !== reference || data?.status !== "success") throw new AdminError("This order does not have a successful payment.", 409);
   return normalizeOrder(data);
 }
+
+export async function findPaidOrdersByEmail(email: string): Promise<AdminOrder[]> {
+  const normalized = email.trim().toLowerCase();
+  if (normalized.length > 254 || !/^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(normalized))
+    throw new AdminError("Enter the email address used at checkout.");
+  const { data: customer } = await paystack(`/customer/${encodeURIComponent(normalized)}`);
+  if (!Number.isSafeInteger(customer?.id)) throw new AdminError("No matching order was found.", 404);
+
+  const orders: AdminOrder[] = [];
+  for (let page = 1; page <= 10; page++) {
+    const query = new URLSearchParams({ customer: String(customer.id), status: "success", perPage: "100", page: String(page) });
+    const body = await paystack(`/transaction?${query}`);
+    if (!Array.isArray(body.data) || !Number.isSafeInteger(body.meta?.pageCount))
+      throw new AdminError("Order data could not be read. Please try again.", 502);
+    orders.push(...body.data.map((value: unknown) => normalizeOrder(value)).filter((order: AdminOrder) => order.email === normalized));
+    if (page >= body.meta.pageCount) break;
+  }
+  return orders.sort((a, b) => (b.paidAt || "").localeCompare(a.paidAt || ""));
+}
 export const completionKey = () => `smelt:orders:completed:v1:${process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_") ? "live" : "test"}`;
 export async function setOrderCompleted(reference: string, completed: boolean, confirmPriorShipment = false) {
   const order = await getPaidOrder(reference);

@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => {
     hgetall: vi.fn(async (key: string) => Object.fromEntries(hashes.get(key) || [])),
     zadd: vi.fn(async () => 1), zrem: vi.fn(async () => 1),
     eval: vi.fn(async (script: string, keys: string[], args: string[]) => {
+      if (script.includes("local ipCount")) return 1;
       if (script.includes("SISMEMBER")) {
         const paths = uploadPaths.get(keys[0]) ?? new Set<string>();
         if (paths.has(args[0])) return 1;
@@ -31,15 +32,16 @@ const mocks = vi.hoisted(() => {
       return 1;
     }),
   };
-  return { strings, hashes, counts, uploadPaths, db, paidOrder: vi.fn(), blobDelete: vi.fn() };
+  return { strings, hashes, counts, uploadPaths, db, paidOrder: vi.fn(), paidOrdersByEmail: vi.fn(), blobDelete: vi.fn() };
 });
 
 vi.mock("@upstash/redis", () => ({ Redis: class { constructor() { return mocks.db; } } }));
 vi.mock("@vercel/blob", () => ({ del: mocks.blobDelete }));
-vi.mock("./admin/orders", () => ({ completionKey: () => "orders:completed", getPaidOrder: mocks.paidOrder }));
+vi.mock("./admin/orders", () => ({ completionKey: () => "orders:completed", getPaidOrder: mocks.paidOrder, findPaidOrdersByEmail: mocks.paidOrdersByEmail }));
 
 import {
   createReviewInvitation,
+  createReviewInvitationForEmail,
   getPublicInvitation,
   getReviewPhoto,
   listPublishedReviews,
@@ -48,6 +50,7 @@ import {
   submitReview,
 } from "./reviewStore";
 import { photoFromInvitation, reviewSummary, validateReviewSubmission, type PublicReview } from "./reviews";
+import { POST as reviewAccessPOST } from "@/app/api/reviews/access/route";
 
 const order = {
   reference: "order-1", email: "customer@example.com", name: "Tumi Customer",
@@ -63,6 +66,7 @@ beforeEach(() => {
   vi.stubEnv("BLOB_STORE_ID", "");
   vi.stubEnv("BLOB_WEBHOOK_PUBLIC_KEY", "");
   mocks.paidOrder.mockResolvedValue(order);
+  mocks.paidOrdersByEmail.mockResolvedValue([order]);
   mocks.hashes.set("orders:completed", new Map([["order-1", "2026-09-17T12:00:00.000Z"]]));
 });
 
@@ -74,6 +78,39 @@ async function invitation() {
 }
 
 describe("review invitations and verified submission", () => {
+  it("opens the existing review form for a completed order email", async () => {
+    const created = await createReviewInvitationForEmail(" Customer@Example.com ", "127.0.0.1");
+    expect(mocks.paidOrdersByEmail).toHaveBeenCalledWith("customer@example.com");
+    expect(created.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(await getPublicInvitation(created.token)).toMatchObject({ valid: true, suggestedName: "Tumi" });
+  });
+
+  it("does not issue public review access for incomplete, reviewed or rate-limited orders", async () => {
+    mocks.hashes.get("orders:completed")?.clear();
+    await expect(createReviewInvitationForEmail("customer@example.com", "127.0.0.1")).rejects.toThrow("completed Smelt order");
+    mocks.hashes.set("orders:completed", new Map([["order-1", "done"]]));
+    const { token } = await invitation();
+    await submitReview(token, { rating: 5, body: "Already reviewed.", displayName: "Tumi", photoUrls: [], consent: true });
+    await expect(createReviewInvitationForEmail("customer@example.com", "127.0.0.1")).rejects.toThrow("already been submitted");
+    mocks.db.eval.mockResolvedValueOnce(0);
+    await expect(createReviewInvitationForEmail("another@example.com", "127.0.0.1")).rejects.toThrow("Too many attempts");
+  });
+
+  it("protects the public email lookup by origin and returns only an opaque review URL", async () => {
+    const crossOrigin = new Request("https://saunahat.co.za/api/reviews/access", {
+      method: "POST", headers: { origin: "https://evil.example", "content-type": "application/json" }, body: JSON.stringify({ email: "customer@example.com" }),
+    });
+    expect((await reviewAccessPOST(crossOrigin)).status).toBe(403);
+    expect(mocks.paidOrdersByEmail).not.toHaveBeenCalled();
+
+    const request = new Request("https://saunahat.co.za/api/reviews/access", {
+      method: "POST", headers: { origin: "https://saunahat.co.za", "content-type": "application/json" }, body: JSON.stringify({ email: "customer@example.com" }),
+    });
+    const response = await reviewAccessPOST(request);
+    expect(response.status).toBe(201);
+    expect(await response.json()).toEqual({ reviewUrl: expect.stringMatching(/^\/review\/[A-Za-z0-9_-]{43}$/) });
+  });
+
   it("requires a completed Paystack order and invalidates replaced invitations", async () => {
     mocks.hashes.get("orders:completed")?.clear();
     await expect(createReviewInvitation("order-1")).rejects.toThrow("Mark this order complete");

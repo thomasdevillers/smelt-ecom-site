@@ -3,7 +3,7 @@ const mocks = vi.hoisted(() => ({ hgetall: vi.fn(), hsetnx: vi.fn(), hget: vi.fn
 vi.mock("@upstash/redis", () => ({ Redis: class { hgetall = mocks.hgetall; hsetnx = mocks.hsetnx; hget = mocks.hget; hdel = mocks.hdel; eval = mocks.eval; get = mocks.get; set = mocks.set; del = mocks.del; pipeline = () => mocks.pipeline; } }));
 vi.mock("resend", () => ({ Resend: class { emails = { send: mocks.send, get: mocks.emailGet }; } }));
 vi.mock("next/headers", () => ({ cookies: async () => mocks.cookies }));
-import { normalizeOrder, listOrders, setOrderCompleted, completionKey } from "./orders";
+import { normalizeOrder, listOrders, setOrderCompleted, completionKey, findPaidOrdersByEmail } from "./orders";
 import { sendShipping, shippingStatus } from "./shipping";
 import { publicReceipt } from "./receipts";
 import { hasAdminSession, login, logout } from "./auth";
@@ -45,6 +45,20 @@ describe("order records", () => {
     expect(result.orders[0].receipt).not.toHaveProperty("message");
     expect(mocks.fetch.mock.calls[0][0]).toContain("perPage=100");
     expect(mocks.fetch.mock.calls[0][0]).toContain("status=success");
+  });
+  it("finds only successful Paystack orders belonging to the supplied email", async () => {
+    mocks.fetch.mockImplementation(async (url: string) => url.includes("/customer/")
+      ? { ok: true, status: 200, json: async () => ({ status: true, data: { id: 42 } }) }
+      : { ok: true, status: 200, json: async () => ({ status: true, data: [
+          { ...transaction, reference: "newer", paid_at: "2026-09-20T12:00:00.000Z" },
+          { ...transaction, reference: "older", paid_at: "2026-09-19T12:00:00.000Z" },
+          { ...transaction, reference: "wrong-email", customer: { email: "other@example.com" } },
+        ], meta: { pageCount: 1 } }) });
+    const orders = await findPaidOrdersByEmail(" Customer@Example.com ");
+    expect(orders.map(order => order.reference)).toEqual(["newer", "older"]);
+    expect(mocks.fetch.mock.calls[0][0]).toContain("/customer/customer%40example.com");
+    expect(mocks.fetch.mock.calls[1][0]).toContain("customer=42");
+    expect(mocks.fetch.mock.calls[1][0]).toContain("status=success");
   });
 });
 describe("shipping lifecycle", () => {
