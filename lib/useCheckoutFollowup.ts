@@ -7,9 +7,10 @@ import type { CartState } from "./cartReducer";
 export function useCheckoutFollowup(input: {
   email: string; name: string; cart: CartState; activity: unknown;
   stage: "details" | "payment_opened" | "payment_closed" | "checkout_error";
+  marketingConsent: boolean;
 }) {
   const id = useRef<string | null>(null);
-  const { email, name, cart, activity, stage } = input;
+  const { email, name, cart, activity, stage, marketingConsent } = input;
   useEffect(() => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || cart.green + cart.cream <= 0) return;
     if (!id.current) {
@@ -26,7 +27,7 @@ export function useCheckoutFollowup(input: {
       sent = true;
       void fetch("/api/checkout/followup", {
         method: "POST", headers: { "Content-Type": "application/json" }, keepalive: true,
-        body: JSON.stringify({ id: id.current, email, name, cart, stage }),
+        body: JSON.stringify({ id: id.current, email, name, cart, stage, marketingConsent }),
       }).then((response) => { if (!response.ok) sent = false; }).catch(() => { sent = false; });
     };
     const timer = setTimeout(save, 1000);
@@ -38,5 +39,5 @@ export function useCheckoutFollowup(input: {
       window.removeEventListener("pagehide", save);
       document.removeEventListener("visibilitychange", hide);
     };
-  }, [email, name, cart, activity, stage]);
+  }, [email, name, cart, activity, stage, marketingConsent]);
 }

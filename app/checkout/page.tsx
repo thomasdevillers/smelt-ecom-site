@@ -16,11 +16,13 @@ import { getTikTokClientContext, identifyTikTok, trackTikTokEvent } from "@/lib/
 import { trackVercelEvent, vercelCartData } from "@/lib/vercelAnalytics";
 import styles from "./checkout.module.css";
 import { useCheckoutFollowup } from "@/lib/useCheckoutFollowup";
+import { CART_RECOVERY_STORAGE_KEY, type CartRecoveryData } from "@/lib/cartRecoveryShared";
+import { sanitizeCart } from "@/lib/checkoutShared";
 
 type Status = "idle" | "submitting" | "error";
 type AppliedVoucher = { code: string; amount: number; expiresAt: string; email: string };
 export default function CheckoutPage() {
-  const { cart, subtotal } = useCart();
+  const { cart, subtotal, dispatch } = useCart();
   const { stock, error: stockError, refresh } = useAvailability();
   const [acceptedPreorder, setAcceptedPreorder] = useState("");
   const quantities = stock ? preorderQuantities(cart, stock) : { green: 0, cream: 0 };
@@ -37,6 +39,7 @@ export default function CheckoutPage() {
   const [appliedVoucher, setAppliedVoucher] = useState<AppliedVoucher | null>(null);
   const [voucherBusy, setVoucherBusy] = useState(false);
   const [voucherError, setVoucherError] = useState("");
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const [name, setName] = useState("");
   const [manualAddress, setManualAddress] = useState(false);
   const [showOptionalAddress, setShowOptionalAddress] = useState(false);
@@ -73,10 +76,43 @@ export default function CheckoutPage() {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
   const [followupStage, setFollowupStage] = useState<"details" | "payment_opened" | "payment_closed">("details");
-  useCheckoutFollowup({ email, name, cart, activity: address, stage: error ? "checkout_error" : followupStage });
+  useCheckoutFollowup({ email, name, cart, activity: address, stage: error ? "checkout_error" : followupStage, marketingConsent });
   const trackCheckoutStage = (event: "PaymentOpened" | "CheckoutError") => {
     trackVercelEvent(event, vercelCartData(cart));
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(async () => {
+      let recovered: CartRecoveryData;
+      try {
+        const raw = sessionStorage.getItem(CART_RECOVERY_STORAGE_KEY);
+        if (!raw) return;
+        sessionStorage.removeItem(CART_RECOVERY_STORAGE_KEY);
+        recovered = JSON.parse(raw) as CartRecoveryData;
+      } catch { return; }
+      if (cancelled || !recovered || typeof recovered.email !== "string" || typeof recovered.voucher?.code !== "string") return;
+      const recoveredCart = sanitizeCart(recovered.cart);
+      if (recoveredCart.green + recoveredCart.cream <= 0) return;
+      setEmail(recovered.email);
+      setName(typeof recovered.name === "string" ? recovered.name : "");
+      setVoucherCode(recovered.voucher.code);
+      setMarketingConsent(true);
+      dispatch({ type: "set", colour: "green", qty: recoveredCart.green });
+      dispatch({ type: "set", colour: "cream", qty: recoveredCart.cream });
+      try {
+        const response = await fetch("/api/vouchers/validate", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: recovered.voucher.code, email: recovered.email }),
+        });
+        const result = await response.json() as { code?: string; amount?: number; expiresAt?: string };
+        if (!cancelled && response.ok && result.code && result.amount && result.expiresAt) {
+          setAppliedVoucher({ code: result.code, amount: result.amount, expiresAt: result.expiresAt, email: recovered.email.trim().toLowerCase() });
+        }
+      } catch { /* The code stays visible so the customer can retry it manually. */ }
+    });
+    return () => { cancelled = true; };
+  }, [dispatch]);
 
   useEffect(() => {
     if (checkoutTracked.current || subtotal <= 0) return;
@@ -261,7 +297,7 @@ export default function CheckoutPage() {
               </span>
             </div>
             {activeVoucher && <div className={`${styles.row} ${styles.discount}`}>
-              <span>Review voucher</span>
+              <span>Voucher</span>
               <span>−{formatMoney(activeVoucher.amount)}</span>
             </div>}
             <div className={styles.total} aria-live="polite" aria-atomic="true">
@@ -299,11 +335,11 @@ export default function CheckoutPage() {
               />
             </label>
             <div className={styles.voucher}>
-              <div className={styles.voucherHead}><span className={styles.label}>R50 review voucher</span><small>Optional · tied to your review email</small></div>
+              <div className={styles.voucherHead}><span className={styles.label}>R50 voucher</span><small>Optional · tied to the email that received it</small></div>
               <div className={styles.voucherControls}>
                 <input className={styles.input} type="text" autoComplete="off" value={voucherCode}
                   onChange={(event) => { setVoucherCode(event.target.value); setVoucherError(""); }}
-                  placeholder="SMELT-XXXXXXXXXXXX" aria-label="Review voucher code" />
+                  placeholder="SMELT-XXXXXXXXXXXX" aria-label="Voucher code" />
                 <button type="button" onClick={() => void applyVoucher()} disabled={voucherBusy || !voucherCode.trim()}>
                   {voucherBusy ? "Checking…" : activeVoucher ? "Applied ✓" : "Apply"}
                 </button>
@@ -311,6 +347,10 @@ export default function CheckoutPage() {
               {activeVoucher && <p className={styles.voucherSuccess}>R{activeVoucher.amount} has been taken off this order.</p>}
               {voucherError && <p className={styles.voucherError} role="alert">{voucherError}</p>}
             </div>
+            <label className={styles.marketingConsent}>
+              <input type="checkbox" checked={marketingConsent} onChange={(event) => setMarketingConsent(event.target.checked)} />
+              <span><strong>Email me about this checkout.</strong> Smelt may send up to three reminders, including a personal R50 offer. I can unsubscribe at any time. <small>Optional</small></span>
+            </label>
             <label className={styles.field}>
               <span className={styles.label}>Full name</span>
               <input

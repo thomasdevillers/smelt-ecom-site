@@ -3,6 +3,7 @@ import { AdminError, adminStore, digest } from "./admin/store";
 
 export const REVIEW_VOUCHER_AMOUNT = 50;
 export const REVIEW_VOUCHER_DAYS = 90;
+export const CART_VOUCHER_DAYS = 7;
 
 const mode = () => process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_") ? "live" : "test";
 const prefix = () => `smelt:vouchers:v1:${mode()}`;
@@ -15,7 +16,8 @@ export interface VoucherMetadata { id: string; amount: number }
 export interface VoucherReward { code: string; amount: number; expiresAt: string }
 type StoredReward = VoucherReward & { reviewId: string; email: string; createdAt: string };
 type VoucherRecord = {
-  reviewId: string;
+  source: "review" | "abandoned_cart";
+  sourceId: string;
   email: string;
   amount: number;
   issuedAt: string;
@@ -37,12 +39,13 @@ function parseStored<T>(value: T | string | null): T | null {
   try { return JSON.parse(value) as T; } catch { return null; }
 }
 
-export function createReviewVoucher(email: string, reviewId: string, now = new Date()) {
+function createVoucher(email: string, source: VoucherRecord["source"], sourceId: string, validDays: number, now: Date) {
   const code = `SMELT-${randomBytes(9).toString("base64url").toUpperCase()}`;
   const id = digest(code);
-  const expiresAt = new Date(now.getTime() + REVIEW_VOUCHER_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const expiresAt = new Date(now.getTime() + validDays * 24 * 60 * 60 * 1000).toISOString();
   const record: VoucherRecord = {
-    reviewId,
+    source,
+    sourceId,
     email: normalizeEmail(email),
     amount: REVIEW_VOUCHER_AMOUNT,
     issuedAt: now.toISOString(),
@@ -52,8 +55,18 @@ export function createReviewVoucher(email: string, reviewId: string, now = new D
     redeemedBy: null,
     redeemedAt: null,
   };
-  const reward: StoredReward = { code, amount: REVIEW_VOUCHER_AMOUNT, expiresAt, reviewId, email: record.email, createdAt: record.issuedAt };
-  return { id, record, reward, voucherKey: voucherKey(id), rewardKey: rewardKey(reviewId), ttl: REVIEW_VOUCHER_DAYS * 24 * 60 * 60 };
+  return { id, code, record, expiresAt, voucherKey: voucherKey(id), ttl: validDays * 24 * 60 * 60 };
+}
+
+export function createReviewVoucher(email: string, reviewId: string, now = new Date()) {
+  const voucher = createVoucher(email, "review", reviewId, REVIEW_VOUCHER_DAYS, now);
+  const reward: StoredReward = { code: voucher.code, amount: REVIEW_VOUCHER_AMOUNT, expiresAt: voucher.expiresAt, reviewId, email: voucher.record.email, createdAt: voucher.record.issuedAt };
+  return { ...voucher, reward, rewardKey: rewardKey(reviewId) };
+}
+
+export function createAbandonedCartVoucher(email: string, campaignId: string, now = new Date()) {
+  const voucher = createVoucher(email, "abandoned_cart", campaignId, CART_VOUCHER_DAYS, now);
+  return { ...voucher, reward: { code: voucher.code, amount: REVIEW_VOUCHER_AMOUNT, expiresAt: voucher.expiresAt } satisfies VoucherReward };
 }
 
 export function publicVoucherReward(value: StoredReward | VoucherReward): VoucherReward {

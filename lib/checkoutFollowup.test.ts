@@ -46,6 +46,14 @@ describe("checkout follow-up capture", () => {
     expect(parsed.email).toBe("buyer@example.com");
     expect(parsed.createdAt).toBe(now);
     expect(parsed).not.toHaveProperty("total");
+    expect(parsed.marketingConsent).toBe(false);
+    expect(parsed.consentAt).toBeNull();
+  });
+  it("records the current server time only when checkout email consent is explicit", () => {
+    const parsed = parseFollowup({ ...input, marketingConsent: true, consentAt: "forged" }, now)!;
+    expect(parsed.marketingConsent).toBe(true);
+    expect(parsed.consentAt).toBe(new Date(now).toISOString());
+    expect(parsed.consentVersion).toBe("2026-09-22");
   });
   it.each([{ email: "bad" }, { id: "../private" }, { cart: {} }])("rejects invalid input %s", (override) => {
     expect(parseFollowup({ ...input, ...override })).toBeNull();
@@ -54,6 +62,14 @@ describe("checkout follow-up capture", () => {
     mocks.db.eval.mockResolvedValue(0);
     expect(await saveFollowup(lead, "127.0.0.1")).toBe(false);
     expect(mocks.db.eval).toHaveBeenCalledTimes(1);
+  });
+  it("only places consented leads on the customer queue while the sequence is enabled", async () => {
+    vi.stubEnv("CART_EMAIL_SEQUENCE_ENABLED", "false");
+    await saveFollowup(parseFollowup({ ...input, marketingConsent: true }, now)!, "127.0.0.1");
+    expect(mocks.db.eval.mock.calls[1][2].at(-1)).toBe("0");
+    vi.stubEnv("CART_EMAIL_SEQUENCE_ENABLED", "true");
+    await saveFollowup(parseFollowup({ ...input, marketingConsent: true }, now)!, "127.0.0.1");
+    expect(mocks.db.eval.mock.calls[3][2].at(-1)).toBe("1");
   });
   it("rejects cross-origin capture", async () => {
     const response = await POST(new Request("https://saunahat.co.za/api/checkout/followup", {

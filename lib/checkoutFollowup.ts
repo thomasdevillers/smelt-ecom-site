@@ -7,16 +7,23 @@ import { PRODUCT } from "./product";
 import { followupPaymentState } from "./followupPaystack";
 
 export const FOLLOWUP_DELAY = 30 * 60 * 1000;
-const RETENTION = 7 * 24 * 60 * 60;
+export const CUSTOMER_FOLLOWUP_DELAY = 60 * 60 * 1000;
+const RETENTION = 10 * 24 * 60 * 60;
 const PREFIX = "smelt:followup:v1:";
 const QUEUE = `${PREFIX}due`;
+export const CUSTOMER_QUEUE = `${PREFIX}customer-due`;
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
-const recordKey = (id: string) => `${PREFIX}checkout:${id}`;
+export const followupRecordKey = (id: string) => `${PREFIX}checkout:${id}`;
 
 export type FollowupLead = {
   id: string; email: string; name: string; cart: CartState;
   stage: "details" | "payment_opened" | "payment_closed" | "checkout_error";
   createdAt: number; updatedAt: number; version: string;
+  marketingConsent: boolean;
+  consentAt: string | null;
+  consentVersion: "2026-09-22" | null;
+  ownerClosed?: boolean;
+  closed?: boolean;
 };
 type Notice = {
   lead: FollowupLead; startedAt: number; delivered: boolean;
@@ -50,6 +57,9 @@ export function parseFollowup(input: unknown, now = Date.now()): FollowupLead | 
     name: typeof body.name === "string" ? body.name.trim().slice(0, 100) : "",
     stage: stages.includes(String(body.stage)) ? body.stage as FollowupLead["stage"] : "details",
     createdAt: now, updatedAt: now, version: randomUUID(),
+    marketingConsent: body.marketingConsent === true,
+    consentAt: body.marketingConsent === true ? new Date(now).toISOString() : null,
+    consentVersion: body.marketingConsent === true ? "2026-09-22" : null,
   };
 }
 
@@ -61,12 +71,13 @@ if old then
   local previous = cjson.decode(old)
   if previous.updatedAt > lead.updatedAt then return 0 end
   if previous.email == lead.email then
-    if previous.closed then return 0 end
     lead.createdAt = previous.createdAt
+    if previous.ownerClosed or previous.closed then lead.ownerClosed = true end
   end
 end
 redis.call('SET', KEYS[1], cjson.encode(lead), 'EX', ARGV[3])
-redis.call('ZADD', KEYS[2], ARGV[2], lead.id)
+if lead.ownerClosed then redis.call('ZREM', KEYS[2], lead.id) else redis.call('ZADD', KEYS[2], ARGV[2], lead.id) end
+if lead.marketingConsent and ARGV[5] == '1' then redis.call('ZADD', KEYS[3], ARGV[4], lead.id) else redis.call('ZREM', KEYS[3], lead.id) end
 return 1`;
 
 export async function saveFollowup(lead: FollowupLead, ip: string): Promise<boolean> {
@@ -76,13 +87,15 @@ local count = redis.call('INCR', KEYS[1])
 if count == 1 then redis.call('EXPIRE', KEYS[1], 60) end
 return count <= 30 and 1 or 0`, [`${PREFIX}rate:${hash(ip)}`], []);
   if (!allowed) return false;
-  await db.eval(SAVE_FOLLOWUP, [recordKey(lead.id), QUEUE], [
-    JSON.stringify(lead), lead.updatedAt + FOLLOWUP_DELAY, RETENTION,
+  await db.eval(SAVE_FOLLOWUP, [followupRecordKey(lead.id), QUEUE, CUSTOMER_QUEUE], [
+    JSON.stringify(lead), lead.updatedAt + FOLLOWUP_DELAY, RETENTION, lead.updatedAt + CUSTOMER_FOLLOWUP_DELAY,
+    process.env.CART_EMAIL_SEQUENCE_ENABLED === "true" ? "1" : "0",
   ]);
   return true;
 }
 
 export function followupMessage(lead: FollowupLead): string {
+  const automaticSequenceQueued = lead.marketingConsent && process.env.CART_EMAIL_SEQUENCE_ENABLED === "true";
   const stages = {
     details: "Delivery details form",
     payment_opened: "Payment was started",
@@ -101,8 +114,9 @@ export function followupMessage(lead: FollowupLead): string {
     "The reason for leaving is unknown. Browser activity is not a payment confirmation.",
     "Check Paystack again before contacting them; they may have paid since this alert.",
     "https://dashboard.paystack.com/",
-    "No customer email or free-shipping offer has been sent. Follow up personally if appropriate.",
-    "Advert consent is managed outside the site and has not been verified by this feature.",
+    automaticSequenceQueued
+      ? "The customer opted in and the automated checkout sequence is queued. No manual outreach is needed unless the automation reports a failure."
+      : "No active automated customer sequence is queued; review consent and payment status before any manual outreach.",
   ].join("\n\n");
 }
 
@@ -112,10 +126,10 @@ local raw = redis.call('GET', KEYS[1])
 if not raw then redis.call('ZREM', KEYS[2], ARGV[1]); return 0 end
 local lead = cjson.decode(raw)
 if lead.version ~= ARGV[2] then return 0 end
-lead.closed = true
+lead.ownerClosed = true
 redis.call('SET', KEYS[1], cjson.encode(lead), 'KEEPTTL')
 redis.call('ZREM', KEYS[2], ARGV[1])
-return 1`, [recordKey(lead.id), QUEUE], [lead.id, lead.version]);
+return 1`, [followupRecordKey(lead.id), QUEUE], [lead.id, lead.version]);
 }
 
 export async function processFollowups() {
@@ -130,7 +144,7 @@ export async function processFollowups() {
     for (const id of ids) {
       if (Date.now() > deadline) break;
       try {
-        const lead = await db.get<FollowupLead>(recordKey(id));
+        const lead = await db.get<FollowupLead>(followupRecordKey(id));
         if (!lead) { await db.zrem(QUEUE, id); continue; }
         if (lead.updatedAt + FOLLOWUP_DELAY > Date.now()) continue;
         // Query Paystack directly: catches purchases in other tabs and missed webhooks.
@@ -148,14 +162,17 @@ export async function processFollowups() {
 local raw = redis.call('GET', KEYS[1])
 if not raw then return nil end
 local current = cjson.decode(raw)
-if current.closed or current.version ~= ARGV[1] then return nil end
+if current.closed or current.ownerClosed or current.version ~= ARGV[1] then return nil end
 redis.call('SET', KEYS[2], ARGV[2], 'NX', 'EX', ARGV[3])
-return redis.call('GET', KEYS[2])`, [recordKey(id), noticeKey], [lead.version,
+return redis.call('GET', KEYS[2])`, [followupRecordKey(id), noticeKey], [lead.version,
           JSON.stringify({
             lead, startedAt: Date.now(), delivered: false,
             message: {
               from: process.env.ORDER_FROM_EMAIL!, to: process.env.CHECKOUT_FOLLOWUP_TO!,
-              subject: "Smelt: checkout ready for personal follow-up", text: followupMessage(lead),
+              subject: lead.marketingConsent && process.env.CART_EMAIL_SEQUENCE_ENABLED === "true"
+                ? "Smelt: automated checkout follow-up queued"
+                : "Smelt: checkout ready for personal follow-up",
+              text: followupMessage(lead),
             },
           }), RETENTION]);
         if (!notice) continue;
