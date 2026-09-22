@@ -71,6 +71,16 @@ describe("review outreach automation", () => {
     expect(mocks.send).not.toHaveBeenCalled();
   });
 
+  it("advances past the first ten recorded orders on the next daily run", async () => {
+    const now = Date.parse("2026-09-22T10:00:00.000Z");
+    for (let index = 0; index < 12; index++) {
+      mocks.completed[`order-${index}`] = new Date(Date.parse("2026-09-01T10:00:00.000Z") + index * 1000).toISOString();
+    }
+    await expect(processReviewRequests(now)).resolves.toMatchObject({ sent: 10 });
+    await expect(processReviewRequests(now)).resolves.toMatchObject({ sent: 2 });
+    expect(mocks.send).toHaveBeenCalledTimes(12);
+  });
+
   it("retries queued voucher mail with the exact stored reward", async () => {
     mocks.queued.push("review-1");
     mocks.values.set("smelt:vouchers:v1:test:reward:review-1", {

@@ -66,17 +66,21 @@ export async function processReviewRequests(now = Date.now()) {
     const cutoff = now - REVIEW_REQUEST_DELAY_DAYS * 24 * 60 * 60 * 1000;
     const due = Object.entries(completed)
       .filter(([, completedAt]) => Number.isFinite(Date.parse(completedAt)) && Date.parse(completedAt) <= cutoff)
-      .sort((a, b) => a[1].localeCompare(b[1]))
-      .slice(0, 10);
+      .sort((a, b) => a[1].localeCompare(b[1]));
+    let attempts = 0;
     for (const [reference] of due) {
       try {
         const existing = await db.get<Receipt>(requestKey(reference));
         if (existing?.status === "pending") {
+          if (attempts >= 10) break;
+          attempts++;
           const retried = await deliver(requestKey(reference), `review-request/${digest(reference)}`, existing);
           if (retried.status === "accepted") counts.sent++;
           continue;
         }
         if (existing) continue;
+        if (attempts >= 10) break;
+        attempts++;
         if (await hasReviewForOrder(reference)) {
           await db.set(requestKey(reference), { status: "skipped", reason: "review_exists", at: new Date(now).toISOString() } satisfies Receipt);
           counts.skipped++; continue;
