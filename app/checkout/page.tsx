@@ -1,4 +1,7 @@
 "use client";
+import { useAvailability } from "@/lib/useAvailability";
+import { hasPreorder, preorderQuantities } from "@/lib/preorders";
+import PreorderNotice from "@/components/PreorderNotice";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
@@ -15,14 +18,25 @@ import styles from "./checkout.module.css";
 import { useCheckoutFollowup } from "@/lib/useCheckoutFollowup";
 
 type Status = "idle" | "submitting" | "error";
+type AppliedVoucher = { code: string; amount: number; expiresAt: string; email: string };
 export default function CheckoutPage() {
   const { cart, subtotal } = useCart();
+  const { stock, error: stockError, refresh } = useAvailability();
+  const [acceptedPreorder, setAcceptedPreorder] = useState("");
+  const quantities = stock ? preorderQuantities(cart, stock) : { green: 0, cream: 0 };
+  const needsPreorder = hasPreorder(quantities);
+  const consentKey = stock ? JSON.stringify([stock.batch, cart, quantities]) : "";
+  const available = stock !== null && cart.green <= stock.green + stock.preorder.green && cart.cream <= stock.cream + stock.preorder.cream;
   const lines = COLOURS.filter((c) => cart[c] > 0);
   const checkoutTracked = useRef(false);
 
   const [shippingMethod, setShippingMethod] = useState<ShippingMethod>("aramex");
   const [specialDeliveryOpen, setSpecialDeliveryOpen] = useState(false);
   const [email, setEmail] = useState("");
+  const [voucherCode, setVoucherCode] = useState("");
+  const [appliedVoucher, setAppliedVoucher] = useState<AppliedVoucher | null>(null);
+  const [voucherBusy, setVoucherBusy] = useState(false);
+  const [voucherError, setVoucherError] = useState("");
   const [name, setName] = useState("");
   const [manualAddress, setManualAddress] = useState(false);
   const [showOptionalAddress, setShowOptionalAddress] = useState(false);
@@ -83,6 +97,12 @@ export default function CheckoutPage() {
   async function handlePay(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (!available || (needsPreorder && acceptedPreorder !== consentKey)) {
+      setError("Review availability and accept the pre-order timing before paying."); setStatus("error"); return;
+    }
+    if (voucherCode.trim() && !activeVoucher) {
+      setError("Apply the voucher before continuing, or clear the voucher field."); setStatus("error"); return;
+    }
 
     if (!isCompleteAddress(address)) {
       trackCheckoutStage("CheckoutError");
@@ -124,6 +144,8 @@ export default function CheckoutPage() {
           address: paystackAddress,
           cart,
           shippingMethod,
+          preorderConsent: needsPreorder ? { accepted: true, batch: stock?.batch, quantities } : undefined,
+          voucherCode: activeVoucher?.code,
           metaClient: getMetaClientContext(),
           tiktokClient: getTikTokClientContext(),
         }),
@@ -133,6 +155,8 @@ export default function CheckoutPage() {
         trackCheckoutStage("CheckoutError");
         setError(data.error || "Could not start secure payment. Please try again.");
         setStatus("error");
+        setAcceptedPreorder("");
+        void refresh();
         return;
       }
       trackCheckoutStage("PaymentOpened");
@@ -144,7 +168,31 @@ export default function CheckoutPage() {
     }
   }
 
-  const totalAmount = grandTotal(subtotal, shippingMethod);
+  const normalizedVoucherCode = voucherCode.trim().toUpperCase().replace(/\s+/g, "");
+  const activeVoucher = appliedVoucher && appliedVoucher.email === email.trim().toLowerCase() && appliedVoucher.code === normalizedVoucherCode
+    ? appliedVoucher
+    : null;
+  const totalAmount = grandTotal(subtotal, shippingMethod) - (activeVoucher?.amount ?? 0);
+
+  async function applyVoucher() {
+    setVoucherError(""); setError("");
+    if (!email.trim()) { setVoucherError("Enter the email address that received the voucher first."); return; }
+    if (!normalizedVoucherCode) { setVoucherError("Enter your voucher code."); return; }
+    setVoucherBusy(true);
+    try {
+      const response = await fetch("/api/vouchers/validate", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: normalizedVoucherCode, email }),
+      });
+      const result = await response.json() as { code?: string; amount?: number; expiresAt?: string; error?: string };
+      if (!response.ok || !result.code || !result.amount || !result.expiresAt) throw new Error(result.error || "We could not apply this voucher.");
+      setVoucherCode(result.code);
+      setAppliedVoucher({ code: result.code, amount: result.amount, expiresAt: result.expiresAt, email: email.trim().toLowerCase() });
+    } catch (caught) {
+      setAppliedVoucher(null);
+      setVoucherError(caught instanceof Error ? caught.message : "We could not apply this voucher.");
+    } finally { setVoucherBusy(false); }
+  }
   const addressSummary = [
     address.line1,
     address.addressLine2,
@@ -173,7 +221,7 @@ export default function CheckoutPage() {
             {shippingFee(subtotal, method) === 0 ? "FREE" : formatMoney(shippingFee(subtotal, method))}
           </span>
         </span>
-        <span className={styles.shippingDescription}>{SHIPPING_OPTIONS[method].description}</span>
+        <span className={styles.shippingDescription}>{needsPreorder ? "Dispatch after the incoming batch arrives. Courier transit starts after dispatch." : SHIPPING_OPTIONS[method].description}</span>
         {method === "aramex" && <span className={styles.shippingDescription}>Free with two or more hats.</span>}
       </span>
     </label>
@@ -212,6 +260,10 @@ export default function CheckoutPage() {
                   : formatMoney(shippingFee(subtotal, shippingMethod))}
               </span>
             </div>
+            {activeVoucher && <div className={`${styles.row} ${styles.discount}`}>
+              <span>Review voucher</span>
+              <span>−{formatMoney(activeVoucher.amount)}</span>
+            </div>}
             <div className={styles.total} aria-live="polite" aria-atomic="true">
               <span>Total</span>
               <span>{formatMoney(totalAmount)}</span>
@@ -221,6 +273,9 @@ export default function CheckoutPage() {
           <p className={styles.empty}>Your bag is empty. Add a hat first.</p>
         )}
 
+        <PreorderNotice />
+        {stockError && <p role="alert">{stockError} <button onClick={() => void refresh()}>Retry availability</button></p>}
+        {stock && !available && <p role="alert">Some quantities exceed available stock and pre-order capacity. <Link href="/cart">Edit your bag</Link>.</p>}
         {lines.length > 0 && (
           <form className={styles.form} onSubmit={handlePay}>
             <fieldset className={styles.shippingOptions} disabled={status === "submitting"}>
@@ -243,6 +298,19 @@ export default function CheckoutPage() {
                 required
               />
             </label>
+            <div className={styles.voucher}>
+              <div className={styles.voucherHead}><span className={styles.label}>R50 review voucher</span><small>Optional · tied to your review email</small></div>
+              <div className={styles.voucherControls}>
+                <input className={styles.input} type="text" autoComplete="off" value={voucherCode}
+                  onChange={(event) => { setVoucherCode(event.target.value); setVoucherError(""); }}
+                  placeholder="SMELT-XXXXXXXXXXXX" aria-label="Review voucher code" />
+                <button type="button" onClick={() => void applyVoucher()} disabled={voucherBusy || !voucherCode.trim()}>
+                  {voucherBusy ? "Checking…" : activeVoucher ? "Applied ✓" : "Apply"}
+                </button>
+              </div>
+              {activeVoucher && <p className={styles.voucherSuccess}>R{activeVoucher.amount} has been taken off this order.</p>}
+              {voucherError && <p className={styles.voucherError} role="alert">{voucherError}</p>}
+            </div>
             <label className={styles.field}>
               <span className={styles.label}>Full name</span>
               <input
@@ -399,15 +467,16 @@ export default function CheckoutPage() {
                 required
               />
             </label>
+            {needsPreorder && <label className={styles.shippingOption}><input type="checkbox" required checked={acceptedPreorder === consentKey} onChange={e => setAcceptedPreorder(e.target.checked ? consentKey : "")} /><span>I understand this is a paid pre-order. {stock?.timing} All hats will ship together. I can cancel before dispatch for a full refund by contacting hello@saunahat.co.za.</span></label>}
             {status === "error" && <p className={styles.err}>{error}</p>}
             <button
               className={styles.pay}
               type="submit"
-              disabled={status === "submitting"}
+              disabled={status === "submitting" || !available || (needsPreorder && acceptedPreorder !== consentKey)}
             >
               {status === "submitting"
                 ? "Starting secure checkout…"
-                : `Pay ${formatMoney(totalAmount)} securely`}
+                : `${needsPreorder ? "Pay for pre-order" : "Pay"} ${formatMoney(totalAmount)} securely`}
             </button>
             <p className={styles.secure}>Card and available secure payment methods powered by Paystack.</p>
           </form>

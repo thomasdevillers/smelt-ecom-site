@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Redis } from "@upstash/redis";
 import type { CartState } from "./cartReducer";
 import type { Colour } from "./product";
+import { localStockTest, stockScope } from './stockEnvironment';
 
 export const INITIAL_STOCK: Readonly<Record<Colour, number>> = {
   green: 9,
@@ -13,11 +14,10 @@ export interface InventorySnapshot {
   cream: number;
 }
 
-// Keep the reservation longer than a normal Paystack checkout session. Expired
-// holds are returned to stock the next time inventory is read or reserved.
+// Timestamp retained for operational review; holds are not automatically released.
 export const RESERVATION_TTL_SECONDS = 60 * 60;
 
-const mode = () => process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_") ? "live" : "test";
+const mode = stockScope;
 const keys = () => {
   const prefix = `smelt:inventory:v1:${mode()}`;
   return {
@@ -35,20 +35,9 @@ function store() {
   return new Redis({ url, token, retry: { retries: 0 }, signal: () => AbortSignal.timeout(10_000) });
 }
 
+// Never recycle a hold merely because time elapsed: its payment link may
+// still accept money or its successful webhook may have been delayed.
 const CLEAN_EXPIRED = `
-local expired = redis.call('ZRANGEBYSCORE', KEYS[3], '-inf', ARGV[1])
-for _, id in ipairs(expired) do
-  local held = redis.call('HGET', KEYS[2], id)
-  if held then
-    local separator = string.find(held, ':')
-    local green = tonumber(string.sub(held, 1, separator - 1))
-    local cream = tonumber(string.sub(held, separator + 1))
-    redis.call('HINCRBY', KEYS[1], 'green', green)
-    redis.call('HINCRBY', KEYS[1], 'cream', cream)
-    redis.call('HDEL', KEYS[2], id)
-  end
-  redis.call('ZREM', KEYS[3], id)
-end
 redis.call('HSETNX', KEYS[1], 'green', ARGV[2])
 redis.call('HSETNX', KEYS[1], 'cream', ARGV[3])
 `;
@@ -105,7 +94,7 @@ function snapshot(result: unknown): InventorySnapshot {
 export async function getInventory(): Promise<InventorySnapshot> {
   const k = keys();
   const result = await store().eval(READ_STOCK, [k.stock, k.reservations, k.expiries], [
-    Date.now(), INITIAL_STOCK.green, INITIAL_STOCK.cream,
+    Date.now(), localStockTest() ? 0 : INITIAL_STOCK.green, localStockTest() ? 0 : INITIAL_STOCK.cream,
   ]);
   return snapshot(result);
 }
@@ -119,7 +108,7 @@ export async function reserveInventory(cart: CartState, reservationId: string): 
   const result = await store().eval(
     RESERVE_STOCK,
     [k.stock, k.reservations, k.expiries],
-    [Date.now(), INITIAL_STOCK.green, INITIAL_STOCK.cream, reservationId, cart.green, cart.cream, Date.now() + RESERVATION_TTL_SECONDS * 1000],
+    [Date.now(), localStockTest() ? 0 : INITIAL_STOCK.green, localStockTest() ? 0 : INITIAL_STOCK.cream, reservationId, cart.green, cart.cream, Date.now() + RESERVATION_TTL_SECONDS * 1000],
   );
   const values = Array.isArray(result) ? result : [];
   return { reserved: Number(values[0]) === 1, stock: snapshot(values.slice(1)) };
@@ -131,6 +120,7 @@ export async function releaseInventory(reservationId: string): Promise<boolean> 
 }
 
 export async function commitInventory(reservationId: string, cart: CartState): Promise<boolean> {
+  if (reservationId.startsWith("smeltp-")) return (await import("./preorderStore")).commitPurchase(reservationId, cart);
   const k = keys();
   return Number(await store().eval(
     COMMIT_STOCK,

@@ -1,4 +1,5 @@
 "use client";
+import PreorderNotice from "@/components/PreorderNotice";
 import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/lib/cart";
@@ -107,6 +108,7 @@ export default function CartDrawer() {
             </div>
 
             <div className={styles.foot}>
+              <PreorderNotice />
               <div className={styles.shipMsg}>
                 {freeShip
                   ? "You've unlocked free shipping. Warm regards."

@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import { createHmac } from "node:crypto";
 const mocks = vi.hoisted(() => ({
-  db: { get: vi.fn(), set: vi.fn(), eval: vi.fn() }, send: vi.fn(), verify: vi.fn(), after: vi.fn(), commitInventory: vi.fn(),
+  db: { get: vi.fn(), set: vi.fn(), eval: vi.fn() }, send: vi.fn(), verify: vi.fn(), after: vi.fn(), commitInventory: vi.fn(), commitVoucher: vi.fn(),
 }));
 vi.mock("@upstash/redis", () => ({ Redis: class { constructor() { return mocks.db; } } }));
 vi.mock("resend", () => ({ Resend: class { emails = { send: mocks.send }; } }));
@@ -10,6 +10,10 @@ vi.mock("./paystack", () => ({ verifyTransaction: mocks.verify }));
 vi.mock("./metaConversions", () => ({ sendMetaPurchase: vi.fn() }));
 vi.mock("./tiktokEvents", () => ({ sendTikTokPurchase: vi.fn() }));
 vi.mock("./inventory", () => ({ commitInventory: mocks.commitInventory }));
+vi.mock("./vouchers", () => ({
+  parseVoucherMetadata: (value: unknown) => value && typeof value === "object" && (value as { amount?: unknown }).amount === 50 ? value : null,
+  commitVoucher: mocks.commitVoucher,
+}));
 import { sendOrderConfirmation, type ConfirmedOrder } from "./orderConfirmation";
 import { checkoutTotal } from "./checkoutShared";
 import { POST as webhook } from "../app/api/paystack/webhook/route";
@@ -38,6 +42,7 @@ beforeEach(() => {
   });
   mocks.send.mockResolvedValue({ data: { id: "resend-accepted-1" }, error: null });
   mocks.commitInventory.mockResolvedValue(true);
+  mocks.commitVoucher.mockResolvedValue(true);
   mocks.verify.mockResolvedValue({ ...order, status: "success", customerEmail: order.email,
     metadata: { cart: order.cart, shippingAddress: order.address, items: [{ name: "FORGED ITEM", qty: 99 }] } });
 });
@@ -164,6 +169,18 @@ describe("payment route integration", () => {
       metadata: { cart: order.cart, shippingAddress: order.address, shippingMethod: "aramex", inventoryReservation: order.reference } });
     expect((await verifyGet(new Request(`https://example.com/api/checkout/verify?reference=${order.reference}`))).status).toBe(200);
     expect(mocks.commitInventory).toHaveBeenCalledWith(order.reference, order.cart);
+  });
+
+  it("reconciles and commits an R50 review voucher before confirming the discounted order", async () => {
+    const voucher = { id: "a".repeat(64), amount: 50 };
+    mocks.verify.mockResolvedValue({ ...order, amount: 49_000, status: "success", customerEmail: order.email,
+      metadata: { cart: order.cart, shippingAddress: order.address, shippingMethod: "aramex", inventoryReservation: order.reference, voucher } });
+    expect((await verifyGet(new Request(`https://example.com/api/checkout/verify?reference=${order.reference}`))).status).toBe(200);
+    expect(mocks.commitVoucher).toHaveBeenCalledWith(order.reference, voucher);
+    await flush();
+    const message = mocks.send.mock.calls[0][0];
+    expect(message.text).toContain("Review voucher");
+    expect(message.text).toContain("R490");
   });
 
   it("does not fulfil a paid order whose stock reservation cannot be reconciled", async () => {

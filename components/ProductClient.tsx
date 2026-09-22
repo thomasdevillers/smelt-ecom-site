@@ -7,7 +7,7 @@ import HairPSA from "@/components/HairPSA";
 import ProductReviews from "@/components/ProductReviews";
 import { POLICIES } from "@/content/policies";
 import SectionLabel from "@/components/ui/SectionLabel";
-import { PRODUCT, type Colour } from "@/lib/product";
+import { COLOURS, PRODUCT, type Colour } from "@/lib/product";
 import { BASE_PRICE, SHIPPING_FEE, formatMoney, lineTotal } from "@/lib/pricing";
 import { useCart } from "@/lib/cart";
 import { META_CURRENCY, metaVariantContent } from "@/lib/meta";
@@ -16,7 +16,8 @@ import { tiktokContent } from "@/lib/tiktok";
 import { trackTikTokEvent } from "@/lib/tiktokPixel";
 import { trackVercelEvent, vercelProductData } from "@/lib/vercelAnalytics";
 import styles from "@/app/product/product.module.css";
-import type { InventorySnapshot } from "@/lib/inventory";
+import { useAvailability } from "@/lib/useAvailability";
+import RestockChoice from "@/components/RestockChoice";
 
 type PurchaseOption = "single" | "bundle";
 type BundleMix = "mixed" | "green" | "cream";
@@ -24,9 +25,13 @@ type BundleMix = "mixed" | "green" | "cream";
 export default function ProductClient() {
   const viewed = useRef(false);
   const [colour, setColour] = useState<Colour>("green");
+  useEffect(() => {
+    const selected = new URLSearchParams(window.location.search).get("colour");
+    if (selected === "green" || selected === "cream") queueMicrotask(() => setColour(selected));
+  }, []);
   const [purchaseOption, setPurchaseOption] = useState<PurchaseOption>("single");
   const [bundleMix, setBundleMix] = useState<BundleMix>("mixed");
-  const [stock, setStock] = useState<InventorySnapshot | null>(null);
+  const { stock, error: stockError, refresh } = useAvailability();
   const { cart, dispatch, openCart } = useCart();
   const v = PRODUCT.variants[colour];
   const quantity = purchaseOption === "bundle" ? 2 : 1;
@@ -37,10 +42,11 @@ export default function ProductClient() {
       ? "One of each"
       : `Two ${PRODUCT.variants[bundleMix].name}`;
   const selectionInStock = stock !== null && (purchaseOption === "single"
-    ? stock[colour] >= cart[colour] + 1
+    ? stock[colour] + stock.preorder[colour] >= cart[colour] + 1
     : bundleMix === "mixed"
-      ? stock.green >= cart.green + 1 && stock.cream >= cart.cream + 1
-      : stock[bundleMix] >= cart[bundleMix] + 2);
+      ? stock.green + stock.preorder.green >= cart.green + 1 && stock.cream + stock.preorder.cream >= cart.cream + 1
+      : stock[bundleMix] + stock.preorder[bundleMix] >= cart[bundleMix] + 2);
+  const isPreorder = stock !== null && (purchaseOption === "single" ? cart[colour] + 1 > stock[colour] : bundleMix === "mixed" ? cart.green + 1 > stock.green || cart.cream + 1 > stock.cream : cart[bundleMix] + 2 > stock[bundleMix]);
   const add = () => {
     if (!selectionInStock) return;
     if (purchaseOption === "single") {
@@ -54,8 +60,21 @@ export default function ProductClient() {
     openCart();
   };
   const bundleAvailable = (value: BundleMix) => stock === null || (value === "mixed"
-    ? stock.green >= cart.green + 1 && stock.cream >= cart.cream + 1
-    : stock[value] >= cart[value] + 2);
+    ? stock.green + stock.preorder.green >= cart.green + 1 && stock.cream + stock.preorder.cream >= cart.cream + 1
+    : stock[value] + stock.preorder[value] >= cart[value] + 2);
+  const bundleStatus = (value: BundleMix) => {
+    if (!stock) return "Checking stock…";
+    if (value === "mixed") {
+      if (stock.green === 0 && stock.cream === 0) return "Both out of stock";
+      if (stock.green === 0) return "Green out of stock";
+      if (stock.cream === 0) return "Cream out of stock";
+      return stock.green > cart.green && stock.cream > cart.cream ? "In stock" : "Extra hats on pre-order";
+    }
+    if (stock[value] === 0) return "Out of stock";
+    return stock[value] >= cart[value] + 2 ? "In stock" : "Extra hats on pre-order";
+  };
+  const selectedColours = COLOURS.filter(c => purchaseOption === "single" ? c === colour : bundleMix === "mixed" || c === bundleMix);
+  const waitingColours = selectedColours.filter(c => stock && cart[c] + (purchaseOption === "bundle" && bundleMix !== "mixed" ? 2 : 1) > stock[c]);
   const unavailableLabel = purchaseOption === "single" && stock?.[colour] === 0
     ? "Out of stock"
     : "Not enough stock";
@@ -76,14 +95,6 @@ export default function ProductClient() {
     });
   }, []);
 
-  useEffect(() => {
-    let active = true;
-    fetch("/api/inventory", { cache: "no-store" })
-      .then(async (response) => response.ok ? response.json() : null)
-      .then((value) => { if (active && value) setStock(value); })
-      .catch(() => {});
-    return () => { active = false; };
-  }, []);
 
   return (
     <main className={styles.page}>
@@ -123,7 +134,7 @@ export default function ProductClient() {
                   key={c}
                   className={`${styles.chip} ${colour === c ? styles.chipOn : ""}`}
                   onClick={() => setColour(c)}
-                  disabled={stock?.[c] === 0}
+                  aria-pressed={colour === c}
                 >
                   <span>{PRODUCT.variants[c].name}</span>
                   {stock && <small>{stock[c] === 0 ? "Out of stock" : `${stock[c]} left`}</small>}
@@ -149,29 +160,37 @@ export default function ProductClient() {
                       if (value !== "mixed") setColour(value);
                     }}
                     aria-pressed={bundleMix === value}
-                    disabled={!available}
                   >
                     <span>{label}</span>
-                    {!available && <small>Not enough stock</small>}
+                    <small>{bundleStatus(value)}</small>
+                    {stock && !available && <small>Pre-order unavailable</small>}
                   </button>
                 );
               })}
             </div>
           </div>}
 
+          {purchaseOption === "bundle" && stock && <div className={styles.bundleStock} aria-live="polite">
+            <strong>{isPreorder ? "Your bundle includes out-of-stock hats" : "Your bundle is in stock"}</strong>
+            <ul>{selectedColours.map(c => {
+              const qty = bundleMix === "mixed" ? 1 : 2;
+              const ready = Math.min(qty, Math.max(0, stock[c] - cart[c]));
+              return <li key={c}><span>{qty} × {PRODUCT.variants[c].name}</span><span>{ready === qty ? "In stock" : stock[c] === 0 ? "Out of stock" : ready > 0 ? `${ready} in stock · ${qty - ready} on pre-order` : "Additional hats on pre-order"}</span></li>;
+            })}</ul>
+            {isPreorder && <p>{selectionInStock ? "Pre-order both hats now. They’ll ship together after the next batch arrives, with free delivery." : "This combination isn’t available to pre-order. Choose another mix or request a restock message below."}</p>}
+          </div>}
+
           <button className={styles.add} onClick={add} disabled={!selectionInStock}>
-            {stock === null ? "Checking stock…" : selectionInStock ? `${purchaseOption === "bundle" ? "Add two hats" : "Add to bag"} · ${formatMoney(total)}` : unavailableLabel}
+            {stock === null ? "Checking stock…" : selectionInStock ? `${isPreorder ? purchaseOption === "bundle" ? "Pre-order two hats" : "Pre-order" : purchaseOption === "bundle" ? "Add two hats" : "Add to bag"} · ${formatMoney(total)}` : unavailableLabel}
           </button>
 
-          <div className={styles.reassure}>
-            {stock ? <span className={styles.stockLine} aria-live="polite">
-              <strong>Forest Green: {stock.green === 0 ? "Out of stock" : `${stock.green} left`}</strong>
-              <strong>Natural Cream: {stock.cream === 0 ? "Out of stock" : `${stock.cream} left`}</strong>
-            </span> : <span><strong>Checking availability…</strong></span>}
-            <span>Dispatched from Cape Town within 1–3 business days</span>
-            <span>R90 nationwide delivery · <strong>Free when you buy two or more</strong></span>
-            <span>Secure checkout powered by Paystack</span>
-          </div>
+          {stockError && <p role="alert">{stockError} <button onClick={() => void refresh()}>Retry</button></p>}
+          {stock && waitingColours.length > 0 && (purchaseOption === "bundle"
+            ? <RestockChoice key={`bundle-${bundleMix}-${waitingColours.join("-")}`} colours={waitingColours} bundle timing={stock.timing} canPreorder={selectionInStock} />
+            : <RestockChoice key={colour} colour={colour} timing={stock.timing} canPreorder={selectionInStock} />)}
+          {!isPreorder && <div className={styles.reassure}>
+            <span>In-stock orders dispatched from Cape Town within 1–3 business days</span>
+          </div>}
 
           <div className={styles.accordions}>
             <Accordion title="Details" defaultOpen>
@@ -198,7 +217,7 @@ export default function ProductClient() {
       <HairPSA />
       <div className={styles.stickyBar}>
         <div className={styles.stickyInfo}>{selectionLabel} · {formatMoney(total)}</div>
-        <button className={styles.stickyAdd} onClick={add} disabled={!selectionInStock}>{stock === null ? "Checking…" : selectionInStock ? (purchaseOption === "bundle" ? "Add two" : "Add to bag") : unavailableLabel}</button>
+        <button className={styles.stickyAdd} onClick={add} disabled={!selectionInStock}>{stock === null ? "Checking…" : selectionInStock ? (isPreorder ? purchaseOption === "bundle" ? "Pre-order two" : "Pre-order" : purchaseOption === "bundle" ? "Add two" : "Add to bag") : unavailableLabel}</button>
       </div>
     </main>
   );

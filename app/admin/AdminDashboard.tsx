@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import type { AdminOrder, OrdersPage, ShippingReceipt } from "@/lib/admin/types";
 import AnalyticsPanel from "./AnalyticsPanel";
 import WaybillScanner from "./WaybillScanner";
+import RestockPanel from "./RestockPanel";
+import { preorderTiming } from "@/lib/preorders";
 import ReviewsPanel from "./ReviewsPanel";
 import { reviewWhatsAppUrl } from "@/lib/whatsapp";
 import styles from "./admin.module.css";
@@ -98,6 +100,7 @@ function OrderRow({ order, onReceipt, onExpired, onMoved }: { order: AdminOrder;
       </details>
     </div>
     <div className={styles.items}>
+      {order.preorder && <p className={styles.notice}><strong>PAID PRE-ORDER</strong><br />{preorderTiming(order.preorder)}<br />Allocate ahead of general sales; dispatch in payment order within each colour.</p>}
       {order.items.length ? order.items.map((item, i) => <p key={i}><span className={`${styles.swatch} ${item.colour === "cream" ? styles.cream : ""}`} aria-hidden="true" />{item.qty} × {item.name}</p>) : <p>Items unavailable</p>}
       <strong>{money(order)}</strong><span className={styles.paid}>Paid</span>
     </div>
@@ -147,9 +150,9 @@ export default function AdminDashboard() {
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [view, setView] = useState<"active" | "completed">("active");
+  const [view, setView] = useState<"active" | "completed" | "preorders">("active");
   const [completedSort, setCompletedSort] = useState<"newest" | "oldest">("newest");
-  const [section, setSection] = useState<"orders" | "analytics" | "reviews">("orders");
+  const [section, setSection] = useState<"orders" | "analytics" | "reviews" | "restock">("orders");
   const [notice, setNotice] = useState("");
   const generation = useRef(0);
   const expire = useCallback(() => { generation.current++; setAuth(false); setData(null); setError("Your session has ended. Sign in again to continue."); }, []);
@@ -187,6 +190,7 @@ export default function AdminDashboard() {
   const sectionCopy = {
     orders: { eyebrow: "SMELT / FULFILMENT", title: <>The dispatch desk<span>.</span></>, description: "Paste a waybill. Send the good news." },
     analytics: { eyebrow: "SMELT / COMMERCE", title: <>Store performance<span>.</span></>, description: "Traffic, intent and verified sales in one view." },
+    restock: { eyebrow: "SMELT / NEXT BATCH", title: <>Restock requests<span>.</span></>, description: "WhatsApp requests by colour. Paid pre-orders take priority." },
     reviews: { eyebrow: "SMELT / CUSTOMER PROOF", title: <>Reviews, reviewed<span>.</span></>, description: "Approve the real thing. Publish only what customers sent." },
   }[section];
   return <div className={styles.shell}>
@@ -197,27 +201,29 @@ export default function AdminDashboard() {
         <form onSubmit={signIn}><label htmlFor="admin-password">Admin password</label><input id="admin-password" type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required disabled={busy} /><button disabled={busy}>{busy ? "Signing in…" : "Open dispatch desk ↗"}</button></form>
         {error && <p role="alert" className={styles.error}>{error}</p>}
       </section> : <>
-        <section className={styles.heading}><div><span className={styles.eyebrow}>{sectionCopy.eyebrow}</span><h1>{sectionCopy.title}</h1><p>{sectionCopy.description}</p></div>{section === "orders" ? <div className={styles.total}><strong>{data?.total ?? "—"}</strong><span>{view === "completed" ? "COMPLETED ORDERS" : "ACTIVE ORDERS"}</span></div> : section === "analytics" ? <div className={styles.analyticsStamp}><span>VERCEL</span><b>＋</b><span>PAYSTACK</span></div> : <div className={styles.analyticsStamp}><span>PAYSTACK</span><b>＋</b><span>BLOB</span></div>}</section>
+        <section className={styles.heading}><div><span className={styles.eyebrow}>{sectionCopy.eyebrow}</span><h1>{sectionCopy.title}</h1><p>{sectionCopy.description}</p></div>{section === "orders" ? <div className={styles.total}><strong>{data?.total ?? "—"}</strong><span>{view === "completed" ? "COMPLETED ORDERS" : view === "preorders" ? "PAID PRE-ORDERS" : "ACTIVE ORDERS"}</span></div> : section === "analytics" ? <div className={styles.analyticsStamp}><span>VERCEL</span><b>＋</b><span>PAYSTACK</span></div> : <div className={styles.analyticsStamp}><span>PAYSTACK</span><b>＋</b><span>BLOB</span></div>}</section>
         <nav className={styles.primarySections} aria-label="Admin sections">
           <button type="button" aria-pressed={section === "orders"} onClick={() => setSection("orders")}>Orders</button>
           <button type="button" aria-pressed={section === "analytics"} onClick={() => setSection("analytics")}>Store performance</button>
           <button type="button" aria-pressed={section === "reviews"} onClick={() => setSection("reviews")}>Reviews</button>
+          <button type="button" aria-pressed={section === "restock"} onClick={() => setSection("restock")}>Restock requests</button>
         </nav>
         {section === "orders" ? <>
         <nav className={styles.sections} aria-label="Order sections">
           <button type="button" aria-pressed={view === "active"} onClick={() => { setView("active"); setPage(1); setNotice(""); }}>Active orders {data && <span>{data.activeTotal}</span>}</button>
+          <button type="button" aria-pressed={view === "preorders"} onClick={() => { setView("preorders"); setPage(1); setNotice(""); }}>Paid pre-orders · oldest first</button>
           <button type="button" aria-pressed={view === "completed"} onClick={() => { setView("completed"); setPage(1); setNotice(""); }}>Completed orders {data && <span>{data.completedTotal}</span>}</button>
         </nav>
         {notice && <p className={styles.notice} role="status">{notice}</p>}
         <div className={styles.toolbar}><form onSubmit={e => { e.preventDefault(); setPage(1); if (search === query.trim() && page === 1) void load(); else setSearch(query.trim()); }}><label className={styles.srOnly} htmlFor="order-search">Search by exact customer email or order reference</label><input id="order-search" type="search" placeholder="Customer email or order reference" value={query} onChange={e => setQuery(e.target.value)} /><button disabled={loading}>Search</button>{search && <button type="button" className={styles.secondary} onClick={() => { setQuery(""); setSearch(""); setPage(1); }}>Clear</button>}</form><div className={styles.orderActions}>{view === "completed" && <label className={styles.sortControl} htmlFor="completed-order-sort"><span>Sort completed</span><select id="completed-order-sort" value={completedSort} disabled={loading} onChange={e => { setCompletedSort(e.target.value as "newest" | "oldest"); setPage(1); }}><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></label>}<button className={styles.refresh} disabled={loading} onClick={() => void load()}>{loading ? "Refreshing…" : "Refresh orders ↻"}</button></div></div>
-        <p className={styles.help}>{view === "completed" ? `Completed orders, ${completedSort === "oldest" ? "oldest" : "most recently"} completed first. Reopen an order to move it back to active orders.` : "Send tracking and mark complete, or review an accepted previous shipping email and complete the order without sending again."}</p>
+        <p className={styles.help}>{view === "completed" ? `Completed orders, ${completedSort === "oldest" ? "oldest" : "most recently"} completed first. Reopen an order to move it back to active orders.` : view === "preorders" ? "Paid pre-orders, oldest payment first. Dispatch these before general restock orders once the batch is received." : "Send tracking and mark complete, or review an accepted previous shipping email and complete the order without sending again."}</p>
         {error && <p className={styles.error} role="alert">{error}</p>}
         {loading && <div className={styles.loading} role="status">Loading orders…</div>}
         {data && <><div className={styles.columnHead}><span>CUSTOMER / ORDER</span><span>IN THE BAG</span><span>TRACKING & EMAIL</span></div>
-          <div className={styles.orders}>{data.orders.map(order => <OrderRow key={order.reference} order={order} onExpired={expire} onMoved={() => { setNotice(view === "active" ? "Order moved to Completed orders." : "Order moved back to Active orders."); if (data.orders.length === 1 && data.page > 1) setPage(data.page - 1); else void load(); }} onReceipt={receipt => setData(current => current ? { ...current, orders: current.orders.map(o => o.reference === order.reference ? { ...o, receipt } : o) } : null)} />)}</div>
+          <div className={styles.orders}>{data.orders.map(order => <OrderRow key={order.reference} order={order} onExpired={expire} onMoved={() => { setNotice(view !== "completed" ? "Order moved to Completed orders." : "Order moved back to Active orders."); if (data.orders.length === 1 && data.page > 1) setPage(data.page - 1); else void load(); }} onReceipt={receipt => setData(current => current ? { ...current, orders: current.orders.map(o => o.reference === order.reference ? { ...o, receipt } : o) } : null)} />)}</div>
           {!data.orders.length && <div className={styles.empty}><h2>{search ? "No matching orders" : view === "completed" ? "No completed orders yet" : "All caught up"}</h2><p>{search ? "Search using the full customer email address or payment reference." : view === "completed" ? "Orders appear here after you mark them complete." : "New paid orders will appear here."}</p></div>}
           <nav className={styles.pagination} aria-label="Order pages"><span>{data.total ? `Page ${data.page} of ${Math.max(1, data.pageCount)}` : "0 orders"}</span><div><button className={styles.secondary} disabled={loading || data.page <= 1} onClick={() => setPage(data.page - 1)}>← Previous</button><button className={styles.secondary} disabled={loading || data.page >= data.pageCount} onClick={() => setPage(data.page + 1)}>Next →</button></div></nav></>}
-        </> : section === "analytics" ? <AnalyticsPanel onExpired={expire} /> : <ReviewsPanel onExpired={expire} />}
+        </> : section === "analytics" ? <AnalyticsPanel onExpired={expire} /> : section === "restock" ? <RestockPanel onExpired={expire} /> : <ReviewsPanel onExpired={expire} />}
         <footer className={styles.footnote}>Made with care. Measured with care.<span>{section === "orders" ? "Email delivery status refers to the notification, not the parcel." : section === "analytics" ? "Payment totals come from successful Paystack transactions." : "Customer reviews remain private until approved."}</span></footer>
       </>}
     </main>

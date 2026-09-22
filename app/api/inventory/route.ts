@@ -1,10 +1,10 @@
-import { getInventory } from "@/lib/inventory";
+import { getAvailability } from "@/lib/preorderStore";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    return Response.json(await getInventory(), {
+    return Response.json(await getAvailability(), {
       headers: { "Cache-Control": "no-store" },
     });
   } catch (error) {

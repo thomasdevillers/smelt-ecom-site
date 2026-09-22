@@ -17,3 +17,9 @@ export function checkoutTotal(cart: CartState, shippingMethod?: unknown): number
   const subtotal = cartSubtotal(cart);
   return subtotal > 0 ? grandTotal(subtotal, method) : 0;
 }
+
+export function discountedCheckoutTotal(cart: CartState, shippingMethod: unknown, discount = 0): number {
+  const total = checkoutTotal(cart, shippingMethod);
+  if (!Number.isFinite(total) || !Number.isSafeInteger(discount) || discount < 0 || discount >= total) return Number.NaN;
+  return total - discount;
+}

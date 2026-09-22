@@ -1,5 +1,6 @@
 import { AdminError, requireSameOrigin } from "@/lib/admin/store";
 import { listPublishedReviews, submitReview } from "@/lib/reviewStore";
+import { sendReviewReward } from "@/lib/reviewAutomation";
 
 export const runtime = "nodejs";
 
@@ -32,6 +33,12 @@ export async function POST(request: Request) {
     if (raw.length > 12_000) throw new AdminError("Review is too large.", 413);
     const body = JSON.parse(raw) as Record<string, unknown>;
     if (typeof body.token !== "string") throw new AdminError("A review link is required.");
-    return response(await submitReview(body.token, body), 201);
+    const result = await submitReview(body.token, body);
+    try { await sendReviewReward(result.id); }
+    catch (error) {
+      // The voucher is returned on-screen and remains queued for the reward cron.
+      console.error("Review saved; voucher email queued", { reviewId: result.id, code: error instanceof Error ? error.message : "unknown" });
+    }
+    return response(result, 201);
   } catch (error) { return failure(error); }
 }

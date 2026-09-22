@@ -12,6 +12,12 @@ const WILD_PHOTOS = [
     height: 1000,
   },
   {
+    src: "/images/cream-hat-sauna-portrait.webp",
+    alt: "Woman wearing a Natural Cream Smelt sauna hat while seated in a wooden sauna",
+    width: 1086,
+    height: 1448,
+  },
+  {
     src: "/images/TomSide.jpeg",
     alt: "Smelt sauna hat side profile",
     width: 800,
@@ -49,7 +55,7 @@ export default function InTheWild() {
                 width={photo.width}
                 height={photo.height}
                 className={styles.img}
-                sizes="(max-width: 640px) 100vw, (max-width: 960px) 50vw, 33vw"
+                sizes="(max-width: 639px) 100vw, (max-width: 959px) 50vw, 25vw"
               />
             </div>
           </div>

@@ -3,6 +3,7 @@ import { del } from "@vercel/blob";
 import { AdminError, adminStore, digest } from "./admin/store";
 import { completionKey, findPaidOrdersByEmail, getPaidOrder } from "./admin/orders";
 import { PRODUCT, type Colour } from "./product";
+import { createReviewVoucher, publicVoucherReward, rewardQueueKey } from "./vouchers";
 import {
   REVIEW_INVITATION_DAYS,
   REVIEW_PRODUCT_ID,
@@ -85,7 +86,15 @@ export async function createReviewInvitation(reference: string) {
   const ttl = REVIEW_INVITATION_DAYS * 24 * 60 * 60;
   await db.set(inviteKey(tokenDigest), invitation, { ex: ttl });
   await db.set(currentInviteKey(reference), tokenDigest, { ex: ttl });
-  return { token, expiresAt: invitation.expiresAt };
+  return { token, expiresAt: invitation.expiresAt, email: invitation.email, suggestedName: invitation.suggestedName };
+}
+
+export async function hasCurrentReviewInvitation(reference: string): Promise<boolean> {
+  return Boolean(await adminStore().get<string>(currentInviteKey(reference)));
+}
+
+export async function hasReviewForOrder(reference: string): Promise<boolean> {
+  return (await listReviewRecords()).some(review => review.orderReference === reference);
 }
 
 export async function createReviewInvitationForEmail(input: unknown, ip: string) {
@@ -175,9 +184,13 @@ const SUBMIT_REVIEW = `
 if redis.call('EXISTS', KEYS[1]) == 0 then return -1 end
 if redis.call('GET', KEYS[2]) ~= ARGV[1] then return -1 end
 if redis.call('EXISTS', KEYS[3]) == 1 then return 0 end
+if redis.call('EXISTS', KEYS[6]) == 1 then return -2 end
 redis.call('SET', KEYS[3], ARGV[2])
 redis.call('HSET', KEYS[4], ARGV[2], ARGV[3])
 redis.call('ZADD', KEYS[5], ARGV[4], ARGV[2])
+redis.call('SET', KEYS[6], ARGV[5], 'EX', ARGV[7])
+redis.call('SET', KEYS[7], ARGV[6], 'EX', ARGV[7])
+redis.call('ZADD', KEYS[8], ARGV[4], ARGV[2])
 return 1`;
 
 export async function submitReview(token: string, input: unknown) {
@@ -208,20 +221,23 @@ export async function submitReview(token: string, input: unknown) {
     colours: found.invitation.colours,
     photos: photos as ReviewRecord["photos"],
     verifiedPurchase: true,
+    incentivized: true,
     status: "pending",
     submittedAt,
     publishedAt: null,
     consentVersion: "2026-09-17",
   };
+  const voucher = createReviewVoucher(order.email, id, new Date(submittedAt));
   const db = adminStore();
   const result = await db.eval(
     SUBMIT_REVIEW,
-    [inviteKey(found.tokenDigest), currentInviteKey(order.reference), claimKey(found.tokenDigest), recordsKey(), statusKey("pending")],
-    [found.tokenDigest, id, JSON.stringify(review), String(Date.parse(submittedAt))],
+    [inviteKey(found.tokenDigest), currentInviteKey(order.reference), claimKey(found.tokenDigest), recordsKey(), statusKey("pending"), voucher.voucherKey, voucher.rewardKey, rewardQueueKey()],
+    [found.tokenDigest, id, JSON.stringify(review), String(Date.parse(submittedAt)), JSON.stringify(voucher.record), JSON.stringify(voucher.reward), String(voucher.ttl)],
   );
   if (result === 0) throw new AdminError("This review link has already been used.", 409);
+  if (result === -2) throw new AdminError("We could not create your thank-you voucher. Please try again.", 503);
   if (result !== 1) throw new AdminError("This review link is invalid or has expired.", 404);
-  return { id, status: "pending" as const };
+  return { id, status: "pending" as const, voucher: publicVoucherReward(voucher.reward) };
 }
 
 function normalizedRecord(value: ReviewRecord | string): ReviewRecord | null {

@@ -13,6 +13,7 @@ export default function ProductGallery({ colour }: { colour: Colour }) {
     { id: "back", label: "Back", src: variant.images.back, alt: `${variant.name} Smelt sauna hat, back embroidery`, width: 520, height: 520, lifestyle: false },
     { id: "sauna", label: "In the sauna", src: "/images/MarcTomFront.jpg", alt: "Forest Green and Natural Cream Smelt sauna hats being worn in a sauna", width: 800, height: 1000, lifestyle: true },
     { id: "fit", label: "Fit", src: "/images/TomSide.jpeg", alt: "Natural Cream Smelt sauna hat shown from the side while being worn", width: 800, height: 1000, lifestyle: true },
+    { id: "worn", label: "Worn", src: "/images/cream-hat-sauna-closeup.webp", alt: "Woman wearing a Natural Cream Smelt sauna hat in a wooden sauna", width: 1086, height: 1448, lifestyle: true, objectPosition: "center top" },
   ];
   const active = media[selected] ?? media[0];
 
@@ -26,6 +27,7 @@ export default function ProductGallery({ colour }: { colour: Colour }) {
           width={active.width}
           height={active.height}
           className={`${styles.mainImage} ${active.lifestyle ? styles.cover : ""}`}
+          style={{ objectPosition: active.objectPosition }}
           sizes="(max-width: 879px) calc(100vw - 40px), 50vw"
           priority={selected === 0}
         />
@@ -48,6 +50,7 @@ export default function ProductGallery({ colour }: { colour: Colour }) {
               width={item.width}
               height={item.height}
               className={`${styles.thumbnailImage} ${item.lifestyle ? styles.cover : ""}`}
+              style={{ objectPosition: item.objectPosition }}
               sizes="72px"
             />
             <span>{item.label}</span>

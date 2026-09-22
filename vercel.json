@@ -1,5 +1,7 @@
 {
   "crons": [
-    { "path": "/api/cron/checkout-followups", "schedule": "*/5 * * * *" }
+    { "path": "/api/cron/checkout-followups", "schedule": "*/5 * * * *" },
+    { "path": "/api/cron/review-requests", "schedule": "0 8 * * *" },
+    { "path": "/api/cron/review-rewards", "schedule": "17 * * * *" }
   ]
 }

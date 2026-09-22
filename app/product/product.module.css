@@ -26,13 +26,18 @@
 .bundleChoice { min-height: 46px; padding: 10px 8px; border: 1px solid rgba(14,59,42,.3); border-radius: 12px; background: transparent; color: var(--ink); cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 700; display: grid; gap: 2px; }
 .bundleChoiceOn { border-color: var(--ink); background: var(--ink); color: var(--paper); }
 .bundleChoice:focus-visible { outline: 3px solid var(--terracotta); outline-offset: 2px; }
+.bundleStock { margin: 0 0 14px; padding: 16px; border: var(--border-ink-soft); border-radius: 12px; background: rgba(14,59,42,.035); font-size: 13px; line-height: 1.5; }
+.bundleStock > strong { font-size: 14px; }
+.bundleStock ul { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; }
+.bundleStock li { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2px 12px; }
+.bundleStock li > span:last-child { font-weight: 700; }
+.bundleStock p { margin: 12px 0 0; }
 .qty { display: inline-flex; align-items: center; gap: 18px; border: var(--border-ink-soft); border-radius: var(--radius-pill); padding: 6px 16px; }
 .qty button { background: none; border: none; font-size: 22px; cursor: pointer; width: 36px; height: 36px; }
 .add { width: 100%; margin-top: 6px; background: var(--ink); color: var(--paper); border: none; border-radius: 14px; padding: 17px; font-family: inherit; font-weight: 600; font-size: 15px; cursor: pointer; min-height: 52px; }
 .add:disabled, .stickyAdd:disabled { cursor: not-allowed; opacity: .55; }
 .reassure { display: grid; gap: 5px; font-size: 13px; color: rgba(14,59,42,.82); line-height: 1.45; margin-top: 13px; }
 .reassure span { display: block; }
-.stockLine { display: flex !important; flex-wrap: wrap; gap: 6px 14px; color: var(--terracotta); }
 .accordions { margin-top: 28px; border-top: var(--border-ink-soft); }
 .stickyBar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 40; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--paper); border-top: var(--border-ink); padding: 12px 20px; }
 .stickyInfo { font-weight: 700; font-size: 14px; }

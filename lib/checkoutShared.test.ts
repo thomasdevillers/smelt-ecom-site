@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkoutTotal, sanitizeCart } from "./checkoutShared";
+import { checkoutTotal, discountedCheckoutTotal, sanitizeCart } from "./checkoutShared";
 
 describe("checkoutTotal", () => {
   it("charges full founder delivery for single and multiple hats", () => {
@@ -34,5 +34,11 @@ describe("checkoutTotal", () => {
 
   it("uses sanitized quantities when recomputing an untrusted cart", () => {
     expect(checkoutTotal(sanitizeCart({ green: "1", cream: -10 }))).toBe(540);
+  });
+
+  it("subtracts only a safe server-validated voucher amount", () => {
+    expect(discountedCheckoutTotal({ green: 1, cream: 0 }, "aramex", 50)).toBe(490);
+    expect(discountedCheckoutTotal({ green: 1, cream: 0 }, "aramex", -50)).toBeNaN();
+    expect(discountedCheckoutTotal({ green: 1, cream: 0 }, "aramex", 540)).toBeNaN();
   });
 });

@@ -26,9 +26,12 @@ const mocks = vi.hoisted(() => {
       }
       if (!strings.has(keys[0]) || strings.get(keys[1]) !== args[0]) return -1;
       if (strings.has(keys[2])) return 0;
+      if (keys[5] && strings.has(keys[5])) return -2;
       strings.set(keys[2], args[1]);
       const hash = hashes.get(keys[3]) || new Map<string, unknown>();
       hash.set(args[1], args[2]); hashes.set(keys[3], hash);
+      if (keys[5]) strings.set(keys[5], JSON.parse(args[4]));
+      if (keys[6]) strings.set(keys[6], JSON.parse(args[5]));
       return 1;
     }),
   };
@@ -123,7 +126,7 @@ describe("review invitations and verified submission", () => {
 
   it("rechecks Paystack and atomically prevents token reuse", async () => {
     const { token } = await invitation();
-    await expect(submitReview(token, { rating: 5, body: "Love the fit.", displayName: "Tumi", anonymous: false, photoUrls: [], consent: true })).resolves.toMatchObject({ status: "pending" });
+    await expect(submitReview(token, { rating: 5, body: "Love the fit.", displayName: "Tumi", anonymous: false, photoUrls: [], consent: true })).resolves.toMatchObject({ status: "pending", voucher: { amount: 50, code: expect.stringMatching(/^SMELT-/) } });
     expect(mocks.paidOrder).toHaveBeenCalledTimes(2);
     await expect(submitReview(token, { rating: 5, body: "Again", displayName: "Tumi", consent: true })).rejects.toThrow("already been used");
     expect((await getPublicInvitation(token)).used).toBe(true);

@@ -34,7 +34,7 @@ export default function ReviewAccessForm() {
     <div className={styles.intro}>
       <span>SMELT / VERIFIED PURCHASE</span>
       <h1>Warm words welcome.</h1>
-      <p>Enter the email address used at checkout. We’ll confirm your completed order before opening the review form.</p>
+      <p>Enter the email address used at checkout. We’ll confirm your completed order before opening the review form. Every honest review receives R50 off a future order, regardless of rating.</p>
     </div>
     <form className={styles.form} onSubmit={submit}>
       <label>Order email<input required autoComplete="email" inputMode="email" pattern="[^\\s@]+@[^\\s@]+\\.[^\\s@]+" maxLength={254} value={email} onChange={event => setEmail(event.target.value)} placeholder="you@example.com" /></label>

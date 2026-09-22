@@ -1,4 +1,5 @@
 "use client";
+import PreorderNotice from "@/components/PreorderNotice";
 import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/lib/cart";
@@ -84,6 +85,7 @@ export default function CartPage() {
           </div>
 
           <aside className={styles.summary}>
+            <PreorderNotice />
             <div className={styles.shipMsg}>
               {freeShip
                 ? "Free shipping unlocked. Warm regards."

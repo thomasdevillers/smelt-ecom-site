@@ -1,4 +1,5 @@
 "use client";
+import { parsePreorder, preorderTiming, type PreorderDetails } from "@/lib/preorders";
 import SocialLinks from "@/components/SocialLinks";
 import { SOCIAL_HANDLE } from "@/content/social";
 import { useEffect, useRef, useState } from "react";
@@ -20,7 +21,7 @@ interface PaidItem {
 
 type State =
   | { kind: "verifying" }
-  | { kind: "paid"; amount: number; reference: string; items: PaidItem[]; shippingMethod: ShippingMethod }
+  | { kind: "paid"; preorder?: PreorderDetails; amount: number; reference: string; items: PaidItem[]; shippingMethod: ShippingMethod }
   | { kind: "failed"; message: string };
 
 export default function CheckoutSuccessPage() {
@@ -83,6 +84,7 @@ export default function CheckoutSuccessPage() {
           }
           setState({
             kind: "paid",
+            preorder: parsePreorder(data.preorder),
             amount: data.amountRand,
             reference: data.reference,
             items: data.items ?? [],
@@ -115,14 +117,15 @@ export default function CheckoutSuccessPage() {
         {state.kind === "paid" && (
           <>
             <div className={styles.badge}>Payment confirmed</div>
-            <h1 className={styles.h1}>Your order is confirmed. Warm regards.</h1>
+            <h1 className={styles.h1}>{state.preorder ? "Your pre-order is confirmed. Warm regards." : "Your order is confirmed. Warm regards."}</h1>
             <p className={styles.copy}>
               We&rsquo;ve received {formatMoney(state.amount)}.{" "}
-              {state.shippingMethod === "founders"
+              {state.preorder ? preorderTiming(state.preorder) : state.shippingMethod === "founders"
                 ? "Our founders will hand deliver your hat on the next business day. We’ll be in touch to coordinate your delivery."
                 : "Your hat is in stock, and we’ll email tracking as soon as it’s on the way."}{" "}
               A receipt is heading to your inbox now.
             </p>
+            {state.preorder && <p className={styles.copy}>Your hats are reserved ahead of general restock sales. We’ll email you if timing changes. For a full refund before dispatch, contact hello@saunahat.co.za with your reference.</p>}
             <p className={styles.copy}>
               Can&rsquo;t find your order confirmation email? Please check your spam
               or junk folder.

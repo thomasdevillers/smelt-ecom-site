@@ -1,3 +1,5 @@
+import { parsePreorder } from "../preorders";
+import { batchReceived } from "../preorderStore";
 import { sanitizeAddress } from "../address";
 import { sanitizeCart } from "../checkoutShared";
 import type { OrderItem } from "../orderTypes";
@@ -37,6 +39,7 @@ export function normalizeOrder(input: unknown): AdminOrder {
   return {
     reference: str(d.reference), email, name: str(m.customerName) || [str(customer.first_name), str(customer.last_name)].filter(Boolean).join(" "),
     amount: typeof d.amount === "number" ? d.amount : 0, currency: str(d.currency), paidAt: str(d.paid_at) || null,
+    preorder: parsePreorder(m.preorder),
     items, address: sanitizeAddress(m.shippingAddress), shippingMethod: method,
     canShip: !reviewReason, reviewReason, receipt: null, history: [], completedAt: null,
   };
@@ -56,7 +59,12 @@ export async function getPaidOrder(reference: string) {
   if (!/^[a-zA-Z0-9_.=\-]{1,200}$/.test(reference)) throw new AdminError("Invalid order reference.");
   const { data } = await paystack(`/transaction/verify/${encodeURIComponent(reference)}`);
   if (data?.reference !== reference || data?.status !== "success") throw new AdminError("This order does not have a successful payment.", 409);
-  return normalizeOrder(data);
+  const order = normalizeOrder(data);
+  if (order.preorder && !await batchReceived(order.preorder.batch)) {
+    order.canShip = false;
+    order.reviewReason = 'Pre-order awaiting the incoming batch. Receive the shipment in Restock requests before sending tracking.';
+  }
+  return order;
 }
 
 export async function findPaidOrdersByEmail(email: string): Promise<AdminOrder[]> {
@@ -100,7 +108,7 @@ export async function setOrderCompleted(reference: string, completed: boolean, c
 export async function listOrders(
   page: number,
   search = "",
-  view: "active" | "completed" = "active",
+  view: "active" | "completed" | "preorders" = "active",
   completedSort: "newest" | "oldest" = "newest",
 ): Promise<OrdersPage> {
   const query = new URLSearchParams({ status: "success", perPage: "100", page: "1" });
@@ -135,13 +143,20 @@ export async function listOrders(
   for (const order of orders) order.completedAt = completed[order.reference] || null;
   const completedTotal = orders.filter(order => order.completedAt).length;
   const activeTotal = orders.length - completedTotal;
-  const filtered = orders.filter(order => view === "completed" ? !!order.completedAt : !order.completedAt);
+  const filtered = orders.filter(order => view === "completed" ? !!order.completedAt : !order.completedAt && (view !== "preorders" || !!order.preorder));
+  if (view === "preorders") filtered.sort((a, b) => (a.paidAt || "").localeCompare(b.paidAt || "") || a.reference.localeCompare(b.reference));
   if (view === "completed") filtered.sort((a, b) => completedSort === "oldest"
     ? a.completedAt!.localeCompare(b.completedAt!)
     : b.completedAt!.localeCompare(a.completedAt!));
   const pageCount = Math.ceil(filtered.length / 25);
   const currentPage = Math.min(page, Math.max(1, pageCount));
   const result: OrdersPage = { orders: filtered.slice((currentPage - 1) * 25, currentPage * 25), page: currentPage, pageCount, total: filtered.length, activeTotal, completedTotal };
+  for (const batch of new Set(result.orders.flatMap(order => order.preorder ? [order.preorder.batch] : []))) {
+    if (!await batchReceived(batch)) for (const order of result.orders) if (order.preorder?.batch === batch) {
+      order.canShip = false;
+      order.reviewReason = 'Pre-order awaiting the incoming batch. Receive the shipment in Restock requests before sending tracking.';
+    }
+  }
   const pipeline = db.pipeline();
   if (!result.orders.length) return result;
   for (const order of result.orders) { pipeline.get(orderReceiptKey(order.reference)); pipeline.hgetall(historyKey(order.email)); }

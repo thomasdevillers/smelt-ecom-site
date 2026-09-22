@@ -9,7 +9,7 @@ export async function GET(request: Request) {
     const page = Number(params.get("page") || 1), search = (params.get("search") || "").trim();
     if (!Number.isSafeInteger(page) || page < 1 || page > 100000 || search.length > 200) throw new AdminError("Invalid search or page.");
     const view = params.get("view") || "active";
-    if (view !== "active" && view !== "completed") throw new AdminError("Invalid order section.");
+    if (view !== "active" && view !== "completed" && view !== "preorders") throw new AdminError("Invalid order section.");
     const sort = params.get("sort") || "newest";
     if (sort !== "newest" && sort !== "oldest") throw new AdminError("Invalid completed-order sort.");
     return adminJson(await listOrders(page, search, view, sort));

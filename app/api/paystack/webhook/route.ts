@@ -5,10 +5,11 @@ import type { TikTokClientContext } from "@/lib/tiktok";
 import crypto from "node:crypto";
 import type { OrderItem } from "@/lib/orderTypes";
 import { sendPaymentFailedEmail } from "@/lib/email";
-import { checkoutTotal, sanitizeCart } from "@/lib/checkoutShared";
+import { discountedCheckoutTotal, sanitizeCart } from "@/lib/checkoutShared";
 import { sendMetaPurchase } from "@/lib/metaConversions";
 import type { MetaClientContext } from "@/lib/meta";
-import { commitInventory, releaseInventory } from "@/lib/inventory";
+import { commitInventory } from "@/lib/inventory";
+import { commitVoucher, parseVoucherMetadata } from "@/lib/vouchers";
 
 // node:crypto requires the Node.js runtime, not edge.
 export const runtime = "nodejs";
@@ -64,6 +65,8 @@ export async function POST(request: Request) {
         shippingAddress?: { phone?: unknown };
         shippingMethod?: unknown;
         inventoryReservation?: unknown;
+        preorder?: unknown;
+        voucher?: unknown;
       };
     };
   };
@@ -84,7 +87,8 @@ export async function POST(request: Request) {
     // Paystack actually confirms was charged (`d.amount`) rather than
     // whatever amountRand the client claims in metadata.
     const cart = sanitizeCart(d.metadata?.cart);
-    const expectedAmountRand = checkoutTotal(cart, d.metadata?.shippingMethod);
+    const voucher = parseVoucherMetadata(d.metadata?.voucher);
+    const expectedAmountRand = discountedCheckoutTotal(cart, d.metadata?.shippingMethod, voucher?.amount ?? 0);
     const amountMatches = expectedAmountRand > 0 && d.amount === expectedAmountRand * 100 && d.currency === "ZAR";
 
     if (!amountMatches) {
@@ -96,9 +100,9 @@ export async function POST(request: Request) {
       return new Response("ok", { status: 200 });
     }
 
-    if (typeof d.metadata?.inventoryReservation === "string") {
+    if (typeof d.metadata?.inventoryReservation === "string" || d.reference?.startsWith("smeltp-")) {
       try {
-        const committed = await commitInventory(d.metadata.inventoryReservation, cart);
+        const committed = d.metadata?.inventoryReservation === d.reference && await commitInventory(d.reference!, cart);
         if (!committed) {
           console.error(`Inventory reservation mismatch for paid transaction ${d.reference}`);
           return new Response("inventory reconciliation pending", { status: 503 });
@@ -107,6 +111,15 @@ export async function POST(request: Request) {
         console.error(`Inventory commit failed for paid transaction ${d.reference}:`, error);
         return new Response("inventory reconciliation pending", { status: 503 });
       }
+    }
+    try {
+      if (!d.reference || !await commitVoucher(d.reference, d.metadata?.voucher)) {
+        console.error(`Voucher reservation mismatch for paid transaction ${d.reference}`);
+        return new Response("voucher reconciliation pending", { status: 503 });
+      }
+    } catch (error) {
+      console.error(`Voucher commit failed for paid transaction ${d.reference}:`, error);
+      return new Response("voucher reconciliation pending", { status: 503 });
     }
 
     if (d.currency === "ZAR" && paidAmountRand > 0) {
@@ -119,7 +132,7 @@ export async function POST(request: Request) {
     try {
       await sendOrderConfirmation({
         reference: d.reference ?? "", email: d.customer?.email ?? "",
-        amount: d.amount!, currency: d.currency!, cart, address: d.metadata?.shippingAddress, shippingMethod: d.metadata?.shippingMethod,
+        amount: d.amount!, currency: d.currency!, cart, address: d.metadata?.shippingAddress, shippingMethod: d.metadata?.shippingMethod, preorder: d.metadata?.preorder, voucher: d.metadata?.voucher,
       });
     } catch (error) {
       logOrderConfirmationFailure(d.reference ?? "", error);
@@ -142,13 +155,6 @@ export async function POST(request: Request) {
 
   if (event.event === "charge.failed" && event.data) {
     const d = event.data;
-    if (typeof d.metadata?.inventoryReservation === "string") {
-      try {
-        await releaseInventory(d.metadata.inventoryReservation);
-      } catch (error) {
-        console.error(`Inventory release failed for unsuccessful transaction ${d.reference}:`, error);
-      }
-    }
     try {
       await sendPaymentFailedEmail({
         email: d.customer?.email ?? "",

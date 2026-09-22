@@ -26,6 +26,7 @@ export interface ReviewRecord {
   colours: Colour[];
   photos: ReviewPhoto[];
   verifiedPurchase: true;
+  incentivized?: boolean;
   status: ReviewStatus;
   submittedAt: string;
   publishedAt: string | null;
@@ -40,6 +41,7 @@ export interface PublicReview {
   colours: Colour[];
   photos: ReviewPhoto[];
   verifiedPurchase: true;
+  incentivized?: boolean;
   publishedAt: string;
 }
 
@@ -115,6 +117,7 @@ export function publicReview(review: ReviewRecord): PublicReview | null {
     colours: review.colours,
     photos: review.photos.map((photo, index) => ({ ...photo, url: reviewPhotoUrl(review.id, index) })),
     verifiedPurchase: true,
+    incentivized: review.incentivized === true,
     publishedAt: review.publishedAt,
   };
 }

@@ -10,6 +10,6 @@ export function reviewWhatsAppUrl(input: { phone: string; customerName: string; 
   const phone = normalizeWhatsAppPhone(input.phone);
   if (!phone) return null;
   const firstName = input.customerName.trim().split(/\s+/)[0] || "there";
-  const message = `Hi ${firstName}, thank you for choosing Smelt. We’d love to hear how you’re enjoying your sauna hat. You can leave a verified review and add photos here:\n\n${input.reviewUrl}\n\nThank you!`;
+  const message = `Hi ${firstName}, thank you for choosing Smelt. We’d love your honest take on your sauna hat. Every rating qualifies for R50 off your next order after submitting a verified review. You can review and add optional photos here:\n\n${input.reviewUrl}\n\nThank you!`;
   return `https://wa.me/${phone}?${new URLSearchParams({ text: message })}`;
 }

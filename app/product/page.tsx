@@ -7,12 +7,12 @@ import { abs, breadcrumbLd, jsonLdScript } from "@/lib/seo";
 export const metadata: Metadata = {
   title: "Smelt Sauna Hat · 100% wool felt, embroidered",
   description:
-    "The Smelt sauna hat: 100% wool felt, embroidered front and back, one size. Forest Green or Natural Cream. In stock and shipping nationwide from Cape Town.",
+    "The Smelt sauna hat: 100% wool felt, embroidered front and back, one size. Forest Green or Natural Cream. Shipping nationwide from Cape Town. Check colour availability and pre-order options.",
   alternates: { canonical: "/product" },
   openGraph: {
     title: "Smelt Sauna Hat · 100% wool felt, embroidered",
     description:
-      "100% wool felt, embroidered not printed. Forest Green or Natural Cream. In stock now.",
+      "100% wool felt, embroidered not printed. Forest Green or Natural Cream. Check colour availability and pre-order options.",
     url: abs("/product"),
     type: "website",
   },
@@ -41,7 +41,7 @@ const productLd = {
     priceCurrency: "ZAR",
     price: BASE_PRICE,
     priceValidUntil: PRICE_VALID_UNTIL,
-    availability: "https://schema.org/InStock",
+    // Availability is loaded live; do not publish a static in-stock claim.
     itemCondition: "https://schema.org/NewCondition",
     hasMerchantReturnPolicy: {
       "@type": "MerchantReturnPolicy",

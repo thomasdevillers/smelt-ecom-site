@@ -5,6 +5,7 @@
 // Set PAYSTACK_SECRET_KEY in .env.local to accept live payments.
 
 const PAYSTACK_BASE = "https://api.paystack.co";
+export class PaystackInitializationRejected extends Error {}
 
 /** True once a secret key is configured. Gate all live-payment UI on this. */
 export function isPaystackConfigured(): boolean {
@@ -56,7 +57,7 @@ export async function initializeTransaction(params: {
 
   const json = await res.json();
   if (!res.ok || !json.status) {
-    throw new Error(json?.message || "Paystack initialize failed");
+    throw new PaystackInitializationRejected(json?.message || "Paystack initialize failed");
   }
   return {
     authorizationUrl: json.data.authorization_url,

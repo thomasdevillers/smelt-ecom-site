@@ -21,6 +21,7 @@ export interface AdminOrder {
   items: OrderItem[];
   address: ShippingAddress;
   shippingMethod: string;
+  preorder?: import("../preorders").PreorderDetails;
   canShip: boolean;
   reviewReason?: string;
   receipt: ShippingReceipt | null;

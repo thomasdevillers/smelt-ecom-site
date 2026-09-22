@@ -3,10 +3,11 @@ import { Redis } from "@upstash/redis";
 import { Resend } from "resend";
 import { orderConfirmationEmail } from "./emails/orderConfirmation";
 import { sanitizeAddress } from "./address";
-import { checkoutTotal, sanitizeCart } from "./checkoutShared";
+import { discountedCheckoutTotal, sanitizeCart } from "./checkoutShared";
 import { PRODUCT } from "./product";
 import type { CartState } from "./cartReducer";
 import { formatMoney, parseShippingMethod } from "./pricing";
+import { parseVoucherMetadata } from "./vouchers";
 
 export interface ConfirmedOrder {
   reference: string;
@@ -16,6 +17,8 @@ export interface ConfirmedOrder {
   cart: unknown;
   address?: unknown;
   shippingMethod?: unknown;
+  preorder?: unknown;
+  voucher?: unknown;
 }
 
 type Message = { from: string; to: string; subject: string; html: string; text: string };
@@ -31,8 +34,10 @@ export async function sendOrderConfirmation(order: ConfirmedOrder): Promise<void
   const reference = typeof order.reference === "string" ? order.reference.trim() : "";
   const email = typeof order.email === "string" ? order.email.trim() : "";
   const cart = sanitizeCart(order.cart);
+  const voucher = parseVoucherMetadata(order.voucher);
+  const expectedTotal = discountedCheckoutTotal(cart, order.shippingMethod, voucher?.amount ?? 0);
   if (!reference || !/^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(email) ||
-      checkoutTotal(cart, order.shippingMethod) <= 0 || order.currency !== "ZAR" || checkoutTotal(cart, order.shippingMethod) * 100 !== order.amount) {
+      expectedTotal <= 0 || order.currency !== "ZAR" || expectedTotal * 100 !== order.amount) {
     throw new Error("order_confirmation_invalid_payment_data");
   }
   if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
@@ -56,7 +61,7 @@ export async function sendOrderConfirmation(order: ConfirmedOrder): Promise<void
       .filter((colour) => cart[colour] > 0)
       .map((colour) => ({ colour, name: PRODUCT.variants[colour].name, qty: cart[colour] }));
     const message = orderConfirmationEmail({
-      reference, total: formatMoney(order.amount / 100), items,
+      reference, total: formatMoney(order.amount / 100), items, preorder: order.preorder, discount: voucher?.amount,
       shippingMethod: parseShippingMethod(order.shippingMethod)!,
       address: order.address ? sanitizeAddress(order.address) : null,
     });

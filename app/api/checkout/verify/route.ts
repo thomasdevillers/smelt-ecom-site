@@ -4,16 +4,18 @@ import { sendTikTokPurchase } from "@/lib/tiktokEvents";
 import type { TikTokClientContext } from "@/lib/tiktok";
 import { verifyTransaction } from "@/lib/paystack";
 import type { OrderItem } from "@/lib/orderTypes";
-import { checkoutTotal, sanitizeCart } from "@/lib/checkoutShared";
+import { discountedCheckoutTotal, sanitizeCart } from "@/lib/checkoutShared";
 import { parseShippingMethod } from "@/lib/pricing";
 import { PRODUCT } from "@/lib/product";
 import { type CartState } from "@/lib/cartReducer";
 import { sendMetaPurchase } from "@/lib/metaConversions";
 import type { MetaClientContext } from "@/lib/meta";
 import { commitInventory } from "@/lib/inventory";
+import { commitVoucher, parseVoucherMetadata } from "@/lib/vouchers";
 
-async function commitReservedStock(reservation: unknown, cart: CartState): Promise<boolean> {
-  return typeof reservation !== "string" || await commitInventory(reservation, cart);
+async function commitReservedStock(reservation: unknown, cart: CartState, reference: string): Promise<boolean> {
+  if (reference.startsWith("smeltp-") && reservation !== reference) return false;
+  return typeof reservation !== "string" || (reservation === reference && await commitInventory(reservation, cart));
 }
 
 export async function POST(request: Request) {
@@ -52,6 +54,8 @@ export async function POST(request: Request) {
       shippingMethod?: unknown;
       items?: OrderItem[];
       inventoryReservation?: unknown;
+      preorder?: unknown;
+      voucher?: unknown;
     } | null;
 
     const cart = sanitizeCart(meta?.cart ?? body.cart);
@@ -68,7 +72,8 @@ export async function POST(request: Request) {
     // against what Paystack actually confirms was paid. Without this check a
     // tampered client could pay for a cheap cart while claiming an expensive
     // one in `items`/`cart`.
-    const expectedAmountRand = checkoutTotal(cart, meta?.shippingMethod);
+    const voucher = parseVoucherMetadata(meta?.voucher);
+    const expectedAmountRand = discountedCheckoutTotal(cart, meta?.shippingMethod, voucher?.amount ?? 0);
     const paidAmountRand = Math.round(verified.amount / 100);
     const amountMatches = expectedAmountRand > 0 && verified.amount === expectedAmountRand * 100 && verified.currency === "ZAR";
 
@@ -85,17 +90,21 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!await commitReservedStock(meta?.inventoryReservation, cart)) {
+    if (!await commitReservedStock(meta?.inventoryReservation, cart, verified.reference)) {
       console.error(`Inventory reservation mismatch for paid transaction ${reference}`);
       return Response.json(
         { error: "Your payment was received, but we couldn't reconcile the stock reservation. Please contact support with your reference." },
         { status: 409 },
       );
     }
+    if (!await commitVoucher(verified.reference, meta?.voucher)) {
+      console.error(`Voucher reservation mismatch for paid transaction ${reference}`);
+      return Response.json({ error: "Your payment was received, but we couldn't reconcile the voucher. Please contact support with your reference." }, { status: 409 });
+    }
 
     after(() => tryOrderConfirmation({
       reference: verified.reference, email: verified.customerEmail ?? "",
-      amount: verified.amount, currency: verified.currency, cart, address: meta?.shippingAddress, shippingMethod: meta?.shippingMethod,
+      amount: verified.amount, currency: verified.currency, cart, address: meta?.shippingAddress, shippingMethod: meta?.shippingMethod, preorder: meta?.preorder, voucher: meta?.voucher,
     }));
     after(() => sendTikTokPurchase({
       reference: verified.reference, email: verified.customerEmail ?? "",
@@ -141,18 +150,26 @@ export async function GET(request: Request) {
       shippingAddress?: { phone?: unknown };
       shippingMethod?: unknown;
       inventoryReservation?: unknown;
+      preorder?: unknown;
+      voucher?: unknown;
     } | null;
     const cart = sanitizeCart(meta?.cart);
-    if (checkoutTotal(cart, meta?.shippingMethod) * 100 !== verified.amount || checkoutTotal(cart, meta?.shippingMethod) <= 0 || verified.currency !== "ZAR") {
+    const voucher = parseVoucherMetadata(meta?.voucher);
+    const expectedAmount = discountedCheckoutTotal(cart, meta?.shippingMethod, voucher?.amount ?? 0);
+    if (expectedAmount * 100 !== verified.amount || expectedAmount <= 0 || verified.currency !== "ZAR") {
       return Response.json({ error: "Payment total does not match the order." }, { status: 409 });
     }
-    if (!await commitReservedStock(meta?.inventoryReservation, cart)) {
+    if (!await commitReservedStock(meta?.inventoryReservation, cart, verified.reference)) {
       console.error(`Inventory reservation mismatch for paid transaction ${reference}`);
       return Response.json({ error: "Payment received, but stock needs manual review. Please contact support with your reference." }, { status: 409 });
     }
+    if (!await commitVoucher(verified.reference, meta?.voucher)) {
+      console.error(`Voucher reservation mismatch for paid transaction ${reference}`);
+      return Response.json({ error: "Payment received, but the voucher needs manual review. Please contact support with your reference." }, { status: 409 });
+    }
     after(() => tryOrderConfirmation({
       reference: verified.reference, email: verified.customerEmail ?? "",
-      amount: verified.amount, currency: verified.currency, cart, address: meta?.shippingAddress, shippingMethod: meta?.shippingMethod,
+      amount: verified.amount, currency: verified.currency, cart, address: meta?.shippingAddress, shippingMethod: meta?.shippingMethod, preorder: meta?.preorder, voucher: meta?.voucher,
     }));
     after(() => sendTikTokPurchase({
       reference: verified.reference, email: verified.customerEmail ?? "",
@@ -162,9 +179,11 @@ export async function GET(request: Request) {
     }));
     return Response.json({
       paid: true,
+      preorder: meta?.preorder,
       shippingMethod: parseShippingMethod(meta?.shippingMethod),
       reference: verified.reference,
       amountRand: Math.round(verified.amount / 100),
+      discountRand: voucher?.amount ?? 0,
       currency: verified.currency,
       items: (Object.keys(cart) as Array<keyof CartState>)
         .filter((colour) => cart[colour] > 0)

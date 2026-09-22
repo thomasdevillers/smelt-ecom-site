@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { REVIEW_MAX_PHOTO_BYTES, REVIEW_MAX_PHOTOS, REVIEW_PHOTO_TYPES } from "@/lib/reviews";
 import { encodeReviewPhoto } from "@/lib/reviewPhotoEncoding";
 import type { Colour } from "@/lib/product";
+import type { VoucherReward } from "@/lib/vouchers";
 import styles from "./ReviewForm.module.css";
 
 type Invitation = { valid: boolean; used: boolean; suggestedName?: string; colours?: Colour[]; uploadKey?: string; photoUploadsEnabled?: boolean; photoUploadMode?: "presigned" | "client-token"; error?: string };
@@ -40,6 +41,7 @@ export default function ReviewForm({ token }: { token: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+  const [voucher, setVoucher] = useState<VoucherReward | null>(null);
   const [progress, setProgress] = useState("");
   const preparedPhotos = useRef(new WeakMap<File, Promise<File>>());
   const uploadedPhotos = useRef(new WeakMap<File, string>());
@@ -117,6 +119,8 @@ export default function ReviewForm({ token }: { token: string }) {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "We could not submit your review.");
+      if (!result.voucher?.code) throw new Error("Your review was saved, but we could not show the voucher. Please contact hello@saunahat.co.za.");
+      setVoucher(result.voucher as VoucherReward);
       setDone(true);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "We could not submit your review."); }
     finally { setBusy(false); }
@@ -124,10 +128,10 @@ export default function ReviewForm({ token }: { token: string }) {
 
   if (!invitation) return <main className={styles.page}><p className={styles.loading} role="status">Opening your review form…</p></main>;
   if (!invitation.valid || invitation.used) return <main className={styles.page}><section className={styles.message}><span>SMELT / REVIEW</span><h1>{invitation.used ? "Review received." : "This link has cooled off."}</h1><p>{invitation.used ? "This invitation has already been used. Thank you for sharing your experience." : invitation.error || "The review link is invalid or has expired."}</p><Link href="/product">Back to the hat →</Link></section></main>;
-  if (done) return <main className={styles.page}><section className={styles.message}><span>WARM REGARDS</span><h1>Thank you.</h1><p>Your review is waiting for a quick moderation check. Once approved, it will appear on the product page.</p><Link href="/product#reviews">Visit the product page →</Link></section></main>;
+  if (done && voucher) return <main className={styles.page}><section className={styles.message}><span>WARM REGARDS</span><h1>Thank you.</h1><p>Your review is waiting for a quick moderation check. Your R{voucher.amount} thank-you is yours regardless of the rating you left.</p><div className={styles.upload}><small>R{voucher.amount} off your next order</small><strong>{voucher.code}</strong><span>Use the same email address at checkout · valid for 90 days · one use</span></div><p>We&rsquo;ll also email the voucher to you. If it takes a moment to arrive, keep the code above.</p><Link href="/product#reviews">Visit the product page →</Link></section></main>;
 
   return <main className={styles.page}>
-    <div className={styles.intro}><span>SMELT / VERIFIED PURCHASE</span><h1>How did we do?</h1><p>Your honest take helps the next person decide what belongs on their head at 90°C.</p></div>
+    <div className={styles.intro}><span>SMELT / VERIFIED PURCHASE</span><h1>How did we do?</h1><p>Your honest take helps the next person decide what belongs on their head at 90°C. Every submitted review receives R50 off a future order, regardless of rating.</p></div>
     <form className={styles.form} onSubmit={submit}>
       <fieldset className={styles.rating}><legend>Your rating</legend><div>{[1,2,3,4,5].map(star => <button type="button" key={star} aria-label={`${star} star${star === 1 ? "" : "s"}`} aria-pressed={rating === star} onClick={() => setRating(star)} className={star <= rating ? styles.starOn : ""}>★</button>)}</div></fieldset>
       <label>Tell us about it<textarea required minLength={3} maxLength={1600} rows={7} value={body} onChange={event => setBody(event.target.value)} placeholder="Fit, feel, colour, sauna sessions — whatever mattered to you." /><small>{body.length}/1600</small></label>
