@@ -33,6 +33,7 @@ export async function initializeTransaction(params: {
   email: string;
   amount: number;
   callbackUrl: string;
+  reference?: string;
   metadata?: Record<string, unknown>;
 }): Promise<InitResult> {
   const res = await fetch(`${PAYSTACK_BASE}/transaction/initialize`, {
@@ -48,6 +49,7 @@ export async function initializeTransaction(params: {
       currency: "ZAR",
       channels: ["card", "apple_pay"],
       callback_url: params.callbackUrl,
+      reference: params.reference,
       metadata: params.metadata,
     }),
   });

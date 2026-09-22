@@ -7,15 +7,31 @@ import HatSwap from "./HatSwap";
 import SectionLabel from "./ui/SectionLabel";
 import styles from "./ProductExplorer.module.css";
 import { trackVercelEvent, vercelProductData } from "@/lib/vercelAnalytics";
+import type { InventorySnapshot } from "@/lib/inventory";
 
 export default function ProductExplorer() {
   const [colour, setColour] = useState<Colour>("green");
+  const [stock, setStock] = useState<InventorySnapshot | null>(null);
   const sectionRef = useRef<HTMLElement>(null);
   const viewed = useRef(false);
-  const { dispatch, openCart } = useCart();
+  const { cart, dispatch, openCart } = useCart();
   const v = PRODUCT.variants[colour];
 
-  const add = () => { dispatch({ type: "add", colour, qty: 1 }); openCart(); };
+  const inStock = stock !== null && stock[colour] >= cart[colour] + 1;
+  const add = () => {
+    if (!inStock) return;
+    dispatch({ type: "add", colour, qty: 1 });
+    openCart();
+  };
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/inventory", { cache: "no-store" })
+      .then(async (response) => response.ok ? response.json() : null)
+      .then((value) => { if (active && value) setStock(value); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -53,12 +69,23 @@ export default function ProductExplorer() {
           <div>
             <div className={styles.optLabel}>Colourway</div>
             <div className={styles.chips}>
-              <button className={`${styles.chip} ${colour === "green" ? styles.chipOn : ""}`} onClick={() => setColour("green")}>Forest Green</button>
-              <button className={`${styles.chip} ${colour === "cream" ? styles.chipOn : ""}`} onClick={() => setColour("cream")}>Natural Cream</button>
+              {(["green", "cream"] as Colour[]).map((choice) => (
+                <button
+                  key={choice}
+                  className={`${styles.chip} ${colour === choice ? styles.chipOn : ""}`}
+                  onClick={() => setColour(choice)}
+                  disabled={stock?.[choice] === 0}
+                >
+                  <span>{PRODUCT.variants[choice].name}</span>
+                  {stock && <small>{stock[choice] === 0 ? "Out of stock" : `${stock[choice]} left`}</small>}
+                </button>
+              ))}
             </div>
           </div>
 
-          <button className={styles.add} onClick={add}>Add to bag · {formatMoney(BASE_PRICE)}</button>
+          <button className={styles.add} onClick={add} disabled={!inStock}>
+            {stock === null ? "Checking stock…" : inStock ? `Add to bag · ${formatMoney(BASE_PRICE)}` : stock[colour] === 0 ? "Out of stock" : "Not enough stock"}
+          </button>
         </div>
       </div>
     </section>

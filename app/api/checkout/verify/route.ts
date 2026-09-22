@@ -10,6 +10,11 @@ import { PRODUCT } from "@/lib/product";
 import { type CartState } from "@/lib/cartReducer";
 import { sendMetaPurchase } from "@/lib/metaConversions";
 import type { MetaClientContext } from "@/lib/meta";
+import { commitInventory } from "@/lib/inventory";
+
+async function commitReservedStock(reservation: unknown, cart: CartState): Promise<boolean> {
+  return typeof reservation !== "string" || await commitInventory(reservation, cart);
+}
 
 export async function POST(request: Request) {
   let body: {
@@ -46,6 +51,7 @@ export async function POST(request: Request) {
       shippingAddress?: { phone?: unknown };
       shippingMethod?: unknown;
       items?: OrderItem[];
+      inventoryReservation?: unknown;
     } | null;
 
     const cart = sanitizeCart(meta?.cart ?? body.cart);
@@ -75,6 +81,14 @@ export async function POST(request: Request) {
           error:
             "We couldn't reconcile your payment with your order total. Your payment was received — please contact support with your reference so we can sort this out.",
         },
+        { status: 409 },
+      );
+    }
+
+    if (!await commitReservedStock(meta?.inventoryReservation, cart)) {
+      console.error(`Inventory reservation mismatch for paid transaction ${reference}`);
+      return Response.json(
+        { error: "Your payment was received, but we couldn't reconcile the stock reservation. Please contact support with your reference." },
         { status: 409 },
       );
     }
@@ -126,10 +140,15 @@ export async function GET(request: Request) {
       items?: OrderItem[]; cart?: unknown; tiktokClient?: TikTokClientContext;
       shippingAddress?: { phone?: unknown };
       shippingMethod?: unknown;
+      inventoryReservation?: unknown;
     } | null;
     const cart = sanitizeCart(meta?.cart);
     if (checkoutTotal(cart, meta?.shippingMethod) * 100 !== verified.amount || checkoutTotal(cart, meta?.shippingMethod) <= 0 || verified.currency !== "ZAR") {
       return Response.json({ error: "Payment total does not match the order." }, { status: 409 });
+    }
+    if (!await commitReservedStock(meta?.inventoryReservation, cart)) {
+      console.error(`Inventory reservation mismatch for paid transaction ${reference}`);
+      return Response.json({ error: "Payment received, but stock needs manual review. Please contact support with your reference." }, { status: 409 });
     }
     after(() => tryOrderConfirmation({
       reference: verified.reference, email: verified.customerEmail ?? "",

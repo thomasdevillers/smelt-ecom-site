@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import { createHmac } from "node:crypto";
 const mocks = vi.hoisted(() => ({
-  db: { get: vi.fn(), set: vi.fn(), eval: vi.fn() }, send: vi.fn(), verify: vi.fn(), after: vi.fn(),
+  db: { get: vi.fn(), set: vi.fn(), eval: vi.fn() }, send: vi.fn(), verify: vi.fn(), after: vi.fn(), commitInventory: vi.fn(),
 }));
 vi.mock("@upstash/redis", () => ({ Redis: class { constructor() { return mocks.db; } } }));
 vi.mock("resend", () => ({ Resend: class { emails = { send: mocks.send }; } }));
@@ -9,6 +9,7 @@ vi.mock("next/server", () => ({ after: mocks.after }));
 vi.mock("./paystack", () => ({ verifyTransaction: mocks.verify }));
 vi.mock("./metaConversions", () => ({ sendMetaPurchase: vi.fn() }));
 vi.mock("./tiktokEvents", () => ({ sendTikTokPurchase: vi.fn() }));
+vi.mock("./inventory", () => ({ commitInventory: mocks.commitInventory }));
 import { sendOrderConfirmation, type ConfirmedOrder } from "./orderConfirmation";
 import { checkoutTotal } from "./checkoutShared";
 import { POST as webhook } from "../app/api/paystack/webhook/route";
@@ -36,6 +37,7 @@ beforeEach(() => {
     return store.get(key);
   });
   mocks.send.mockResolvedValue({ data: { id: "resend-accepted-1" }, error: null });
+  mocks.commitInventory.mockResolvedValue(true);
   mocks.verify.mockResolvedValue({ ...order, status: "success", customerEmail: order.email,
     metadata: { cart: order.cart, shippingAddress: order.address, items: [{ name: "FORGED ITEM", qty: 99 }] } });
 });
@@ -155,6 +157,22 @@ describe("payment route integration", () => {
     expect((await webhook(webhookRequest())).status).toBe(200);
     expect(mocks.send).toHaveBeenCalledTimes(1);
     expect(mocks.send.mock.calls[0][0].html).not.toContain("FORGED ITEM");
+  });
+
+  it("commits a server-created stock reservation before fulfilling the paid order", async () => {
+    mocks.verify.mockResolvedValue({ ...order, status: "success", customerEmail: order.email,
+      metadata: { cart: order.cart, shippingAddress: order.address, shippingMethod: "aramex", inventoryReservation: order.reference } });
+    expect((await verifyGet(new Request(`https://example.com/api/checkout/verify?reference=${order.reference}`))).status).toBe(200);
+    expect(mocks.commitInventory).toHaveBeenCalledWith(order.reference, order.cart);
+  });
+
+  it("does not fulfil a paid order whose stock reservation cannot be reconciled", async () => {
+    mocks.commitInventory.mockResolvedValueOnce(false);
+    mocks.verify.mockResolvedValue({ ...order, status: "success", customerEmail: order.email,
+      metadata: { cart: order.cart, shippingAddress: order.address, shippingMethod: "aramex", inventoryReservation: order.reference } });
+    expect((await verifyGet(new Request(`https://example.com/api/checkout/verify?reference=${order.reference}`))).status).toBe(409);
+    await flush();
+    expect(mocks.send).not.toHaveBeenCalled();
   });
 
   it("sends from browser verification even when the webhook has not arrived", async () => {

@@ -18,17 +18,21 @@
 .purchaseCard small { color: rgba(14,59,42,.68); font-size: 12px; line-height: 1.4; }
 .purchaseCard > b { font-size: 13px; white-space: nowrap; }
 .chips { display: flex; gap: 10px; flex-wrap: wrap; }
-.chip { padding: 12px 16px; border-radius: var(--radius-pill); cursor: pointer; font-family: inherit; font-weight: 600; font-size: 13px; border: 1px solid rgba(14,59,42,.3); background: transparent; color: var(--ink); min-height: 44px; }
+.chip { display: grid; justify-items: start; gap: 2px; padding: 10px 16px; border-radius: var(--radius-pill); cursor: pointer; font-family: inherit; font-weight: 600; font-size: 13px; border: 1px solid rgba(14,59,42,.3); background: transparent; color: var(--ink); min-height: 48px; }
+.chip small, .bundleChoice small { font-size: 10px; font-weight: 700; opacity: .72; }
 .chipOn { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+.chip:disabled, .bundleChoice:disabled { cursor: not-allowed; opacity: .52; text-decoration: line-through; }
 .bundleChoices { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
-.bundleChoice { min-height: 46px; padding: 10px 8px; border: 1px solid rgba(14,59,42,.3); border-radius: 12px; background: transparent; color: var(--ink); cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 700; }
+.bundleChoice { min-height: 46px; padding: 10px 8px; border: 1px solid rgba(14,59,42,.3); border-radius: 12px; background: transparent; color: var(--ink); cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 700; display: grid; gap: 2px; }
 .bundleChoiceOn { border-color: var(--ink); background: var(--ink); color: var(--paper); }
 .bundleChoice:focus-visible { outline: 3px solid var(--terracotta); outline-offset: 2px; }
 .qty { display: inline-flex; align-items: center; gap: 18px; border: var(--border-ink-soft); border-radius: var(--radius-pill); padding: 6px 16px; }
 .qty button { background: none; border: none; font-size: 22px; cursor: pointer; width: 36px; height: 36px; }
 .add { width: 100%; margin-top: 6px; background: var(--ink); color: var(--paper); border: none; border-radius: 14px; padding: 17px; font-family: inherit; font-weight: 600; font-size: 15px; cursor: pointer; min-height: 52px; }
+.add:disabled, .stickyAdd:disabled { cursor: not-allowed; opacity: .55; }
 .reassure { display: grid; gap: 5px; font-size: 13px; color: rgba(14,59,42,.82); line-height: 1.45; margin-top: 13px; }
 .reassure span { display: block; }
+.stockLine { display: flex !important; flex-wrap: wrap; gap: 6px 14px; color: var(--terracotta); }
 .accordions { margin-top: 28px; border-top: var(--border-ink-soft); }
 .stickyBar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 40; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--paper); border-top: var(--border-ink); padding: 12px 20px; }
 .stickyInfo { font-weight: 700; font-size: 14px; }

@@ -8,6 +8,7 @@ import { sendPaymentFailedEmail } from "@/lib/email";
 import { checkoutTotal, sanitizeCart } from "@/lib/checkoutShared";
 import { sendMetaPurchase } from "@/lib/metaConversions";
 import type { MetaClientContext } from "@/lib/meta";
+import { commitInventory, releaseInventory } from "@/lib/inventory";
 
 // node:crypto requires the Node.js runtime, not edge.
 export const runtime = "nodejs";
@@ -62,6 +63,7 @@ export async function POST(request: Request) {
         tiktokClient?: TikTokClientContext;
         shippingAddress?: { phone?: unknown };
         shippingMethod?: unknown;
+        inventoryReservation?: unknown;
       };
     };
   };
@@ -92,6 +94,19 @@ export async function POST(request: Request) {
       // Paystack remains the payment record. Acknowledge the event so it does
       // not retry indefinitely; the mismatched transaction needs manual review.
       return new Response("ok", { status: 200 });
+    }
+
+    if (typeof d.metadata?.inventoryReservation === "string") {
+      try {
+        const committed = await commitInventory(d.metadata.inventoryReservation, cart);
+        if (!committed) {
+          console.error(`Inventory reservation mismatch for paid transaction ${d.reference}`);
+          return new Response("inventory reconciliation pending", { status: 503 });
+        }
+      } catch (error) {
+        console.error(`Inventory commit failed for paid transaction ${d.reference}:`, error);
+        return new Response("inventory reconciliation pending", { status: 503 });
+      }
     }
 
     if (d.currency === "ZAR" && paidAmountRand > 0) {
@@ -127,6 +142,13 @@ export async function POST(request: Request) {
 
   if (event.event === "charge.failed" && event.data) {
     const d = event.data;
+    if (typeof d.metadata?.inventoryReservation === "string") {
+      try {
+        await releaseInventory(d.metadata.inventoryReservation);
+      } catch (error) {
+        console.error(`Inventory release failed for unsuccessful transaction ${d.reference}:`, error);
+      }
+    }
     try {
       await sendPaymentFailedEmail({
         email: d.customer?.email ?? "",

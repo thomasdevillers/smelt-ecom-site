@@ -16,6 +16,7 @@ import { tiktokContent } from "@/lib/tiktok";
 import { trackTikTokEvent } from "@/lib/tiktokPixel";
 import { trackVercelEvent, vercelProductData } from "@/lib/vercelAnalytics";
 import styles from "@/app/product/product.module.css";
+import type { InventorySnapshot } from "@/lib/inventory";
 
 type PurchaseOption = "single" | "bundle";
 type BundleMix = "mixed" | "green" | "cream";
@@ -25,7 +26,8 @@ export default function ProductClient() {
   const [colour, setColour] = useState<Colour>("green");
   const [purchaseOption, setPurchaseOption] = useState<PurchaseOption>("single");
   const [bundleMix, setBundleMix] = useState<BundleMix>("mixed");
-  const { dispatch, openCart } = useCart();
+  const [stock, setStock] = useState<InventorySnapshot | null>(null);
+  const { cart, dispatch, openCart } = useCart();
   const v = PRODUCT.variants[colour];
   const quantity = purchaseOption === "bundle" ? 2 : 1;
   const total = lineTotal(quantity);
@@ -34,7 +36,13 @@ export default function ProductClient() {
     : bundleMix === "mixed"
       ? "One of each"
       : `Two ${PRODUCT.variants[bundleMix].name}`;
+  const selectionInStock = stock !== null && (purchaseOption === "single"
+    ? stock[colour] >= cart[colour] + 1
+    : bundleMix === "mixed"
+      ? stock.green >= cart.green + 1 && stock.cream >= cart.cream + 1
+      : stock[bundleMix] >= cart[bundleMix] + 2);
   const add = () => {
+    if (!selectionInStock) return;
     if (purchaseOption === "single") {
       dispatch({ type: "add", colour, qty: 1 });
     } else if (bundleMix === "mixed") {
@@ -45,6 +53,12 @@ export default function ProductClient() {
     }
     openCart();
   };
+  const bundleAvailable = (value: BundleMix) => stock === null || (value === "mixed"
+    ? stock.green >= cart.green + 1 && stock.cream >= cart.cream + 1
+    : stock[value] >= cart[value] + 2);
+  const unavailableLabel = purchaseOption === "single" && stock?.[colour] === 0
+    ? "Out of stock"
+    : "Not enough stock";
 
   useEffect(() => {
     if (viewed.current) return;
@@ -60,6 +74,15 @@ export default function ProductClient() {
       currency: META_CURRENCY,
       value: BASE_PRICE,
     });
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/inventory", { cache: "no-store" })
+      .then(async (response) => response.ok ? response.json() : null)
+      .then((value) => { if (active && value) setStock(value); })
+      .catch(() => {});
+    return () => { active = false; };
   }, []);
 
   return (
@@ -96,7 +119,15 @@ export default function ProductClient() {
             <div className={styles.optLabel}>Colourway</div>
             <div className={styles.chips}>
               {(["green", "cream"] as Colour[]).map((c) => (
-                <button key={c} className={`${styles.chip} ${colour === c ? styles.chipOn : ""}`} onClick={() => setColour(c)}>{PRODUCT.variants[c].name}</button>
+                <button
+                  key={c}
+                  className={`${styles.chip} ${colour === c ? styles.chipOn : ""}`}
+                  onClick={() => setColour(c)}
+                  disabled={stock?.[c] === 0}
+                >
+                  <span>{PRODUCT.variants[c].name}</span>
+                  {stock && <small>{stock[c] === 0 ? "Out of stock" : `${stock[c]} left`}</small>}
+                </button>
               ))}
             </div>
           </div> : <div className={styles.opt}>
@@ -106,27 +137,38 @@ export default function ProductClient() {
                 ["mixed", "One of each"],
                 ["green", "Two green"],
                 ["cream", "Two cream"],
-              ] as const).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={`${styles.bundleChoice} ${bundleMix === value ? styles.bundleChoiceOn : ""}`}
-                  onClick={() => {
-                    setBundleMix(value);
-                    if (value !== "mixed") setColour(value);
-                  }}
-                  aria-pressed={bundleMix === value}
-                >
-                  {label}
-                </button>
-              ))}
+              ] as const).map(([value, label]) => {
+                const available = bundleAvailable(value);
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    className={`${styles.bundleChoice} ${bundleMix === value ? styles.bundleChoiceOn : ""}`}
+                    onClick={() => {
+                      setBundleMix(value);
+                      if (value !== "mixed") setColour(value);
+                    }}
+                    aria-pressed={bundleMix === value}
+                    disabled={!available}
+                  >
+                    <span>{label}</span>
+                    {!available && <small>Not enough stock</small>}
+                  </button>
+                );
+              })}
             </div>
           </div>}
 
-          <button className={styles.add} onClick={add}>{purchaseOption === "bundle" ? "Add two hats" : "Add to bag"} · {formatMoney(total)}</button>
+          <button className={styles.add} onClick={add} disabled={!selectionInStock}>
+            {stock === null ? "Checking stock…" : selectionInStock ? `${purchaseOption === "bundle" ? "Add two hats" : "Add to bag"} · ${formatMoney(total)}` : unavailableLabel}
+          </button>
 
           <div className={styles.reassure}>
-            <span><strong>In stock</strong> · Dispatched from Cape Town within 1–3 business days</span>
+            {stock ? <span className={styles.stockLine} aria-live="polite">
+              <strong>Forest Green: {stock.green === 0 ? "Out of stock" : `${stock.green} left`}</strong>
+              <strong>Natural Cream: {stock.cream === 0 ? "Out of stock" : `${stock.cream} left`}</strong>
+            </span> : <span><strong>Checking availability…</strong></span>}
+            <span>Dispatched from Cape Town within 1–3 business days</span>
             <span>R90 nationwide delivery · <strong>Free when you buy two or more</strong></span>
             <span>Secure checkout powered by Paystack</span>
           </div>
@@ -156,7 +198,7 @@ export default function ProductClient() {
       <HairPSA />
       <div className={styles.stickyBar}>
         <div className={styles.stickyInfo}>{selectionLabel} · {formatMoney(total)}</div>
-        <button className={styles.stickyAdd} onClick={add}>{purchaseOption === "bundle" ? "Add two" : "Add to bag"}</button>
+        <button className={styles.stickyAdd} onClick={add} disabled={!selectionInStock}>{stock === null ? "Checking…" : selectionInStock ? (purchaseOption === "bundle" ? "Add two" : "Add to bag") : unavailableLabel}</button>
       </div>
     </main>
   );

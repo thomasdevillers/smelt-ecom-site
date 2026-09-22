@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart";
 import { COLOURS, PRODUCT } from "@/lib/product";
 import { formatMoney, lineTotal, shippingFee, grandTotal, SHIPPING_OPTIONS, type ShippingMethod } from "@/lib/pricing";
@@ -15,15 +14,10 @@ import { trackVercelEvent, vercelCartData } from "@/lib/vercelAnalytics";
 import styles from "./checkout.module.css";
 import { useCheckoutFollowup } from "@/lib/useCheckoutFollowup";
 
-type Status = "idle" | "submitting" | "verifying" | "error";
-type PaystackSuccess = { reference: string };
-
-const PAYSTACK_KEY = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
-
+type Status = "idle" | "submitting" | "error";
 export default function CheckoutPage() {
-  const { cart, subtotal, dispatch } = useCart();
+  const { cart, subtotal } = useCart();
   const lines = COLOURS.filter((c) => cart[c] > 0);
-  const router = useRouter();
   const checkoutTracked = useRef(false);
 
   const [shippingMethod, setShippingMethod] = useState<ShippingMethod>("aramex");
@@ -66,7 +60,7 @@ export default function CheckoutPage() {
   const [error, setError] = useState("");
   const [followupStage, setFollowupStage] = useState<"details" | "payment_opened" | "payment_closed">("details");
   useCheckoutFollowup({ email, name, cart, activity: address, stage: error ? "checkout_error" : followupStage });
-  const trackCheckoutStage = (event: "PaymentOpened" | "PaymentCancelled" | "CheckoutError") => {
+  const trackCheckoutStage = (event: "PaymentOpened" | "CheckoutError") => {
     trackVercelEvent(event, vercelCartData(cart));
   };
 
@@ -85,42 +79,6 @@ export default function CheckoutPage() {
       num_items: contents.reduce((total, item) => total + item.quantity, 0),
     });
   }, [cart, subtotal, shippingMethod]);
-
-  const onSuccess = async (trx: PaystackSuccess) => {
-    setStatus("verifying");
-    try {
-      const res = await fetch("/api/checkout/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reference: trx.reference,
-          cart,
-          address,
-          name,
-          metaClient: getMetaClientContext(),
-          tiktokClient: getTikTokClientContext(),
-        }),
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        trackCheckoutStage("CheckoutError");
-        setError(data.error || "Verification failed. Please try again.");
-        setStatus("error");
-        return;
-      }
-
-      // Successful payment confirmed by Paystack.
-      dispatch({ type: "clear" });
-      router.push(
-        `/checkout/success?reference=${encodeURIComponent(trx.reference)}`,
-      );
-    } catch {
-      trackCheckoutStage("CheckoutError");
-      setError("Network error. Please try again.");
-      setStatus("error");
-    }
-  };
 
   async function handlePay(e: React.FormEvent) {
     e.preventDefault();
@@ -141,26 +99,11 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (process.env.NEXT_PUBLIC_PAYSTACK_CONFIGURED !== "true") {
-      trackCheckoutStage("CheckoutError");
-      setError("Checkout is temporarily unavailable. Please try again shortly.");
-      setStatus("error");
-      return;
-    }
-
     identifyTikTok({ email, phone: address.phone });
 
     // Hand off to Paystack
     setStatus("submitting");
     setFollowupStage("payment_opened");
-
-    const items = COLOURS.filter((c) => cart[c] > 0).map((c) => ({
-      colour: c,
-      name: PRODUCT.variants[c].name,
-      qty: cart[c],
-    }));
-
-    const totalAmount = grandTotal(subtotal, shippingMethod);
 
     // Paystack (and, downstream, the order confirmation email) should get the
     // full formatted address in line1 — paste-ready for Aramex's "Street
@@ -172,70 +115,28 @@ export default function CheckoutPage() {
     };
 
     try {
-      // Dynamically import PaystackPop to prevent window is not defined error during SSR
-      const PaystackPop = (await import("@paystack/inline-js")).default;
-      const paystack = new PaystackPop();
-      trackCheckoutStage("PaymentOpened");
-      await paystack.checkout({
-        key: PAYSTACK_KEY!,
-        email,
-        amount: Math.round(totalAmount * 100),
-        currency: "ZAR",
-        // @paystack/inline-js's shipped types only declare `custom_fields` here
-        // (its module uses `export =`, which can't be augmented). The flat
-        // fields below are what our server actually reads back (see
-        // app/api/checkout/verify and app/api/paystack/webhook); custom_fields
-        // is purely for Paystack's own dashboard/receipt display.
-        metadata: {
+      const response = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          name,
+          address: paystackAddress,
           cart,
-          items,
-          amountRand: totalAmount,
-          customerName: name,
-          shippingAddress: paystackAddress,
           shippingMethod,
           metaClient: getMetaClientContext(),
           tiktokClient: getTikTokClientContext(),
-          custom_fields: [
-            {
-              display_name: "Shipping method",
-              variable_name: "shipping_method",
-              value: SHIPPING_OPTIONS[shippingMethod].label,
-            },
-            {
-              display_name: "Cart",
-              variable_name: "cart",
-              value: JSON.stringify(cart),
-            },
-            {
-              display_name: "Items",
-              variable_name: "items",
-              value: JSON.stringify(items),
-            },
-            {
-              display_name: "Amount (ZAR)",
-              variable_name: "amount_rand",
-              value: totalAmount,
-            },
-            {
-              display_name: "Customer Name",
-              variable_name: "customer_name",
-              value: name,
-            },
-            {
-              display_name: "Shipping Address",
-              variable_name: "shipping_address",
-              value: JSON.stringify(paystackAddress),
-            },
-          ],
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any,
-        onSuccess,
-        onCancel: () => {
-          trackCheckoutStage("PaymentCancelled");
-          setStatus("idle");
-          setFollowupStage("payment_closed");
-        },
+        }),
       });
+      const data = await response.json();
+      if (!response.ok || !data.authorizationUrl) {
+        trackCheckoutStage("CheckoutError");
+        setError(data.error || "Could not start secure payment. Please try again.");
+        setStatus("error");
+        return;
+      }
+      trackCheckoutStage("PaymentOpened");
+      window.location.assign(data.authorizationUrl);
     } catch {
       trackCheckoutStage("CheckoutError");
       setError("Could not open secure payment. Please try again.");
@@ -285,8 +186,8 @@ export default function CheckoutPage() {
 
         <h1 className={styles.h1}>Almost warm.</h1>
         <p className={styles.copy}>
-          Your hat is in stock. Enter your delivery details and pay securely,
-          and we&rsquo;ll keep you updated on your delivery.
+          Enter your delivery details and we&rsquo;ll confirm each colour is still
+          available before opening secure payment.
         </p>
 
         {lines.length > 0 ? (
@@ -322,7 +223,7 @@ export default function CheckoutPage() {
 
         {lines.length > 0 && (
           <form className={styles.form} onSubmit={handlePay}>
-            <fieldset className={styles.shippingOptions} disabled={status === "submitting" || status === "verifying"}>
+            <fieldset className={styles.shippingOptions} disabled={status === "submitting"}>
               <legend className={styles.label}>Choose your shipping</legend>
               {shippingChoice("aramex")}
               <details className={styles.specialDelivery} open={specialDeliveryOpen} onToggle={(event) => setSpecialDeliveryOpen(event.currentTarget.open)}>
@@ -502,13 +403,11 @@ export default function CheckoutPage() {
             <button
               className={styles.pay}
               type="submit"
-              disabled={status === "submitting" || status === "verifying"}
+              disabled={status === "submitting"}
             >
               {status === "submitting"
                 ? "Starting secure checkout…"
-                : status === "verifying"
-                  ? "Verifying payment…"
-                  : `Pay ${formatMoney(totalAmount)} securely`}
+                : `Pay ${formatMoney(totalAmount)} securely`}
             </button>
             <p className={styles.secure}>Card and available secure payment methods powered by Paystack.</p>
           </form>

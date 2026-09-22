@@ -5,11 +5,17 @@ import { initializeTransaction, isPaystackConfigured } from "@/lib/paystack";
 import { checkoutTotal, sanitizeCart } from "@/lib/checkoutShared";
 import { parseShippingMethod } from "@/lib/pricing";
 import { sanitizeAddress } from "@/lib/address";
+import type { MetaClientContext } from "@/lib/meta";
+import { createInventoryReservationId, releaseInventory, reserveInventory } from "@/lib/inventory";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
-  let body: { shippingMethod?: unknown; email?: unknown; cart?: unknown; name?: unknown; address?: unknown; tiktokClient?: unknown };
+  if (request.headers.get("origin") !== new URL(request.url).origin) {
+    return Response.json({ error: "Request origin is not allowed." }, { status: 403 });
+  }
+
+  let body: { shippingMethod?: unknown; email?: unknown; cart?: unknown; name?: unknown; address?: unknown; metaClient?: MetaClientContext; tiktokClient?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -49,6 +55,23 @@ export async function POST(request: Request) {
   }
 
   const origin = new URL(request.url).origin;
+  const reservationId = createInventoryReservationId();
+  let reservation;
+  try {
+    reservation = await reserveInventory(cart, reservationId);
+  } catch (error) {
+    console.error("Inventory reservation failed:", error);
+    return Response.json({ error: "We couldn't confirm stock right now. Please try again." }, { status: 503 });
+  }
+  if (!reservation.reserved) {
+    const unavailable = (Object.keys(cart) as Array<keyof CartState>)
+      .filter((colour) => cart[colour] > reservation.stock[colour])
+      .map((colour) => PRODUCT.variants[colour].name);
+    return Response.json(
+      { error: `${unavailable.join(" and ") || "A selected colour"} is out of stock or has fewer hats left than requested.`, stock: reservation.stock },
+      { status: 409 },
+    );
+  }
   const items = (Object.keys(cart) as Array<keyof CartState>)
     .filter((c) => cart[c] > 0)
     .map((c) => ({ colour: c, name: PRODUCT.variants[c].name, qty: cart[c] }));
@@ -58,10 +81,20 @@ export async function POST(request: Request) {
       email,
       amount,
       callbackUrl: `${origin}/checkout/success`,
-      metadata: { cart, items, amountRand: amount, customerName, shippingAddress, shippingMethod, tiktokClient: tiktokUser(body.tiktokClient, request) },
+      reference: reservationId,
+      metadata: {
+        cart, items, amountRand: amount, customerName, shippingAddress, shippingMethod,
+        inventoryReservation: reservationId,
+        cancel_action: `${origin}/api/checkout/cancel?reservation=${encodeURIComponent(reservationId)}`,
+        metaClient: body.metaClient,
+        tiktokClient: tiktokUser(body.tiktokClient, request),
+      },
     });
     return Response.json({ configured: true, authorizationUrl, reference });
   } catch (err) {
+    try { await releaseInventory(reservationId); } catch (releaseError) {
+      console.error("Inventory rollback failed:", releaseError);
+    }
     console.error("Paystack initialize error:", err);
     return Response.json(
       { error: "Could not start payment. Please try again." },
