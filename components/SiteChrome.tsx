@@ -16,7 +16,7 @@ export default function SiteChrome({ children, structuredData }: { children: Rea
   if (pathname === '/admin' || pathname.startsWith('/admin/')) return <>{children}</>;
   // Review invitation paths contain a private, single-use token. Keep the
   // familiar store chrome, but never expose that URL to analytics providers.
-  if (pathname.startsWith('/review/') || pathname.startsWith('/checkout/recover/') || pathname.startsWith('/email/unsubscribe/')) return <CartProvider>
+  if (pathname.startsWith('/review/') || pathname.startsWith('/checkout/recover/') || pathname.startsWith('/checkout/offer/') || pathname.startsWith('/email/unsubscribe/')) return <CartProvider>
     <Ticker />
     <Header />
     {children}

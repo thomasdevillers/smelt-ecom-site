@@ -18,5 +18,7 @@ describe("review emails", () => {
     expect(email.html).toContain("SMELT-ABCDEFGHIJKL");
     expect(email.text).toContain("regardless of the rating");
     expect(email.text).toContain("21 December 2026");
+    expect(email.text).toContain("/checkout/offer/SMELT-ABCDEFGHIJKL");
+    expect(email.text).toContain("apply automatically at checkout");
   });
 });

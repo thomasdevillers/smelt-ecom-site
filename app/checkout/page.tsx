@@ -16,7 +16,7 @@ import { getTikTokClientContext, identifyTikTok, trackTikTokEvent } from "@/lib/
 import { trackVercelEvent, vercelCartData } from "@/lib/vercelAnalytics";
 import styles from "./checkout.module.css";
 import { useCheckoutFollowup } from "@/lib/useCheckoutFollowup";
-import { CART_RECOVERY_STORAGE_KEY, type CartRecoveryData } from "@/lib/cartRecoveryShared";
+import { CART_RECOVERY_STORAGE_KEY, EMAIL_VOUCHER_STORAGE_KEY, type CartRecoveryData } from "@/lib/cartRecoveryShared";
 import { sanitizeCart } from "@/lib/checkoutShared";
 
 type Status = "idle" | "submitting" | "error";
@@ -32,14 +32,13 @@ export default function CheckoutPage() {
   const lines = COLOURS.filter((c) => cart[c] > 0);
   const checkoutTracked = useRef(false);
 
-  const [shippingMethod, setShippingMethod] = useState<ShippingMethod>("aramex");
-  const [specialDeliveryOpen, setSpecialDeliveryOpen] = useState(false);
+  const shippingMethod: ShippingMethod = "aramex";
   const [email, setEmail] = useState("");
   const [voucherCode, setVoucherCode] = useState("");
   const [appliedVoucher, setAppliedVoucher] = useState<AppliedVoucher | null>(null);
   const [voucherBusy, setVoucherBusy] = useState(false);
   const [voucherError, setVoucherError] = useState("");
-  const [marketingConsent, setMarketingConsent] = useState(false);
+  const [voucherAttempt, setVoucherAttempt] = useState(0);
   const [name, setName] = useState("");
   const [manualAddress, setManualAddress] = useState(false);
   const [showOptionalAddress, setShowOptionalAddress] = useState(false);
@@ -76,16 +75,19 @@ export default function CheckoutPage() {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
   const [followupStage, setFollowupStage] = useState<"details" | "payment_opened" | "payment_closed">("details");
-  useCheckoutFollowup({ email, name, cart, activity: address, stage: error ? "checkout_error" : followupStage, marketingConsent });
+  useCheckoutFollowup({ email, name, cart, activity: address, stage: error ? "checkout_error" : followupStage, marketingConsent: true });
   const trackCheckoutStage = (event: "PaymentOpened" | "CheckoutError") => {
     trackVercelEvent(event, vercelCartData(cart));
   };
 
   useEffect(() => {
     let cancelled = false;
-    queueMicrotask(async () => {
+    queueMicrotask(() => {
       let recovered: CartRecoveryData;
+      if (cancelled) return;
       try {
+        const savedCode = sessionStorage.getItem(EMAIL_VOUCHER_STORAGE_KEY);
+        if (savedCode) setVoucherCode(savedCode);
         const raw = sessionStorage.getItem(CART_RECOVERY_STORAGE_KEY);
         if (!raw) return;
         sessionStorage.removeItem(CART_RECOVERY_STORAGE_KEY);
@@ -97,19 +99,9 @@ export default function CheckoutPage() {
       setEmail(recovered.email);
       setName(typeof recovered.name === "string" ? recovered.name : "");
       setVoucherCode(recovered.voucher.code);
-      setMarketingConsent(true);
+      try { sessionStorage.setItem(EMAIL_VOUCHER_STORAGE_KEY, recovered.voucher.code); } catch { /* Keep the code in memory. */ }
       dispatch({ type: "set", colour: "green", qty: recoveredCart.green });
       dispatch({ type: "set", colour: "cream", qty: recoveredCart.cream });
-      try {
-        const response = await fetch("/api/vouchers/validate", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code: recovered.voucher.code, email: recovered.email }),
-        });
-        const result = await response.json() as { code?: string; amount?: number; expiresAt?: string };
-        if (!cancelled && response.ok && result.code && result.amount && result.expiresAt) {
-          setAppliedVoucher({ code: result.code, amount: result.amount, expiresAt: result.expiresAt, email: recovered.email.trim().toLowerCase() });
-        }
-      } catch { /* The code stays visible so the customer can retry it manually. */ }
     });
     return () => { cancelled = true; };
   }, [dispatch]);
@@ -137,7 +129,7 @@ export default function CheckoutPage() {
       setError("Review availability and accept the pre-order timing before paying."); setStatus("error"); return;
     }
     if (voucherCode.trim() && !activeVoucher) {
-      setError("Apply the voucher before continuing, or clear the voucher field."); setStatus("error"); return;
+      setError("Your email discount has not been applied yet. Check the message above before paying."); setStatus("error"); return;
     }
 
     if (!isCompleteAddress(address)) {
@@ -210,24 +202,39 @@ export default function CheckoutPage() {
     : null;
   const totalAmount = grandTotal(subtotal, shippingMethod) - (activeVoucher?.amount ?? 0);
 
-  async function applyVoucher() {
-    setVoucherError(""); setError("");
-    if (!email.trim()) { setVoucherError("Enter the email address that received the voucher first."); return; }
-    if (!normalizedVoucherCode) { setVoucherError("Enter your voucher code."); return; }
-    setVoucherBusy(true);
-    try {
-      const response = await fetch("/api/vouchers/validate", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: normalizedVoucherCode, email }),
-      });
-      const result = await response.json() as { code?: string; amount?: number; expiresAt?: string; error?: string };
-      if (!response.ok || !result.code || !result.amount || !result.expiresAt) throw new Error(result.error || "We could not apply this voucher.");
-      setVoucherCode(result.code);
-      setAppliedVoucher({ code: result.code, amount: result.amount, expiresAt: result.expiresAt, email: email.trim().toLowerCase() });
-    } catch (caught) {
-      setAppliedVoucher(null);
-      setVoucherError(caught instanceof Error ? caught.message : "We could not apply this voucher.");
-    } finally { setVoucherBusy(false); }
+  useEffect(() => {
+    if (!normalizedVoucherCode || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setVoucherBusy(true);
+      setVoucherError("");
+      try {
+        const response = await fetch("/api/vouchers/validate", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: normalizedVoucherCode, email }),
+        });
+        const result = await response.json() as { code?: string; amount?: number; expiresAt?: string; error?: string };
+        if (!response.ok || !result.code || !result.amount || !result.expiresAt) throw new Error(result.error || "We could not apply your email discount.");
+        if (!cancelled) setAppliedVoucher({ code: result.code, amount: result.amount, expiresAt: result.expiresAt, email: email.trim().toLowerCase() });
+      } catch (caught) {
+        if (!cancelled) {
+          setAppliedVoucher(null);
+          setVoucherError(caught instanceof Error ? caught.message : "We could not apply your email discount. Please retry.");
+        }
+      } finally {
+        if (!cancelled) setVoucherBusy(false);
+      }
+    }, 700);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [normalizedVoucherCode, email, voucherAttempt]);
+
+  function clearEmailDiscount() {
+    setVoucherCode("");
+    setAppliedVoucher(null);
+    setVoucherError("");
+    setVoucherBusy(false);
+    setError("");
+    try { sessionStorage.removeItem(EMAIL_VOUCHER_STORAGE_KEY); } catch { /* Memory fallback. */ }
   }
   const addressSummary = [
     address.line1,
@@ -239,17 +246,7 @@ export default function CheckoutPage() {
     address.province,
   ].filter(Boolean).join(", ");
   const shippingChoice = (method: ShippingMethod) => (
-    <label className={styles.shippingOption}>
-      <input
-        type="radio"
-        name="shippingMethod"
-        value={method}
-        checked={shippingMethod === method}
-        onChange={() => {
-          setShippingMethod(method);
-          setSpecialDeliveryOpen(method === "founders");
-        }}
-      />
+    <div className={styles.shippingOption}>
       <span className={styles.shippingDetails}>
         <span className={styles.shippingHeading}>
           <strong>{SHIPPING_OPTIONS[method].label}</strong>
@@ -260,7 +257,7 @@ export default function CheckoutPage() {
         <span className={styles.shippingDescription}>{needsPreorder ? "Dispatch after the incoming batch arrives. Courier transit starts after dispatch." : SHIPPING_OPTIONS[method].description}</span>
         {method === "aramex" && <span className={styles.shippingDescription}>Free with two or more hats.</span>}
       </span>
-    </label>
+    </div>
   );
 
   return (
@@ -297,7 +294,7 @@ export default function CheckoutPage() {
               </span>
             </div>
             {activeVoucher && <div className={`${styles.row} ${styles.discount}`}>
-              <span>Voucher</span>
+              <span>Email discount applied</span>
               <span>−{formatMoney(activeVoucher.amount)}</span>
             </div>}
             <div className={styles.total} aria-live="polite" aria-atomic="true">
@@ -309,18 +306,19 @@ export default function CheckoutPage() {
           <p className={styles.empty}>Your bag is empty. Add a hat first.</p>
         )}
 
+        {voucherCode && !activeVoucher && <div role={voucherError ? "alert" : "status"} className={styles.discountStatus}>
+          <p>{voucherError || (voucherBusy ? "Applying your email discount…" : "Your email discount will apply automatically. Use the email address that received the offer.")}</p>
+          {voucherError && <button type="button" onClick={() => setVoucherAttempt(attempt => attempt + 1)}>Retry discount</button>}
+          <button type="button" onClick={clearEmailDiscount}>Continue without discount</button>
+        </div>}
         <PreorderNotice />
         {stockError && <p role="alert">{stockError} <button onClick={() => void refresh()}>Retry availability</button></p>}
         {stock && !available && <p role="alert">Some quantities exceed available stock and pre-order capacity. <Link href="/cart">Edit your bag</Link>.</p>}
         {lines.length > 0 && (
           <form className={styles.form} onSubmit={handlePay}>
             <fieldset className={styles.shippingOptions} disabled={status === "submitting"}>
-              <legend className={styles.label}>Choose your shipping</legend>
+              <legend className={styles.label}>Delivery</legend>
               {shippingChoice("aramex")}
-              <details className={styles.specialDelivery} open={specialDeliveryOpen} onToggle={(event) => setSpecialDeliveryOpen(event.currentTarget.open)}>
-                <summary><span>Special delivery options</span><small>For a particularly warm hand-off</small></summary>
-                {shippingChoice("founders")}
-              </details>
             </fieldset>
             <label className={styles.field}>
               <span className={styles.label}>Email for your order and checkout support</span>
@@ -333,23 +331,6 @@ export default function CheckoutPage() {
                 placeholder="you@example.com"
                 required
               />
-            </label>
-            <div className={styles.voucher}>
-              <div className={styles.voucherHead}><span className={styles.label}>R50 voucher</span><small>Optional · tied to the email that received it</small></div>
-              <div className={styles.voucherControls}>
-                <input className={styles.input} type="text" autoComplete="off" value={voucherCode}
-                  onChange={(event) => { setVoucherCode(event.target.value); setVoucherError(""); }}
-                  placeholder="SMELT-XXXXXXXXXXXX" aria-label="Voucher code" />
-                <button type="button" onClick={() => void applyVoucher()} disabled={voucherBusy || !voucherCode.trim()}>
-                  {voucherBusy ? "Checking…" : activeVoucher ? "Applied ✓" : "Apply"}
-                </button>
-              </div>
-              {activeVoucher && <p className={styles.voucherSuccess}>R{activeVoucher.amount} has been taken off this order.</p>}
-              {voucherError && <p className={styles.voucherError} role="alert">{voucherError}</p>}
-            </div>
-            <label className={styles.marketingConsent}>
-              <input type="checkbox" checked={marketingConsent} onChange={(event) => setMarketingConsent(event.target.checked)} />
-              <span><strong>Email me about this checkout.</strong> Smelt may send up to three reminders, including a personal R50 offer. I can unsubscribe at any time. <small>Optional</small></span>
             </label>
             <label className={styles.field}>
               <span className={styles.label}>Full name</span>
@@ -512,7 +493,7 @@ export default function CheckoutPage() {
             <button
               className={styles.pay}
               type="submit"
-              disabled={status === "submitting" || !available || (needsPreorder && acceptedPreorder !== consentKey)}
+              disabled={status === "submitting" || Boolean(voucherCode && !activeVoucher) || !available || (needsPreorder && acceptedPreorder !== consentKey)}
             >
               {status === "submitting"
                 ? "Starting secure checkout…"

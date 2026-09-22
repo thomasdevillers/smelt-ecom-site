@@ -26,11 +26,11 @@ export function shippingEmail(d: ShippingEmailData): { subject: string; html: st
   const careLabel = "How to care for your Smelt →";
   const greeting = d.name?.trim() ? `Hi ${escapeHtml(d.name.trim())},` : "Hi there,";
   const paragraphStyle = `font-family:${FONT_STACK};font-size:16px;line-height:1.6;color:${COLORS.ink};`;
-  const p = (body: string) => `<p style="margin:0 0 18px;${paragraphStyle}">${body}</p>`;
+  const p = (body: string) => `<p class="email-text" style="margin:0 0 18px;${paragraphStyle}">${body}</p>`;
   const blocks = [
     p(greeting),
     p(`Your Smelt is on its way with ${escapeHtml(carrier)}. Next stop: your doorstep. Then? Sauna time.`),
-    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 0;border-top:1px solid ${COLORS.border};"><tr><td style="padding:18px 0 0;${paragraphStyle}"><span style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;">${escapeHtml(carrier)} tracking number</span><br/><strong style="font-size:20px;line-height:1.8;overflow-wrap:anywhere;">${escapeHtml(trackingNumber)}</strong></td></tr></table>`,
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 0;"><tr><td class="email-text email-rule" style="padding:18px 0 0;border-top:1px solid ${COLORS.border};${paragraphStyle}"><span class="email-muted" style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;">${escapeHtml(carrier)} tracking number</span><br/><strong style="font-size:20px;line-height:1.8;overflow-wrap:anywhere;">${escapeHtml(trackingNumber)}</strong></td></tr></table>`,
     ...(d.items?.length ? [orderItemsTable(d.items)] : []),
 
   ];
@@ -39,8 +39,8 @@ export function shippingEmail(d: ShippingEmailData): { subject: string; html: st
     heading: "Your hat is on the move.",
     blocks,
     afterCtaBlocks: [
-      `<p style="margin:0 0 26px;font-family:${FONT_STACK};font-size:13px;line-height:1.6;color:${COLORS.inkSoft};">Tracking may take a little time to update after dispatch.</p>`,
-      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid ${COLORS.border};"><tr><td style="padding-top:22px;">${p(`<strong>A little care.<br/>A lot of sauna sessions.</strong>`)}<p style="margin:0 0 10px;${paragraphStyle}font-size:14px;">Keep your Smelt looking good, session after session.</p><a href="${escapeHtml(careUrl)}" style="font-family:${FONT_STACK};font-size:14px;font-weight:600;line-height:1.6;color:${COLORS.ink};text-decoration:underline;">${careLabel}</a></td></tr></table>`,
+      `<p class="email-muted" style="margin:0 0 26px;font-family:${FONT_STACK};font-size:13px;line-height:1.6;color:${COLORS.inkSoft};">Tracking may take a little time to update after dispatch.</p>`,
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td class="email-text email-rule" style="padding-top:22px;border-top:1px solid ${COLORS.border};">${p(`<strong>A little care.<br/>A lot of sauna sessions.</strong>`)}<p class="email-text" style="margin:0 0 10px;${paragraphStyle}font-size:14px;">Keep your Smelt looking good, session after session.</p><a class="email-link" href="${escapeHtml(careUrl)}" style="font-family:${FONT_STACK};font-size:14px;font-weight:600;line-height:1.6;color:${COLORS.ink};text-decoration:underline;">${careLabel}</a></td></tr></table>`,
     ],
     cta: trackingUrl ? { label: "Track my order", url: escapeHtml(trackingUrl) } : undefined,
   });

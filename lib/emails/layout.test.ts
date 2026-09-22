@@ -21,9 +21,12 @@ describe("renderEmail", () => {
     expect(out.html).toContain("https://saunahat.co.za/x");
   });
 
-  it("uses inline styles, not a style block", () => {
-    expect(out.html).not.toContain("</style>");
+  it("uses inline fallbacks plus a dark-mode style block", () => {
+    expect(out.html).toContain("</style>");
     expect(out.html).toContain("style=");
+    expect(out.html).toContain('name="color-scheme" content="light dark"');
+    expect(out.html).toContain("@media (prefers-color-scheme:dark)");
+    expect(out.html).toContain("[data-ogsc] .email-body");
   });
 
   it("text version is plain and includes heading + cta url", () => {
@@ -38,8 +41,18 @@ describe("renderEmail", () => {
     expect(headingStyle).toContain("font-family:'Space Grotesk'");
     expect(headingStyle).toContain("color:#0E3B2A");
     const buttonStyle = styles.find((style) => style.includes("display:inline-block"));
+    expect(buttonStyle).toContain("background-color:#0E3B2A");
     expect(buttonStyle).toContain("color:#F6F1E3");
     expect(buttonStyle).toContain("text-decoration:none");
+  });
+
+  it("uses the site palette in light mode and a deliberate forest dark theme", () => {
+    expect(out.html).toContain('class="email-body"');
+    expect(out.html).toContain('class="email-card email-text"');
+    expect(out.html).toContain("background-color:#F6F1E3");
+    expect(out.html).toContain("background-color:#123D2E!important");
+    expect(out.html).toContain("background-color:#F6F1E3!important;color:#0E3B2A!important");
+    expect(out.html).toContain('class="email-logo-tile"');
   });
 
   it("signs off warmly by default", () => {

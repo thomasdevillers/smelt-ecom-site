@@ -6,12 +6,12 @@ const cell = `font-family:${FONT_STACK};font-size:15px;color:${COLORS.ink};paddi
 
 export function orderItemsTable(items: OrderItem[]): string {
   if (!items.length)
-    return `<p style="${cell}">(no line items recorded)</p>`;
+    return `<p class="email-text" style="${cell}">(no line items recorded)</p>`;
   const rows = items
     .map(
       (i) =>
-        `<tr><td style="${cell}border-bottom:1px solid ${COLORS.border};">${escapeHtml(i.name)}</td>` +
-        `<td align="right" style="${cell}border-bottom:1px solid ${COLORS.border};">× ${i.qty}</td></tr>`,
+        `<tr><td class="email-text email-rule" style="${cell}border-bottom:1px solid ${COLORS.border};">${escapeHtml(i.name)}</td>` +
+        `<td class="email-text email-rule" align="right" style="${cell}border-bottom:1px solid ${COLORS.border};">× ${i.qty}</td></tr>`,
     )
     .join("");
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table>`;
@@ -20,8 +20,8 @@ export function orderItemsTable(items: OrderItem[]): string {
 export function moneyRow(label: string, value: string): string {
   return (
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;">` +
-    `<tr><td style="${cell}font-weight:600;">${escapeHtml(label)}</td>` +
-    `<td align="right" style="${cell}font-weight:600;">${escapeHtml(value)}</td></tr></table>`
+    `<tr><td class="email-text" style="${cell}font-weight:600;">${escapeHtml(label)}</td>` +
+    `<td class="email-text" align="right" style="${cell}font-weight:600;">${escapeHtml(value)}</td></tr></table>`
   );
 }
 
@@ -43,5 +43,5 @@ export function addressBlock(a: ShippingAddress): string {
     .filter(Boolean)
     .map((l) => escapeHtml(String(l)))
     .join("<br/>");
-  return `<p style="${cell}">${lines}</p>`;
+  return `<p class="email-text" style="${cell}">${lines}</p>`;
 }

@@ -5,6 +5,9 @@ export const COLORS = {
   inkDeep: "#0A2C20",
   terracotta: "#E4633C",
   peach: "#F2A98C",
+  darkCard: "#123D2E",
+  darkBorder: "#37654D",
+  creamMuted: "#D8D1BF",
   inkSoft: "rgba(14,59,42,0.75)",
   border: "rgba(14,59,42,0.2)",
 } as const;

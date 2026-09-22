@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import ProductGallery from "@/components/ProductGallery";
 import Accordion from "@/components/Accordion";
 import HairPSA from "@/components/HairPSA";
@@ -22,15 +23,26 @@ import RestockChoice from "@/components/RestockChoice";
 type PurchaseOption = "single" | "bundle";
 type BundleMix = "mixed" | "green" | "cream";
 
+function ProductLinkSelection({ onSelect }: { onSelect: (colour: Colour, option: PurchaseOption) => void }) {
+  const params = useSearchParams();
+  const colour = params.get("colour") === "cream" ? "cream" : "green";
+  const option = params.get("order") === "bundle" ? "bundle" : "single";
+  useEffect(() => {
+    onSelect(colour, option);
+  }, [colour, option, onSelect]);
+  return null;
+}
+
 export default function ProductClient() {
   const viewed = useRef(false);
   const [colour, setColour] = useState<Colour>("green");
-  useEffect(() => {
-    const selected = new URLSearchParams(window.location.search).get("colour");
-    if (selected === "green" || selected === "cream") queueMicrotask(() => setColour(selected));
-  }, []);
   const [purchaseOption, setPurchaseOption] = useState<PurchaseOption>("single");
   const [bundleMix, setBundleMix] = useState<BundleMix>("mixed");
+  const selectFromLink = useCallback((selectedColour: Colour, option: PurchaseOption) => {
+    setColour(selectedColour);
+    setPurchaseOption(option);
+    setBundleMix("mixed");
+  }, []);
   const { stock, error: stockError, refresh } = useAvailability();
   const { cart, dispatch, openCart } = useCart();
   const v = PRODUCT.variants[colour];
@@ -98,6 +110,7 @@ export default function ProductClient() {
 
   return (
     <main className={styles.page}>
+      <Suspense fallback={null}><ProductLinkSelection onSelect={selectFromLink} /></Suspense>
       <div className={styles.grid}>
         <ProductGallery colour={colour} />
 

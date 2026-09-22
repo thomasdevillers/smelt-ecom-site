@@ -12,6 +12,7 @@ import { COLOURS, type Colour } from "@/lib/product";
 import { tiktokContent } from "@/lib/tiktok";
 import { trackTikTokEvent } from "@/lib/tiktokPixel";
 import { trackVercelPurchase } from "@/lib/vercelAnalytics";
+import { EMAIL_VOUCHER_STORAGE_KEY } from "@/lib/cartRecoveryShared";
 import styles from "../checkout.module.css";
 
 interface PaidItem {
@@ -45,6 +46,7 @@ export default function CheckoutSuccessPage() {
         );
         const data = await res.json();
         if (res.ok && data.paid) {
+          try { sessionStorage.removeItem(EMAIL_VOUCHER_STORAGE_KEY); } catch { /* Payment is already verified. */ }
           trackVercelPurchase(data);
           const tiktokParameters = {
             contents: ((data.items ?? []) as PaidItem[])

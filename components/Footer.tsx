@@ -17,9 +17,9 @@ export default function Footer() {
           <div>
             <div className={styles.colTitle}>Shop</div>
             <div className={styles.colLinks}>
-              <Link href="/product">Forest Green</Link>
-              <Link href="/product">Natural Cream</Link>
-              <Link href="/#bundles">Bundles</Link>
+              <Link href="/product?colour=green">Forest Green</Link>
+              <Link href="/product?colour=cream">Natural Cream</Link>
+              <Link href="/product?order=bundle">Bundles</Link>
             </div>
           </div>
           <div>

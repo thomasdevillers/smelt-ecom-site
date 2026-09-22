@@ -6,6 +6,8 @@ describe("email theme", () => {
     expect(COLORS.paper).toBe("#F6F1E3");
     expect(COLORS.ink).toBe("#0E3B2A");
     expect(COLORS.terracotta).toBe("#E4633C");
+    expect(COLORS.darkCard).toBe("#123D2E");
+    expect(COLORS.creamMuted).toBe("#D8D1BF");
   });
 
   it("builds absolute urls from SITE_URL", () => {
