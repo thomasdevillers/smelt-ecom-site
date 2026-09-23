@@ -1,5 +1,8 @@
 import { adminStore, AdminError } from './admin/store';
-import { getInventory } from './inventory';
+import { getInventory, RESERVATION_TTL_SECONDS } from './inventory';
+import { verifyTransaction } from './paystack';
+import { discountedCheckoutTotal, sanitizeCart } from './checkoutShared';
+import { parseVoucherMetadata } from './vouchers';
 import { localStockTest, stockScope } from './stockEnvironment';
 import { PREORDER_BATCH, PREORDER_ARRIVAL, PREORDER_TIMING, type Availability, type PreorderDetails } from './preorders';
 import type { CartState } from './cartReducer';
@@ -50,13 +53,30 @@ export const COMMIT_PURCHASE = `
 local raw = redis.call('HGET', KEYS[1], ARGV[1])
 if not raw then return 0 end
 local d = cjson.decode(raw)
-if d.status == 'released' or d.green ~= tonumber(ARGV[2]) or d.cream ~= tonumber(ARGV[3]) then return 0 end
+if d.green ~= tonumber(ARGV[2]) or d.cream ~= tonumber(ARGV[3]) then return 0 end
+if d.status == 'paid' then return 1 end
+if d.status ~= 'held' and d.status ~= 'expired' then return 0 end
+-- An old payment link can still accept money. Reacquire its original allocation
+-- atomically, without silently converting ready stock into a pre-order.
+if d.status == 'expired' then
+  local pg = d.preorderGreen or 0
+  local pc = d.preorderCream or 0
+  if redis.call('EXISTS', KEYS[4]) == 1 then pg = 0; pc = 0 end
+  local g = d.green - pg
+  local c = d.cream - pc
+  if tonumber(redis.call('HGET', KEYS[2], 'green') or '0') < g or tonumber(redis.call('HGET', KEYS[2], 'cream') or '0') < c then return 0 end
+  if tonumber(redis.call('HGET', KEYS[3], 'green') or '0') < pg or tonumber(redis.call('HGET', KEYS[3], 'cream') or '0') < pc then return 0 end
+  redis.call('HINCRBY', KEYS[2], 'green', -g)
+  redis.call('HINCRBY', KEYS[2], 'cream', -c)
+  redis.call('HINCRBY', KEYS[3], 'green', -pg)
+  redis.call('HINCRBY', KEYS[3], 'cream', -pc)
+end
 d.status = 'paid'
 redis.call('HSET', KEYS[1], ARGV[1], cjson.encode(d))
 return 1
 `;
 export async function commitPurchase(reference: string, cart: CartState) {
-  return Number(await adminStore().eval(COMMIT_PURCHASE, [`${prefix()}:orders`], [reference, cart.green, cart.cream])) === 1;
+  return Number(await adminStore().eval(COMMIT_PURCHASE, [`${prefix()}:orders`, stockKey(), quotaKey(), `${prefix()}:received:${PREORDER_BATCH}`], [reference, cart.green, cart.cream])) === 1;
 }
 
 export async function batchReceived(batch = PREORDER_BATCH) {
@@ -71,7 +91,7 @@ local pg = 0
 local pc = 0
 for _, raw in ipairs(redis.call('HVALS', KEYS[3])) do
   local d = cjson.decode(raw)
-  if d.status ~= 'released' then
+  if d.status == 'held' or d.status == 'paid' then
     pg = pg + (d.preorderGreen or 0)
     pc = pc + (d.preorderCream or 0)
   end
@@ -91,13 +111,14 @@ export async function receiveBatch(green: unknown, cream: unknown) {
   return result === 1;
 }
 
-// Only for an explicit provider initialization rejection, before any payable
-// link exists. Browser cancellation/timeouts are never sufficient evidence.
-export const RELEASE_REJECTED_PURCHASE = `
+// Releases are atomic with payment commits. Expiry additionally checks the
+// cutoff; the caller must verify the provider status before requesting expiry.
+const RELEASE_ALLOCATION = `
 local raw = redis.call('HGET', KEYS[3], ARGV[1])
 if not raw then return 0 end
 local d = cjson.decode(raw)
 if d.status ~= 'held' then return 0 end
+if ARGV[2] == 'expired' and (not d.createdAt or d.createdAt > ARGV[3]) then return 0 end
 if redis.call('EXISTS', KEYS[4]) == 1 then
   redis.call('HINCRBY', KEYS[1], 'green', d.green)
   redis.call('HINCRBY', KEYS[1], 'cream', d.cream)
@@ -107,10 +128,59 @@ else
   redis.call('HINCRBY', KEYS[2], 'green', d.preorderGreen)
   redis.call('HINCRBY', KEYS[2], 'cream', d.preorderCream)
 end
-d.status = 'released'
+d.status = ARGV[2] or 'released'
+d.releasedAt = ARGV[4]
 redis.call('HSET', KEYS[3], ARGV[1], cjson.encode(d))
 return 1
 `;
+export const RELEASE_REJECTED_PURCHASE = RELEASE_ALLOCATION;
+export const EXPIRE_PURCHASE = RELEASE_ALLOCATION;
+
+// For initialization rejection, before a payable link is known to exist.
 export async function releaseRejectedPurchase(reference: string) {
   await adminStore().eval(RELEASE_REJECTED_PURCHASE, [stockKey(), quotaKey(), `${prefix()}:orders`, `${prefix()}:received:${PREORDER_BATCH}`], [reference]);
+}
+
+interface PurchaseAllocation extends CartState {
+  status: 'held' | 'paid' | 'released' | 'expired';
+  createdAt: string;
+}
+
+// Reconcile before releasing: a missing webhook must not free a paid order.
+// Pending payments and provider errors retain their holds for the next run.
+export async function expirePurchaseReservations(now = Date.now()) {
+  const orders = await adminStore().hgetall<Record<string, PurchaseAllocation>>(`${prefix()}:orders`) || {};
+  const cutoff = new Date(now - RESERVATION_TTL_SECONDS * 1000).toISOString();
+  const result = { released: 0, paid: 0, retained: 0 };
+  const due = Object.entries(orders).filter(([, order]) => order.status === 'held' && Date.parse(order.createdAt) <= Date.parse(cutoff));
+  for (let i = 0; i < due.length; i += 5) {
+    await Promise.all(due.slice(i, i + 5).map(async ([reference, order]) => {
+      try {
+        const payment = await verifyTransaction(reference);
+        if (payment.reference !== reference) throw new Error('Payment reference mismatch');
+        if (payment.status === 'success') {
+          const cart = sanitizeCart(payment.metadata?.cart);
+          const voucher = parseVoucherMetadata(payment.metadata?.voucher);
+          if (payment.metadata?.inventoryReservation !== reference || cart.green !== order.green || cart.cream !== order.cream || payment.currency !== 'ZAR' || payment.amount !== discountedCheckoutTotal(cart, payment.metadata?.shippingMethod, voucher?.amount ?? 0) * 100)
+            throw new Error('Paid reservation requires reconciliation');
+          if (await commitPurchase(reference, cart)) result.paid++;
+          else result.retained++;
+        } else if (payment.status === 'abandoned' || payment.status === 'failed') {
+          result.released += Number(await adminStore().eval(EXPIRE_PURCHASE,
+            [stockKey(), quotaKey(), `${prefix()}:orders`, `${prefix()}:received:${PREORDER_BATCH}`],
+            [reference, 'expired', cutoff, new Date(now).toISOString()]));
+        } else result.retained++;
+      } catch (error) {
+        result.retained++;
+        console.error('Reservation expiry retained hold', reference, error instanceof Error ? error.message : 'Verification failed');
+      }
+    }));
+  }
+  return result;
+}
+
+export async function purchaseNeedsReview(reference: string) {
+  if (!reference.startsWith('smeltp-')) return false;
+  const order = await adminStore().hget<PurchaseAllocation>(`${prefix()}:orders`, reference);
+  return !order || order.status !== 'paid';
 }

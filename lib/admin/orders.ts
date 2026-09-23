@@ -1,5 +1,5 @@
 import { parsePreorder } from "../preorders";
-import { batchReceived } from "../preorderStore";
+import { batchReceived, purchaseNeedsReview } from "../preorderStore";
 import { sanitizeAddress } from "../address";
 import { sanitizeCart } from "../checkoutShared";
 import type { OrderItem } from "../orderTypes";
@@ -64,7 +64,15 @@ export async function getPaidOrder(reference: string) {
     order.canShip = false;
     order.reviewReason = 'Pre-order awaiting the incoming batch. Receive the shipment in Restock requests before sending tracking.';
   }
+  await flagUnallocatedPayment(order);
   return order;
+}
+
+async function flagUnallocatedPayment(order: AdminOrder) {
+  if (!order.completedAt && await purchaseNeedsReview(order.reference)) {
+    order.canShip = false;
+    order.reviewReason = 'Payment received but stock is not allocated. The reservation may have expired. Review stock or arrange a refund before shipping.';
+  }
 }
 
 export async function findPaidOrdersByEmail(email: string): Promise<AdminOrder[]> {
@@ -157,6 +165,7 @@ export async function listOrders(
       order.reviewReason = 'Pre-order awaiting the incoming batch. Receive the shipment in Restock requests before sending tracking.';
     }
   }
+  await Promise.all(result.orders.map(flagUnallocatedPayment));
   const pipeline = db.pipeline();
   if (!result.orders.length) return result;
   for (const order of result.orders) { pipeline.get(orderReceiptKey(order.reference)); pipeline.hgetall(historyKey(order.email)); }

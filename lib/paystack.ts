@@ -79,7 +79,7 @@ export interface VerifyResult {
 export async function verifyTransaction(reference: string): Promise<VerifyResult> {
   const res = await fetch(
     `${PAYSTACK_BASE}/transaction/verify/${encodeURIComponent(reference)}`,
-    { headers: { Authorization: `Bearer ${secretKey()}` } },
+    { headers: { Authorization: `Bearer ${secretKey()}` }, cache: "no-store", signal: AbortSignal.timeout(10_000) },
   );
 
   const json = await res.json();

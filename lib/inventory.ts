@@ -14,7 +14,7 @@ export interface InventorySnapshot {
   cream: number;
 }
 
-// Timestamp retained for operational review; holds are not automatically released.
+// Checkout reservations are reconciled for expiry after one hour.
 export const RESERVATION_TTL_SECONDS = 60 * 60;
 
 const mode = stockScope;
