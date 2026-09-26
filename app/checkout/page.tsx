@@ -254,7 +254,7 @@ export default function CheckoutPage() {
             {shippingFee(subtotal, method) === 0 ? "FREE" : formatMoney(shippingFee(subtotal, method))}
           </span>
         </span>
-        <span className={styles.shippingDescription}>{needsPreorder ? "Dispatch after the incoming batch arrives. Courier transit starts after dispatch." : SHIPPING_OPTIONS[method].description}</span>
+        <span className={styles.shippingDescription}>{needsPreorder ? `${stock?.timing} Courier transit starts after dispatch.` : SHIPPING_OPTIONS[method].description}</span>
         {method === "aramex" && <span className={styles.shippingDescription}>Free with two or more hats.</span>}
       </span>
     </div>

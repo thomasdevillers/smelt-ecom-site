@@ -2,6 +2,9 @@
 .eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; font-weight: 700; }
 .choice h3 { font-family: var(--font-bricolage), sans-serif; font-size: 25px; margin: 10px 0; }
 .choice p, .notice p { font-size: 13px; line-height: 1.6; margin: 10px 0; }
+.notice { padding: 12px 14px; margin: 10px 0; }
+.notice strong { font-size: 13px; }
+.notice p { line-height: 1.4; margin: 4px 0 0; }
 .choice small { display: block; margin-top: 8px; font-size: 12px; line-height: 1.5; }
 .notify, .form button { min-height: 44px; padding: 12px 16px; font: inherit; font-size: 13px; font-weight: 700; border: 1px solid var(--ink); border-radius: 10px; background: var(--paper); color: var(--ink); cursor: pointer; width: 100%; }
 .form { margin-top: 18px; display: grid; gap: 14px; }

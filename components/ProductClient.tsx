@@ -190,7 +190,7 @@ export default function ProductClient() {
               const ready = Math.min(qty, Math.max(0, stock[c] - cart[c]));
               return <li key={c}><span>{qty} × {PRODUCT.variants[c].name}</span><span>{ready === qty ? "In stock" : stock[c] === 0 ? "Out of stock" : ready > 0 ? `${ready} in stock · ${qty - ready} on pre-order` : "Additional hats on pre-order"}</span></li>;
             })}</ul>
-            {isPreorder && <p>{selectionInStock ? "Pre-order both hats now. They’ll ship together after the next batch arrives, with free delivery." : "This combination isn’t available to pre-order. Choose another mix or request a restock message below."}</p>}
+            {isPreorder && <p>{selectionInStock ? `Pre-order both hats now. ${stock.timing} They’ll ship together, with free delivery.` : "This combination isn’t available to pre-order. Choose another mix or request a restock message below."}</p>}
           </div>}
 
           <button className={styles.add} onClick={add} disabled={!selectionInStock}>

@@ -1,4 +1,4 @@
-import { parsePreorder } from "../preorders";
+import { parsePreorder, preorderTiming } from "../preorders";
 import { batchReceived, purchaseNeedsReview, resolvePurchasePreorder } from "../preorderStore";
 import { sanitizeAddress } from "../address";
 import { sanitizeCart } from "../checkoutShared";
@@ -63,7 +63,7 @@ export async function getPaidOrder(reference: string) {
   order.preorder = await resolvePurchasePreorder(order.reference, order.preorder);
   if (order.preorder && !await batchReceived(order.preorder.batch)) {
     order.canShip = false;
-    order.reviewReason = 'Pre-order awaiting the incoming batch. Receive the shipment in Restock requests before sending tracking.';
+    order.reviewReason = `${preorderTiming(order.preorder)} Confirm the hats have been received in Restock requests before sending tracking.`;
   }
   await flagUnallocatedPayment(order);
   return order;
@@ -165,7 +165,7 @@ export async function listOrders(
   for (const batch of new Set(result.orders.flatMap(order => order.preorder ? [order.preorder.batch] : []))) {
     if (!await batchReceived(batch)) for (const order of result.orders) if (order.preorder?.batch === batch) {
       order.canShip = false;
-      order.reviewReason = 'Pre-order awaiting the incoming batch. Receive the shipment in Restock requests before sending tracking.';
+      order.reviewReason = `${preorderTiming(order.preorder)} Confirm the hats have been received in Restock requests before sending tracking.`;
     }
   }
   await Promise.all(result.orders.map(flagUnallocatedPayment));
