@@ -52,6 +52,7 @@ export async function POST(request: Request) {
       cart?: unknown;
       tiktokClient?: TikTokClientContext;
       shippingAddress?: { phone?: unknown };
+      customerName?: unknown;
       shippingMethod?: unknown;
       items?: OrderItem[];
       inventoryReservation?: unknown;
@@ -104,7 +105,7 @@ export async function POST(request: Request) {
     }
 
     after(() => tryOrderConfirmation({
-      reference: verified.reference, email: verified.customerEmail ?? "",
+      reference: verified.reference, email: verified.customerEmail ?? "", customerName: meta?.customerName, paidAt: verified.paidAt,
       amount: verified.amount, currency: verified.currency, cart, address: meta?.shippingAddress, shippingMethod: meta?.shippingMethod, preorder: meta?.preorder, voucher: meta?.voucher,
     }));
     after(() => sendTikTokPurchase({
@@ -149,6 +150,7 @@ export async function GET(request: Request) {
     const meta = verified.metadata as {
       items?: OrderItem[]; cart?: unknown; tiktokClient?: TikTokClientContext;
       shippingAddress?: { phone?: unknown };
+      customerName?: unknown;
       shippingMethod?: unknown;
       inventoryReservation?: unknown;
       preorder?: unknown;
@@ -169,7 +171,7 @@ export async function GET(request: Request) {
       return Response.json({ error: "Payment received, but the voucher needs manual review. Please contact support with your reference." }, { status: 409 });
     }
     after(() => tryOrderConfirmation({
-      reference: verified.reference, email: verified.customerEmail ?? "",
+      reference: verified.reference, email: verified.customerEmail ?? "", customerName: meta?.customerName, paidAt: verified.paidAt,
       amount: verified.amount, currency: verified.currency, cart, address: meta?.shippingAddress, shippingMethod: meta?.shippingMethod, preorder: meta?.preorder, voucher: meta?.voucher,
     }));
     after(() => sendTikTokPurchase({

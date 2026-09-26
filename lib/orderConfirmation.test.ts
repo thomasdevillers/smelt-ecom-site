@@ -14,7 +14,7 @@ vi.mock("./vouchers", () => ({
   parseVoucherMetadata: (value: unknown) => value && typeof value === "object" && (value as { amount?: unknown }).amount === 50 ? value : null,
   commitVoucher: mocks.commitVoucher,
 }));
-import { sendOrderConfirmation, type ConfirmedOrder } from "./orderConfirmation";
+import { sendOrderConfirmation, sendOwnerOrderNotification, type ConfirmedOrder } from "./orderConfirmation";
 import { checkoutTotal } from "./checkoutShared";
 import { POST as webhook } from "../app/api/paystack/webhook/route";
 import { POST as verifyPost, GET as verifyGet } from "../app/api/checkout/verify/route";
@@ -51,7 +51,8 @@ afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 function webhookRequest(amount = order.amount, signatureValid = true, shippingMethod?: unknown) {
   const body = JSON.stringify({ event: "charge.success", data: {
     ...order, amount, status: "success", customer: { email: order.email },
-    metadata: { cart: order.cart, shippingAddress: order.address, shippingMethod },
+    paid_at: "2026-09-26T05:00:00.000Z",
+    metadata: { cart: order.cart, shippingAddress: order.address, shippingMethod, customerName: "Test Buyer" },
   } });
   const signature = createHmac("sha512", "fake-paystack").update(body).digest("hex");
   return new Request("https://example.com/api/paystack/webhook", { method: "POST", body,
@@ -136,7 +137,7 @@ describe("payment route integration", () => {
         : await verifyPost(new Request("https://example.com/api/checkout/verify", { method: "POST", body: JSON.stringify({ reference: order.reference }) }));
     expect(response.status).toBe(200);
     await flush();
-    expect(mocks.send).toHaveBeenCalledTimes(1);
+    expect(mocks.send).toHaveBeenCalledTimes(2);
     const message = mocks.send.mock.calls[0][0];
     expect(message.text).toContain("R5 450");
     expect(message.text).toContain("Hand delivered by founders");
@@ -160,7 +161,7 @@ describe("payment route integration", () => {
     expect((await verifyGet(new Request(`https://example.com/api/checkout/verify?reference=${order.reference}`))).status).toBe(200);
     await flush();
     expect((await webhook(webhookRequest())).status).toBe(200);
-    expect(mocks.send).toHaveBeenCalledTimes(1);
+    expect(mocks.send).toHaveBeenCalledTimes(2);
     expect(mocks.send.mock.calls[0][0].html).not.toContain("FORGED ITEM");
   });
 
@@ -195,16 +196,17 @@ describe("payment route integration", () => {
   it("sends from browser verification even when the webhook has not arrived", async () => {
     expect((await verifyGet(new Request(`https://example.com/api/checkout/verify?reference=${order.reference}`))).status).toBe(200);
     await flush();
-    expect(mocks.send).toHaveBeenCalledTimes(1);
+    expect(mocks.send).toHaveBeenCalledTimes(2);
     expect((await webhook(webhookRequest())).status).toBe(200);
-    expect(mocks.send).toHaveBeenCalledTimes(1);
+    expect(mocks.send).toHaveBeenCalledTimes(2);
   });
 
   it("returns 503 for webhook send failure and accepts a successful retry", async () => {
     mocks.send.mockResolvedValueOnce({ error: { name: "validation_error" }, data: null });
     expect((await webhook(webhookRequest())).status).toBe(503);
     expect((await webhook(webhookRequest())).status).toBe(200);
-    expect(mocks.send.mock.calls[0]).toEqual(mocks.send.mock.calls[1]);
+    expect(mocks.send).toHaveBeenCalledTimes(3);
+    expect(mocks.send.mock.calls[0]).toEqual(mocks.send.mock.calls[2]);
   });
 
   it("keeps payment successful when the fallback email fails", async () => {
@@ -229,5 +231,47 @@ describe("payment route integration", () => {
     vi.stubEnv("PAYSTACK_SECRET_KEY", "");
     expect((await webhook(webhookRequest())).status).toBe(503);
     expect(mocks.send).not.toHaveBeenCalled();
+  });
+});
+
+describe("owner notifications", () => {
+  it("includes customer, address, quantities, paid date, totals and admin link only in the owner email", async () => {
+    await sendOwnerOrderNotification({ ...order, customerName: "Test <Buyer>", paidAt: "2026-09-26T05:00:00.000Z", address: { ...order.address as object, phone: "0821234567", company: "Test Estate", addressLine2: "Unit 4" } });
+    const message = mocks.send.mock.calls[0][0];
+    expect(message.to).toBe("thomasdevilliers100@gmail.com");
+    for (const text of ["buyer@example.com", "0821234567", "Test Estate", "Unit 4", "1 Test Street", "Forest Green", "R450", "R90", "R540", "07:00", "SAST", "https://saunahat.co.za/admin"]) expect(message.text).toContain(text);
+    expect(message.html).toContain("Test &lt;Buyer&gt;");
+    expect(message.html).not.toContain("Test <Buyer>");
+    expect(message.subject).toContain("[TEST]");
+    await sendOwnerOrderNotification(order);
+    expect(mocks.send).toHaveBeenCalledTimes(1);
+    await sendOrderConfirmation(order);
+    expect(mocks.send).toHaveBeenCalledTimes(2);
+    expect(mocks.send.mock.calls[1][0].to).toBe(order.email);
+    expect(store.size).toBe(2);
+  });
+  it("retries a failed owner alert without duplicating the customer confirmation", async () => {
+    mocks.send.mockImplementation(async (message) => message.to === "thomasdevilliers100@gmail.com"
+      ? { data: null, error: { name: "rate_limit_exceeded" } }
+      : { data: { id: "customer-accepted" }, error: null });
+    expect((await webhook(webhookRequest())).status).toBe(503);
+    const firstOwnerCall = mocks.send.mock.calls.find(([message]) => message.to === "thomasdevilliers100@gmail.com");
+    expect(firstOwnerCall?.[0].text).toContain("Test Buyer");
+    expect(firstOwnerCall?.[0].text).toContain("07:00");
+    mocks.send.mockResolvedValue({ data: { id: "owner-accepted" }, error: null });
+    expect((await webhook(webhookRequest())).status).toBe(200);
+    expect(mocks.send.mock.calls.filter(([message]) => message.to === order.email)).toHaveLength(1);
+    const ownerCalls = mocks.send.mock.calls.filter(([message]) => message.to === "thomasdevilliers100@gmail.com");
+    expect(ownerCalls).toHaveLength(2);
+    expect(ownerCalls[0]).toEqual(ownerCalls[1]);
+    expect((await webhook(webhookRequest())).status).toBe(200);
+    expect(mocks.send).toHaveBeenCalledTimes(3);
+  });
+  it("uses the existing pre-order date and quantities in the owner notification", async () => {
+    await sendOwnerOrderNotification({ ...order, preorder: { batch: "2026-10-22", arrival: "22 October 2026", quantities: { green: 1, cream: 0 } } });
+    const message = mocks.send.mock.calls[0][0];
+    expect(message.subject).toContain("pre-order");
+    expect(message.text).toContain("1 green, 0 cream");
+    expect(message.text).toContain("ready on 22 October 2026");
   });
 });

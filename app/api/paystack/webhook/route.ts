@@ -1,5 +1,5 @@
 import { after } from "next/server";
-import { sendOrderConfirmation, logOrderConfirmationFailure } from "@/lib/orderConfirmation";
+import { sendOrderNotifications, logOrderConfirmationFailure } from "@/lib/orderConfirmation";
 import { sendTikTokPurchase } from "@/lib/tiktokEvents";
 import type { TikTokClientContext } from "@/lib/tiktok";
 import crypto from "node:crypto";
@@ -57,6 +57,7 @@ export async function POST(request: Request) {
       paid_at?: string | null;
       customer?: { email?: string };
       metadata?: {
+        customerName?: unknown;
         cart?: unknown;
         items?: OrderItem[];
         amountRand?: number;
@@ -130,8 +131,8 @@ export async function POST(request: Request) {
       }));
     }
     try {
-      await sendOrderConfirmation({
-        reference: d.reference ?? "", email: d.customer?.email ?? "",
+      await sendOrderNotifications({
+        reference: d.reference ?? "", email: d.customer?.email ?? "", customerName: d.metadata?.customerName, paidAt: d.paid_at,
         amount: d.amount!, currency: d.currency!, cart, address: d.metadata?.shippingAddress, shippingMethod: d.metadata?.shippingMethod, preorder: d.metadata?.preorder, voucher: d.metadata?.voucher,
       });
     } catch (error) {

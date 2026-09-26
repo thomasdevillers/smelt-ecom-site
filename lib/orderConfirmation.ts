@@ -2,6 +2,7 @@ import { resolvePurchasePreorder } from "./preorderStore";
 import { createHash } from "node:crypto";
 import { Redis } from "@upstash/redis";
 import { Resend } from "resend";
+import { ownerOrderEmail } from "./emails/ownerOrder";
 import { orderConfirmationEmail } from "./emails/orderConfirmation";
 import { sanitizeAddress } from "./address";
 import { discountedCheckoutTotal, sanitizeCart } from "./checkoutShared";
@@ -12,6 +13,8 @@ import { parseVoucherMetadata } from "./vouchers";
 
 export interface ConfirmedOrder {
   reference: string;
+  customerName?: unknown;
+  paidAt?: string | null;
   email: string;
   amount: number; // Paystack-confirmed cents
   currency: string;
@@ -31,7 +34,7 @@ return redis.call('GET', KEYS[1])`;
 const RETRY_WINDOW = 23 * 60 * 60 * 1000;
 
 /** Call only after authenticated payment success and amount reconciliation. */
-export async function sendOrderConfirmation(order: ConfirmedOrder): Promise<void> {
+async function sendOrderEmail(order: ConfirmedOrder, audience: "customer" | "owner"): Promise<void> {
   const reference = typeof order.reference === "string" ? order.reference.trim() : "";
   const email = typeof order.email === "string" ? order.email.trim() : "";
   const cart = sanitizeCart(order.cart);
@@ -49,7 +52,8 @@ export async function sendOrderConfirmation(order: ConfirmedOrder): Promise<void
     retry: { retries: 0 }, signal: () => AbortSignal.timeout(10_000),
   });
   const hash = createHash("sha256").update(reference).digest("hex");
-  const key = `smelt:order-confirmation:v1:${hash}`;
+  const family = audience === "owner" ? "owner-order" : "order-confirmation";
+  const key = `smelt:${family}:v1:${hash}`;
   let receipt = await db.get<Receipt>(key);
   if (receipt?.status === "accepted") return;
   const apiKey = process.env.RESEND_API_KEY;
@@ -61,13 +65,16 @@ export async function sendOrderConfirmation(order: ConfirmedOrder): Promise<void
     const items = (Object.keys(cart) as Array<keyof CartState>)
       .filter((colour) => cart[colour] > 0)
       .map((colour) => ({ colour, name: PRODUCT.variants[colour].name, qty: cart[colour] }));
-    const message = orderConfirmationEmail({
+    const details = {
       reference, total: formatMoney(order.amount / 100), items, preorder: await resolvePurchasePreorder(reference, order.preorder), discount: voucher?.amount,
       shippingMethod: parseShippingMethod(order.shippingMethod)!,
       address: order.address ? sanitizeAddress(order.address) : null,
-    });
+    };
+    const message = audience === "owner"
+      ? ownerOrderEmail({ ...details, email, customerName: typeof order.customerName === "string" ? order.customerName.trim() : "", paidAt: order.paidAt, cart, test: !process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_") })
+      : orderConfirmationEmail(details);
     receipt = await db.eval<unknown[], Receipt>(PREPARE_CONFIRMATION, [key], [JSON.stringify({
-      status: "pending", startedAt: Date.now(), message: { from, to: email, ...message },
+      status: "pending", startedAt: Date.now(), message: { from, to: audience === "owner" ? "thomasdevilliers100@gmail.com" : email, ...message },
     })]);
   }
   if (receipt.status === "accepted") return;
@@ -75,18 +82,34 @@ export async function sendOrderConfirmation(order: ConfirmedOrder): Promise<void
     // Resend forgets idempotency keys after 24h. Never risk a duplicate after an ambiguous send.
     throw new Error("order_confirmation_manual_review_required");
   }
-  const result = await new Resend(apiKey).emails.send(receipt.message, { idempotencyKey: `order-confirmation/${hash}` });
+  const result = await new Resend(apiKey).emails.send(receipt.message, { idempotencyKey: `${family}/${hash}` });
   if (result.error || !result.data?.id) throw new Error("order_confirmation_resend_not_accepted");
   // No TTL: late webhook replays must not recreate previously accepted confirmations.
   // Drop customer/address/message data once Resend has accepted the email.
   await db.set(key, { status: "accepted", id: result.data.id } satisfies Receipt);
-  console.log("Order confirmation accepted", { receipt: hash, emailId: result.data.id });
+  console.log("Order email accepted", { audience, receipt: hash, emailId: result.data.id });
+}
+
+export async function sendOrderConfirmation(order: ConfirmedOrder): Promise<void> {
+  await sendOrderEmail(order, "customer");
+}
+
+export async function sendOwnerOrderNotification(order: ConfirmedOrder): Promise<void> {
+  await sendOrderEmail(order, "owner");
+}
+
+// Attempt both independently; the webhook retries if either email is pending.
+// Each recipient has a separate permanent receipt, so retries cannot resend the other.
+export async function sendOrderNotifications(order: ConfirmedOrder): Promise<void> {
+  const results = await Promise.allSettled([sendOrderConfirmation(order), sendOwnerOrderNotification(order)]);
+  const failed = results.find(result => result.status === "rejected");
+  if (failed?.status === "rejected") throw failed.reason;
 }
 
 /** Checkout fallback: an email failure must not turn a paid order into a failed payment. */
 export async function tryOrderConfirmation(order: ConfirmedOrder): Promise<void> {
   try {
-    await sendOrderConfirmation(order);
+    await sendOrderNotifications(order);
   } catch (error) {
     logOrderConfirmationFailure(order.reference, error);
   }
