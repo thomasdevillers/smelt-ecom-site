@@ -40,22 +40,22 @@ export default function RestockChoice({ colour, colours, bundle, timing, canPreo
   }
 
   return <aside className={styles.choice}>
-    <span className={styles.eyebrow}>Next batch · {bundle ? 'Your two-hat bundle' : names(options)}</span>
-    <h3>{canPreorder ? bundle ? 'Your bundle, next batch.' : 'Worth the wait.' : 'Out of stock. Stay in the loop.'}</h3>
+    <span className={styles.eyebrow}>{bundle ? 'Two-hat bundle' : names(options)}</span>
+    <h3>{canPreorder ? 'Pre-order or get notified' : 'Get a restock alert'}</h3>
     <p>{timing}</p>
-    {canPreorder && <p>{bundle ? 'Reserve both hats using the pre-order button above. Your bundle ships together.' : 'Pre-order using the button above to reserve a hat.'} Pay in full at checkout; paid pre-orders get priority. Cancel before dispatch for a full refund by contacting us.</p>}
-    <button type="button" className={styles.notify} onClick={() => setOpen(!open)} aria-expanded={open}>{bundle ? 'WhatsApp me about a restock' : 'WhatsApp me when it’s back'}</button>
-    <small>No payment. No reservation. Just a restock message{options.length > 1 ? ' for the colours you choose' : ' for this colour'}.</small>
+    {canPreorder && <p>Pay now to reserve. Cancel before dispatch for a full refund.</p>}
+    <button type="button" className={styles.notify} onClick={() => setOpen(!open)} aria-expanded={open}>WhatsApp me when restocked</button>
+    <small>Free restock alert. No reservation.</small>
     {open && <>
-      {saved.length > 0 && <p role="status">You’re on the notification list for {names(saved)}. We’ll WhatsApp you when {saved.length > 1 ? 'each colour is' : 'it’s'} available to buy.</p>}
+      {saved.length > 0 && <p role="status">We’ll WhatsApp you when {names(saved)} {saved.length > 1 ? 'are' : 'is'} back.</p>}
       {!complete && <form onSubmit={submit} className={styles.form}>
         <fieldset disabled={busy}>
           {options.length > 1 && <fieldset className={styles.colours}>
-            <legend>Which colours should we notify you about?</legend>
+            <legend>Choose colours</legend>
             {options.map(c => <label key={c} className={styles.consent}><input type="checkbox" checked={selected.includes(c)} disabled={saved.includes(c)} onChange={e => setSelected(previous => e.target.checked ? [...previous, c] : previous.filter(value => value !== c))} /><span>{PRODUCT.variants[c].name}{saved.includes(c) ? ' — saved' : ''}</span></label>)}
           </fieldset>}
           <label>WhatsApp number<input type="tel" autoComplete="tel" placeholder="082 123 4567" maxLength={24} required value={phone} readOnly={saved.length > 0} onChange={e => setPhone(e.target.value)} /></label>
-          <label className={styles.consent}><input type="checkbox" required checked={consent} onChange={e => setConsent(e.target.checked)} /><span>Send me a WhatsApp when {selected.length ? names(selected) : 'my selected colours'} {selected.length > 1 ? 'are' : 'is'} restocked. No other marketing. I can opt out by replying STOP or contacting hello@saunahat.co.za.</span></label>
+          <label className={styles.consent}><input type="checkbox" required checked={consent} onChange={e => setConsent(e.target.checked)} /><span>WhatsApp me about this restock only. Reply STOP to opt out.</span></label>
           <button disabled={busy || selected.length === 0}>{busy ? 'Saving…' : 'Notify me on WhatsApp'}</button>
         </fieldset>
         {status && <p role="alert">{status}</p>}
