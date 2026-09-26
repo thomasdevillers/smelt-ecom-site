@@ -1,3 +1,4 @@
+import { resolvePurchasePreorder } from "./preorderStore";
 import { createHash } from "node:crypto";
 import { Redis } from "@upstash/redis";
 import { Resend } from "resend";
@@ -61,7 +62,7 @@ export async function sendOrderConfirmation(order: ConfirmedOrder): Promise<void
       .filter((colour) => cart[colour] > 0)
       .map((colour) => ({ colour, name: PRODUCT.variants[colour].name, qty: cart[colour] }));
     const message = orderConfirmationEmail({
-      reference, total: formatMoney(order.amount / 100), items, preorder: order.preorder, discount: voucher?.amount,
+      reference, total: formatMoney(order.amount / 100), items, preorder: await resolvePurchasePreorder(reference, order.preorder), discount: voucher?.amount,
       shippingMethod: parseShippingMethod(order.shippingMethod)!,
       address: order.address ? sanitizeAddress(order.address) : null,
     });

@@ -3,7 +3,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ hgetall: vi.fn(), hget: vi.fn(), eval: vi.fn(), verify: vi.fn() }));
 vi.mock('./admin/store', () => ({ adminStore: () => mocks, AdminError: class extends Error {} }));
 vi.mock('./paystack', () => ({ verifyTransaction: mocks.verify }));
-import { expirePurchaseReservations, purchaseNeedsReview, EXPIRE_PURCHASE, COMMIT_PURCHASE } from './preorderStore';
+import { expirePurchaseReservations, purchaseNeedsReview, resolvePurchasePreorder, EXPIRE_PURCHASE, COMMIT_PURCHASE } from './preorderStore';
 import { GET } from '../app/api/cron/inventory/route';
 
 const now = Date.parse('2026-09-23T12:00:00.000Z');
@@ -66,5 +66,22 @@ describe('reservation expiry reconciliation', () => {
     expect(mocks.hgetall).not.toHaveBeenCalled();
     mocks.hgetall.mockResolvedValue({});
     expect((await GET(new Request('https://example.com/api/cron/inventory', { headers: { authorization: 'Bearer test-secret' } }))).status).toBe(200);
+  });
+});
+
+describe('updated order classification', () => {
+  const original = { batch: '2026-10-22', arrival: '22 October 2026', quantities: { green: 2, cream: 0 } };
+  it('removes the pre-order label only when a paid allocation covers all units', async () => {
+    mocks.hget.mockResolvedValue({ status: 'paid', preorderGreen: 0, preorderCream: 0 });
+    expect(await resolvePurchasePreorder(reference, original)).toBeUndefined();
+    mocks.hget.mockResolvedValue({ status: 'paid', preorderGreen: 1, preorderCream: 0 });
+    expect(await resolvePurchasePreorder(reference, original)).toEqual({ ...original, quantities: { green: 1, cream: 0 } });
+  });
+  it('preserves original promises for missing, unpaid, invalid and legacy allocations', async () => {
+    for (const allocation of [null, { status: 'held', preorderGreen: 0, preorderCream: 0 }, { status: 'paid' }]) {
+      mocks.hget.mockResolvedValue(allocation);
+      expect(await resolvePurchasePreorder(reference, original)).toEqual(original);
+    }
+    expect(await resolvePurchasePreorder('legacy', original)).toEqual(original);
   });
 });

@@ -1,5 +1,5 @@
 import { parsePreorder } from "../preorders";
-import { batchReceived, purchaseNeedsReview } from "../preorderStore";
+import { batchReceived, purchaseNeedsReview, resolvePurchasePreorder } from "../preorderStore";
 import { sanitizeAddress } from "../address";
 import { sanitizeCart } from "../checkoutShared";
 import type { OrderItem } from "../orderTypes";
@@ -60,6 +60,7 @@ export async function getPaidOrder(reference: string) {
   const { data } = await paystack(`/transaction/verify/${encodeURIComponent(reference)}`);
   if (data?.reference !== reference || data?.status !== "success") throw new AdminError("This order does not have a successful payment.", 409);
   const order = normalizeOrder(data);
+  order.preorder = await resolvePurchasePreorder(order.reference, order.preorder);
   if (order.preorder && !await batchReceived(order.preorder.batch)) {
     order.canShip = false;
     order.reviewReason = 'Pre-order awaiting the incoming batch. Receive the shipment in Restock requests before sending tracking.';
@@ -91,6 +92,7 @@ export async function findPaidOrdersByEmail(email: string): Promise<AdminOrder[]
     orders.push(...body.data.map((value: unknown) => normalizeOrder(value)).filter((order: AdminOrder) => order.email === normalized));
     if (page >= body.meta.pageCount) break;
   }
+  await Promise.all(orders.map(async order => { order.preorder = await resolvePurchasePreorder(order.reference, order.preorder); }));
   return orders.sort((a, b) => (b.paidAt || "").localeCompare(a.paidAt || ""));
 }
 export const completionKey = () => `smelt:orders:completed:v1:${process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_") ? "live" : "test"}`;
@@ -146,6 +148,7 @@ export async function listOrders(
       providerPage++;
     }
   }
+  await Promise.all(orders.map(async order => { order.preorder = await resolvePurchasePreorder(order.reference, order.preorder); }));
   const db = adminStore();
   const completed = await db.hgetall<Record<string, string>>(completionKey()) || {};
   for (const order of orders) order.completedAt = completed[order.reference] || null;

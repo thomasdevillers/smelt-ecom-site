@@ -3,7 +3,7 @@ const mocks = vi.hoisted(() => ({ hgetall: vi.fn(), hsetnx: vi.fn(), hget: vi.fn
 vi.mock("@upstash/redis", () => ({ Redis: class { hgetall = mocks.hgetall; hsetnx = mocks.hsetnx; hget = mocks.hget; hdel = mocks.hdel; eval = mocks.eval; get = mocks.get; set = mocks.set; del = mocks.del; pipeline = () => mocks.pipeline; } }));
 vi.mock("resend", () => ({ Resend: class { emails = { send: mocks.send, get: mocks.emailGet }; } }));
 vi.mock("next/headers", () => ({ cookies: async () => mocks.cookies }));
-import { normalizeOrder, listOrders, setOrderCompleted, completionKey, findPaidOrdersByEmail } from "./orders";
+import { normalizeOrder, getPaidOrder, listOrders, setOrderCompleted, completionKey, findPaidOrdersByEmail } from "./orders";
 import { sendShipping, shippingStatus } from "./shipping";
 import { publicReceipt } from "./receipts";
 import { hasAdminSession, login, logout } from "./auth";
@@ -195,5 +195,17 @@ describe("order completion", () => {
     expect((await ordersPATCH(request({ reference: "order-1", completed: true }))).status).toBe(401);
     expect((await ordersPATCH(request({}, "https://evil.example"))).status).toBe(403);
     expect(mocks.hsetnx).not.toHaveBeenCalled();
+  });
+});
+
+describe("pre-orders supplied from returned stock", () => {
+  const paidPreorder = { ...transaction, reference: "smeltp-returned-stock", metadata: { ...transaction.metadata, preorder: { batch: "2026-10-22", arrival: "22 October 2026", quantities: { green: 1, cream: 0 } } } };
+  it("makes the corrected order shippable and removes it from the pre-order filter", async () => {
+    mocks.hget.mockResolvedValue({ status: "paid", green: 1, cream: 0, preorderGreen: 0, preorderCream: 0 });
+    mocks.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ status: true, data: paidPreorder }) });
+    expect(await getPaidOrder(paidPreorder.reference)).toMatchObject({ canShip: true, preorder: undefined });
+    mocks.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ status: true, data: [paidPreorder], meta: { total: 1, pageCount: 1 } }) });
+    expect(await listOrders(1, "", "preorders")).toMatchObject({ total: 0, orders: [] });
+    expect((await listOrders(1)).orders[0]).toMatchObject({ canShip: true, preorder: undefined });
   });
 });

@@ -117,4 +117,39 @@ describe.skipIf(process.env.RUN_INVENTORY_REDIS_TESTS !== '1')('atomic purchase 
     expect(await db.hgetall(keys[1])).toEqual({ green: 0, cream: 0 });
   });
 
+  it('gives an expired hold to a paid pre-order before another checkout can take it', async () => {
+    await reserve('abandoned', 1, 0, 0, 0);
+    await reserve('paid-preorder', 1, 0, 1, 0);
+    await commit('paid-preorder', 1, 0);
+    expect(await expire('abandoned')).toBe(1);
+    expect(await db.hgetall(keys[0])).toEqual({ green: 0, cream: 0 });
+    expect(await db.hget(keys[2], 'paid-preorder')).toMatchObject({ status: 'paid', preorderGreen: 0, originalPreorderGreen: 1 });
+    expect(await db.hget(keys[1], 'green')).toBe(2);
+    expect(await expire('abandoned')).toBe(0);
+    expect(await commit('paid-preorder', 1, 0)).toBe(1);
+    expect(await reserve('next-buyer', 1, 0, 0, 0)).toEqual([0, 0, 0]);
+    expect(await reserve('next-buyer', 1, 0, 1, 0)).toEqual([1, 1, 0]);
+  });
+  it('allocates stock released before the pre-order payment completes', async () => {
+    await reserve('abandoned', 1, 0, 0, 0);
+    await reserve('still-paying', 1, 0, 1, 0);
+    await expire('abandoned');
+    expect(await db.hget(keys[0], 'green')).toBe(1);
+    await commit('still-paying', 1, 0);
+    expect(await db.hget(keys[0], 'green')).toBe(0);
+    expect(await db.hget(keys[2], 'still-paying')).toMatchObject({ preorderGreen: 0 });
+    expect(await commit('abandoned', 1, 0)).toBe(0);
+  });
+  it('allocates limited returned stock to the oldest paid reservation and preserves the remaining shortfall', async () => {
+    await reserve('abandoned', 1, 0, 0, 0);
+    await reserve('older', 1, 0, 1, 0);
+    await db.eval(RESERVE_PURCHASE, keys, ['newer', 1, 0, 1, 0, '2026-09-22T10:01:00.000Z']);
+    await commit('newer', 1, 0);
+    await commit('older', 1, 0);
+    await expire('abandoned');
+    expect(await db.hget(keys[2], 'older')).toMatchObject({ preorderGreen: 0 });
+    expect(await db.hget(keys[2], 'newer')).toMatchObject({ preorderGreen: 1 });
+    expect(await db.hget(keys[0], 'green')).toBe(0);
+  });
+
 });

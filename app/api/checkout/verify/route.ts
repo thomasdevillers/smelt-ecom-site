@@ -1,3 +1,4 @@
+import { resolvePurchasePreorder } from "@/lib/preorderStore";
 import { after } from "next/server";
 import { tryOrderConfirmation } from "@/lib/orderConfirmation";
 import { sendTikTokPurchase } from "@/lib/tiktokEvents";
@@ -179,7 +180,7 @@ export async function GET(request: Request) {
     }));
     return Response.json({
       paid: true,
-      preorder: meta?.preorder,
+      preorder: await resolvePurchasePreorder(verified.reference, meta?.preorder),
       shippingMethod: parseShippingMethod(meta?.shippingMethod),
       reference: verified.reference,
       amountRand: Math.round(verified.amount / 100),
