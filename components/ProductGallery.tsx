@@ -29,7 +29,8 @@ export default function ProductGallery({ colour }: { colour: Colour }) {
           className={`${styles.mainImage} ${active.lifestyle ? styles.cover : ""}`}
           style={{ objectPosition: active.objectPosition }}
           sizes="(max-width: 879px) calc(100vw - 40px), 50vw"
-          priority={selected === 0}
+          loading="eager"
+          fetchPriority={selected === 0 ? "high" : "auto"}
         />
         <span className={styles.caption}>{active.label}</span>
       </div>

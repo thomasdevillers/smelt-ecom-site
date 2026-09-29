@@ -272,6 +272,6 @@ describe("owner notifications", () => {
     const message = mocks.send.mock.calls[0][0];
     expect(message.subject).toContain("pre-order");
     expect(message.text).toContain("1 green, 0 cream");
-    expect(message.text).toContain("ready on 22 October 2026");
+    expect(message.text).toContain("Expected 22 October 2026");
   });
 });

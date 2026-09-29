@@ -2,7 +2,7 @@ import { renderEmail } from './layout';
 import { addressBlock, moneyRow, orderItemsTable } from './components';
 import { absoluteUrl, escapeHtml } from './theme';
 import { formatMoney, shippingFee, SHIPPING_OPTIONS, type ShippingMethod } from '../pricing';
-import { cartSubtotal, type CartState } from '../cartReducer';
+import { type CartState } from '../cartReducer';
 import { parsePreorder, preorderTiming } from '../preorders';
 import type { ShippingAddress } from '../address';
 import type { OrderItem } from '../orderTypes';
@@ -10,10 +10,10 @@ import type { OrderItem } from '../orderTypes';
 export function ownerOrderEmail(d: {
   reference: string; email: string; customerName: string; paidAt?: string | null;
   total: string; cart: CartState; items: OrderItem[]; address: ShippingAddress | null;
-  shippingMethod: ShippingMethod; discount?: number; preorder?: unknown; test: boolean;
+  unitPrice?: number; shippingMethod: ShippingMethod; discount?: number; preorder?: unknown; test: boolean;
 }) {
   const preorder = parsePreorder(d.preorder);
-  const subtotal = cartSubtotal(d.cart);
+  const subtotal = (d.cart.green + d.cart.cream) * (d.unitPrice ?? 450);
   const date = d.paidAt && Number.isFinite(Date.parse(d.paidAt))
     ? new Intl.DateTimeFormat('en-ZA', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Johannesburg' }).format(new Date(d.paidAt)) + ' SAST'
     : 'Not supplied by payment provider';

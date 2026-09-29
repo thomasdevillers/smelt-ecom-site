@@ -1,14 +1,20 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ eval: vi.fn(), hgetall: vi.fn(), hdel: vi.fn(), admin: vi.fn() }));
+const mocks = vi.hoisted(() => ({ eval: vi.fn(), hgetall: vi.fn(), hdel: vi.fn(), admin: vi.fn(), preorderMode: false }));
 vi.mock('@upstash/redis', () => ({ Redis: class { eval = mocks.eval; hgetall = mocks.hgetall; hdel = mocks.hdel; } }));
+vi.mock('./salesMode', async importOriginal => ({ ...await importOriginal<typeof import('./salesMode')>(), get PREORDER_MODE() { return mocks.preorderMode; } }));
 vi.mock('./admin/auth', () => ({ requireAdmin: mocks.admin }));
 vi.mock('./preorderStore', () => ({ getAvailability: vi.fn() }));
 import { POST } from '../app/api/restock/route';
 import { GET } from '../app/api/admin/restock/route';
 import { AdminError } from './admin/store';
 const request = (body: unknown, origin = 'https://saunahat.co.za') => new Request('https://saunahat.co.za/api/restock', { method: 'POST', headers: { origin, 'content-type': 'application/json' }, body: JSON.stringify(body) });
-beforeEach(() => { vi.clearAllMocks(); vi.stubEnv('UPSTASH_REDIS_REST_URL', 'https://example.com'); vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', 'test'); mocks.eval.mockResolvedValue(1); });
+beforeEach(() => { vi.clearAllMocks(); mocks.preorderMode = false; vi.stubEnv('UPSTASH_REDIS_REST_URL', 'https://example.com'); vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', 'test'); mocks.eval.mockResolvedValue(1); });
 describe('restock requests', () => {
+  it('disables new WhatsApp signups during the paid pre-order campaign', async () => {
+    mocks.preorderMode = true;
+    expect((await POST(request({ colour: 'green', phone: '0821234567', consent: true }))).status).toBe(410);
+    expect(mocks.eval).not.toHaveBeenCalled();
+  });
   it('normalizes a South African phone number, records consent and returns no private data', async () => {
     const response = await POST(request({ colour: 'green', phone: '082 123 4567', consent: true }));
     expect(response.status).toBe(200); expect(await response.json()).toEqual({ saved: true });

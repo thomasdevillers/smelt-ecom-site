@@ -3,7 +3,7 @@ import { cartSubtotal, type CartState } from "@/lib/cartReducer";
 import { PRODUCT } from "@/lib/product";
 import { initializeTransaction, isPaystackConfigured, PaystackInitializationRejected } from "@/lib/paystack";
 import { discountedCheckoutTotal, sanitizeCart } from "@/lib/checkoutShared";
-import { parseShippingMethod } from "@/lib/pricing";
+import { BASE_PRICE, parseShippingMethod } from "@/lib/pricing";
 import { sanitizeAddress } from "@/lib/address";
 import type { MetaClientContext } from "@/lib/meta";
 import { createInventoryReservationId } from "@/lib/inventory";
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
       callbackUrl: `${origin}/checkout/success`,
       reference: reservationId,
       metadata: {
-        cart, items, amountRand: amount, customerName, shippingAddress, shippingMethod,
+        cart, items, unitPrice: BASE_PRICE, amountRand: amount, customerName, shippingAddress, shippingMethod,
         inventoryReservation: reservationId,
         preorder: reservation.preorder,
         voucher,

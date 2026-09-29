@@ -71,6 +71,8 @@ function queueLead(value: FollowupLead) {
 }
 
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-09-22T10:00:00.000Z"));
   vi.clearAllMocks(); mocks.values.clear(); mocks.queue.clear();
   Object.entries({
     UPSTASH_REDIS_REST_URL: "https://redis.example.com", UPSTASH_REDIS_REST_TOKEN: "test",
@@ -86,7 +88,7 @@ beforeEach(() => {
     reward: { code: "SMELT-ABCDEFGHIJKL", amount: 50, expiresAt: "2026-09-29T10:00:00.000Z" },
   }));
 });
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
 
 describe("abandoned-cart email sequence", () => {
   it("sends the first opted-in reminder and restores its private cart", async () => {

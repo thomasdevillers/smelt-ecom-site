@@ -9,7 +9,7 @@ import ProductReviews from "@/components/ProductReviews";
 import { POLICIES } from "@/content/policies";
 import SectionLabel from "@/components/ui/SectionLabel";
 import { COLOURS, PRODUCT, type Colour } from "@/lib/product";
-import { BASE_PRICE, SHIPPING_FEE, formatMoney, lineTotal } from "@/lib/pricing";
+import { BASE_PRICE, shippingFee, formatMoney, lineTotal } from "@/lib/pricing";
 import { useCart } from "@/lib/cart";
 import { META_CURRENCY, metaVariantContent } from "@/lib/meta";
 import { trackMetaEvent } from "@/lib/metaPixel";
@@ -18,6 +18,8 @@ import { trackTikTokEvent } from "@/lib/tiktokPixel";
 import { trackVercelEvent, vercelProductData } from "@/lib/vercelAnalytics";
 import styles from "@/app/product/product.module.css";
 import { useAvailability } from "@/lib/useAvailability";
+import { PREORDER_MODE } from "@/lib/salesMode";
+import PreorderPrice from "./PreorderPrice";
 import RestockChoice from "@/components/RestockChoice";
 
 type PurchaseOption = "single" | "bundle";
@@ -71,11 +73,13 @@ export default function ProductClient() {
     }
     openCart();
   };
+  const singleDelivery = shippingFee(BASE_PRICE);
   const bundleAvailable = (value: BundleMix) => stock === null || (value === "mixed"
     ? stock.green + stock.preorder.green >= cart.green + 1 && stock.cream + stock.preorder.cream >= cart.cream + 1
     : stock[value] + stock.preorder[value] >= cart[value] + 2);
   const bundleStatus = (value: BundleMix) => {
     if (!stock) return "Checking stock…";
+    if (PREORDER_MODE) return bundleAvailable(value) ? "Pre-order" : "Fully reserved";
     if (value === "mixed") {
       if (stock.green === 0 && stock.cream === 0) return "Both out of stock";
       if (stock.green === 0) return "Green out of stock";
@@ -87,7 +91,7 @@ export default function ProductClient() {
   };
   const selectedColours = COLOURS.filter(c => purchaseOption === "single" ? c === colour : bundleMix === "mixed" || c === bundleMix);
   const waitingColours = selectedColours.filter(c => stock && cart[c] + (purchaseOption === "bundle" && bundleMix !== "mixed" ? 2 : 1) > stock[c]);
-  const unavailableLabel = purchaseOption === "single" && stock?.[colour] === 0
+  const unavailableLabel = PREORDER_MODE ? "Pre-orders fully reserved" : purchaseOption === "single" && stock?.[colour] === 0
     ? "Out of stock"
     : "Not enough stock";
 
@@ -117,7 +121,7 @@ export default function ProductClient() {
         <div className={styles.info}>
           <SectionLabel>The collection (all two of them)</SectionLabel>
           <h1 className={styles.h1}>{PRODUCT.name}</h1>
-          <div className={styles.price}>{formatMoney(BASE_PRICE)}</div>
+          {PREORDER_MODE ? <PreorderPrice /> : <div className={styles.price}>{formatMoney(BASE_PRICE)}</div>}
           <p className={styles.desc}>100% wool felt, embroidered (never printed) with &ldquo;Smelt&rdquo; on the front and &ldquo;Warm regards&rdquo; on the back. One size fits most heads. Made to sweat in.</p>
           <ul className={styles.benefits}>
             <li>Insulates your scalp and ears from intense sauna heat</li>
@@ -129,12 +133,12 @@ export default function ProductClient() {
             <legend className={styles.optLabel}>Choose your order</legend>
             <label className={`${styles.purchaseCard} ${purchaseOption === "single" ? styles.purchaseCardOn : ""}`}>
               <input type="radio" name="purchaseOption" value="single" checked={purchaseOption === "single"} onChange={() => setPurchaseOption("single")} />
-              <span><strong>One hat</strong><small>{formatMoney(BASE_PRICE)} + {formatMoney(SHIPPING_FEE)} delivery</small></span>
-              <b>{formatMoney(BASE_PRICE + SHIPPING_FEE)} total</b>
+              <span><strong>One hat</strong><small>{formatMoney(BASE_PRICE)} · {singleDelivery ? `${formatMoney(singleDelivery)} delivery` : "Free delivery"}</small></span>
+              <b>{formatMoney(BASE_PRICE + singleDelivery)} total</b>
             </label>
             <label className={`${styles.purchaseCard} ${purchaseOption === "bundle" ? styles.purchaseCardOn : ""}`}>
               <input type="radio" name="purchaseOption" value="bundle" checked={purchaseOption === "bundle"} onChange={() => setPurchaseOption("bundle")} />
-              <span><strong>Two-hat bundle <em>Free delivery</em></strong><small>{formatMoney(lineTotal(2))} · Save {formatMoney(SHIPPING_FEE)} on delivery</small></span>
+              <span><strong>Two-hat bundle <em>Free delivery</em></strong><small>{formatMoney(lineTotal(2))} · {singleDelivery ? `Save ${formatMoney(singleDelivery)} on delivery` : "Free delivery"}</small></span>
               <b>{formatMoney(lineTotal(2))} total</b>
             </label>
           </fieldset>
@@ -150,7 +154,7 @@ export default function ProductClient() {
                   aria-pressed={colour === c}
                 >
                   <span>{PRODUCT.variants[c].name}</span>
-                  {stock && <small>{stock[c] === 0 ? "Out of stock" : `${stock[c]} left`}</small>}
+                  {stock && <small>{PREORDER_MODE ? (stock.preorder[c] > 0 ? "Pre-order" : "Fully reserved") : stock[c] === 0 ? "Out of stock" : `${stock[c]} left`}</small>}
                 </button>
               ))}
             </div>
@@ -188,9 +192,9 @@ export default function ProductClient() {
             <ul>{selectedColours.map(c => {
               const qty = bundleMix === "mixed" ? 1 : 2;
               const ready = Math.min(qty, Math.max(0, stock[c] - cart[c]));
-              return <li key={c}><span>{qty} × {PRODUCT.variants[c].name}</span><span>{ready === qty ? "In stock" : stock[c] === 0 ? "Out of stock" : ready > 0 ? `${ready} in stock · ${qty - ready} on pre-order` : "Additional hats on pre-order"}</span></li>;
+              return <li key={c}><span>{qty} × {PRODUCT.variants[c].name}</span><span>{PREORDER_MODE ? "Pre-order" : ready === qty ? "In stock" : stock[c] === 0 ? "Out of stock" : ready > 0 ? `${ready} in stock · ${qty - ready} on pre-order` : "Additional hats on pre-order"}</span></li>;
             })}</ul>
-            {isPreorder && <p>{selectionInStock ? "Both hats ship together. Free delivery." : "Choose another mix or get a restock alert below."}</p>}
+            {isPreorder && <p>{selectionInStock ? "Both hats ship together. Free delivery." : (PREORDER_MODE ? "Choose another available mix." : "Choose another mix or get a restock alert below.")}</p>}
           </div>}
 
           <button className={styles.add} onClick={add} disabled={!selectionInStock}>

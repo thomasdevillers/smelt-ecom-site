@@ -1,8 +1,11 @@
+import { PREORDER_DATE_LABEL, PREORDER_COPY } from './salesMode';
+
 import type { CartState } from './cartReducer';
 
+// Stable storage identity: do not rename when the estimated arrival changes.
 export const PREORDER_BATCH = '2026-10-22';
-export const PREORDER_ARRIVAL = '22 October 2026';
-export const PREORDER_TIMING = `Your hats will be ready on ${PREORDER_ARRIVAL}.`;
+export const PREORDER_ARRIVAL = PREORDER_DATE_LABEL;
+export const PREORDER_TIMING = PREORDER_COPY;
 export interface PreorderDetails { batch: string; arrival: string; quantities: CartState }
 export interface Availability extends CartState { preorder: CartState; batch: string; timing: string; localTest: boolean }
 export function preorderQuantities(cart: CartState, stock: CartState): CartState {
@@ -17,5 +20,5 @@ export function parsePreorder(value: unknown): PreorderDetails | undefined {
   return { batch: d.batch, arrival: d.arrival, quantities: { green: d.quantities.green, cream: d.quantities.cream } };
 }
 export function preorderTiming(details: PreorderDetails) {
-  return `Your hats will be ready on ${details.arrival}. Your entire order will ship together.`;
+  return `Expected ${details.arrival}. Delivery follows arrival. Your entire order will ship together.`;
 }

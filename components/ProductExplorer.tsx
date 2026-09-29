@@ -8,6 +8,8 @@ import SectionLabel from "./ui/SectionLabel";
 import styles from "./ProductExplorer.module.css";
 import { trackVercelEvent, vercelProductData } from "@/lib/vercelAnalytics";
 import { useAvailability } from "@/lib/useAvailability";
+import { PREORDER_MODE } from "@/lib/salesMode";
+import PreorderPrice from "./PreorderPrice";
 import RestockChoice from "@/components/RestockChoice";
 
 export default function ProductExplorer() {
@@ -57,7 +59,7 @@ export default function ProductExplorer() {
         <div className={styles.panel}>
           <div>
             <h3 className={styles.name}>{PRODUCT.name}</h3>
-            <div className={styles.price}>{v.name} · {formatMoney(BASE_PRICE)}</div>
+            {PREORDER_MODE ? <PreorderPrice /> : <div className={styles.price}>{v.name} · {formatMoney(BASE_PRICE)}</div>}
           </div>
 
           <div>
@@ -71,14 +73,14 @@ export default function ProductExplorer() {
                   aria-pressed={colour === choice}
                 >
                   <span>{PRODUCT.variants[choice].name}</span>
-                  {stock && <small>{stock[choice] === 0 ? "Out of stock" : `${stock[choice]} left`}</small>}
+                  {stock && <small>{PREORDER_MODE ? (stock.preorder[choice] > 0 ? "Pre-order" : "Fully reserved") : stock[choice] === 0 ? "Out of stock" : `${stock[choice]} left`}</small>}
                 </button>
               ))}
             </div>
           </div>
 
           <button className={styles.add} onClick={add} disabled={!inStock}>
-            {stock === null ? "Checking stock…" : inStock ? `${isPreorder ? "Pre-order" : "Add to bag"} · ${formatMoney(BASE_PRICE)}` : stock[colour] === 0 ? "Out of stock" : "Not enough stock"}
+            {stock === null ? "Checking stock…" : inStock ? `${isPreorder ? "Pre-order" : "Add to bag"} · ${formatMoney(BASE_PRICE)}` : PREORDER_MODE ? "Pre-orders fully reserved" : stock[colour] === 0 ? "Out of stock" : "Not enough stock"}
           </button>
           {stockError && <p role="alert">{stockError} <button onClick={() => void refresh()}>Retry</button></p>}
           {stock && stock[colour] === 0 && <RestockChoice key={colour} colour={colour} timing={stock.timing} canPreorder={stock.preorder[colour] > 0} />}

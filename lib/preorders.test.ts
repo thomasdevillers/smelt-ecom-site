@@ -10,7 +10,7 @@ describe('pre-order customer promise', () => {
   it('shows the ready date in confirmation and removes immediate dispatch claims', () => {
     const email = orderConfirmationEmail({ reference: 'preorder', total: 'R900', items: [{ colour: 'green', name: 'Forest Green', qty: 2 }], preorder: { batch: PREORDER_BATCH, arrival: PREORDER_ARRIVAL, quantities: { green: 2, cream: 0 } } });
     expect(email.subject).toContain('pre-order');
-    expect(email.text).toContain('Your hats will be ready on 22 October 2026.');
+    expect(email.text).toContain('Expected 15 October 2026.');
     expect(email.text).toContain('entire order');
     expect(email.text).toContain('full refund');
     expect(email.text).not.toContain('Your hat is in stock');

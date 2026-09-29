@@ -1,3 +1,4 @@
+import { PREORDER_MODE, PREORDER_COPY } from "../salesMode";
 import { renderEmail } from "./layout";
 import { orderItemsTable } from "./components";
 import { COLORS, FONT_STACK, escapeHtml } from "./theme";
@@ -33,7 +34,7 @@ export function cartRecoveryEmail(d: {
   const { html, text } = renderEmail({
     preheader: d.step === 0 ? "Your cart and a personal R50 code are inside." : "Your Smelt cart is still ready to reopen.",
     heading: headings[d.step],
-    blocks: [p(greeting), p(messages[d.step]), orderItemsTable(d.items), voucherBlock, p("The private button below restores the quantities from this checkout. Current stock is confirmed again before payment.")],
+    blocks: [p(greeting), p(messages[d.step]), ...(PREORDER_MODE ? [p(`Pre-order for R450 per hat. ${PREORDER_COPY}`)] : []), orderItemsTable(d.items), voucherBlock, p("The private button below restores the quantities from this checkout. Current stock is confirmed again before payment.")],
     cta: { label: "Return to my checkout", url: escapeHtml(d.recoveryUrl) },
     afterCtaBlocks: [unsubscribe],
   });

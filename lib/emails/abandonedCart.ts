@@ -1,3 +1,4 @@
+import { PREORDER_MODE, PREORDER_COPY } from "../salesMode";
 import { renderEmail } from "./layout";
 import { orderItemsTable, moneyRow } from "./components";
 import { escapeHtml } from "./theme";
@@ -9,7 +10,7 @@ export function abandonedCartEmail(d: {
   const greeting = d.name ? `Hi ${escapeHtml(d.name)},` : "Hi there,";
   const blocks = [
     `<p>${greeting}</p>`,
-    `<p>You left a Smelt hat warming up in your bag. It is in stock and ready when you are.</p>`,
+    `<p>You left a Smelt hat warming up in your bag. ${PREORDER_MODE ? `Pre-order yours for R450. ${PREORDER_COPY}` : "It is in stock and ready when you are."}</p>`,
     orderItemsTable(d.items),
     moneyRow("Your bag", d.total),
     `<p style="font-size:12px;">Not interested? No trouble — just reply to this email and we'll leave you be.</p>`,

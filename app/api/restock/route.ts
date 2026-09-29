@@ -1,7 +1,9 @@
+import { PREORDER_MODE } from '@/lib/salesMode';
 import { signupRestock } from '@/lib/restock';
 import { requireSameOrigin, readAdminBody, AdminError } from '@/lib/admin/store';
 export const runtime = 'nodejs';
 export async function POST(request: Request) {
+  if (PREORDER_MODE) return Response.json({ error: 'Restock alerts are paused. Please pre-order through checkout.' }, { status: 410 });
   try {
     requireSameOrigin(request);
     const body = await readAdminBody(request);

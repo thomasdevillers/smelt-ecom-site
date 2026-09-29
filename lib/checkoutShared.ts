@@ -23,3 +23,18 @@ export function discountedCheckoutTotal(cart: CartState, shippingMethod: unknown
   if (!Number.isFinite(total) || !Number.isSafeInteger(discount) || discount < 0 || discount >= total) return Number.NaN;
   return total - discount;
 }
+
+/** Only use with metadata fetched from Paystack or its authenticated webhook.
+ * Older transactions predate price snapshots and were R450 per hat.
+ */
+export function paidUnitPrice(value: unknown): number {
+  return value === undefined ? 450 : value === 450 || value === 550 ? value : Number.NaN;
+}
+
+export function paidCheckoutTotal(cart: CartState, shippingMethod: unknown, discount = 0, price?: unknown): number {
+  const method = parseShippingMethod(shippingMethod);
+  const subtotal = (cart.green + cart.cream) * paidUnitPrice(price);
+  if (!method || !Number.isFinite(subtotal) || subtotal <= 0) return Number.NaN;
+  const total = grandTotal(subtotal, method);
+  return Number.isSafeInteger(discount) && discount >= 0 && discount < total ? total - discount : Number.NaN;
+}

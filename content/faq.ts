@@ -1,3 +1,4 @@
+import { PREORDER_MODE, PREORDER_COPY } from "../lib/salesMode";
 export interface FaqItem {
   q: string;
   a: string;
@@ -30,7 +31,7 @@ export const FAQ: FaqItem[] = [
   },
   {
     q: "When will my order ship?",
-    a: "The hats are in stock and dispatched from Cape Town within 1 to 3 business days. Courier transit is usually 1 to 2 business days around Cape Town, 2 to 3 business days to national main centres, and 3 to 5 business days to regional or outlying areas. You'll get an email with tracking as soon as your order leaves us.",
+    a: PREORDER_MODE ? `${PREORDER_COPY} We dispatch within 1–3 business days of arrival and email your tracking link.` : "The hats are in stock and dispatched from Cape Town within 1 to 3 business days. Courier transit is usually 1 to 2 business days around Cape Town, 2 to 3 business days to national main centres, and 3 to 5 business days to regional or outlying areas. You'll get an email with tracking as soon as your order leaves us.",
   },
   {
     q: "What if I don't love it?",

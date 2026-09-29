@@ -47,7 +47,7 @@ export default function HatSwap({
               width={520}
               height={520}
               className={`${styles.img} ${dropShadow ? styles.shadow : ""}`}
-              priority={f === "front"}
+              loading={f === "front" ? "eager" : "lazy"}
             />
           </div>
         ))}

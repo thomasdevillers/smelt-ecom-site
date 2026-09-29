@@ -1,7 +1,8 @@
+import { PREORDER_MODE } from './salesMode';
 import { adminStore, AdminError } from './admin/store';
 import { getInventory, RESERVATION_TTL_SECONDS } from './inventory';
 import { verifyTransaction } from './paystack';
-import { discountedCheckoutTotal, sanitizeCart } from './checkoutShared';
+import { paidCheckoutTotal, sanitizeCart } from './checkoutShared';
 import { parseVoucherMetadata } from './vouchers';
 import { localStockTest, stockScope } from './stockEnvironment';
 import { PREORDER_BATCH, PREORDER_ARRIVAL, PREORDER_TIMING, parsePreorder, type Availability, type PreorderDetails } from './preorders';
@@ -21,8 +22,8 @@ async function seed() {
 export async function getAvailability(): Promise<Availability> {
   await seed();
   const values = await adminStore().eval<(string | number)[], number[]>(`return {tonumber(redis.call('HGET', KEYS[1], 'green')), tonumber(redis.call('HGET', KEYS[1], 'cream')), tonumber(redis.call('HGET', KEYS[2], 'green')), tonumber(redis.call('HGET', KEYS[2], 'cream'))}`, [stockKey(), quotaKey()], []);
-  const open = Date.now() < Date.parse(`${PREORDER_BATCH}T00:00:00+02:00`);
-  return { green: values[0], cream: values[1], preorder: { green: open ? values[2] : 0, cream: open ? values[3] : 0 }, batch: PREORDER_BATCH, timing: PREORDER_TIMING, localTest: localStockTest() };
+  const open = PREORDER_MODE;
+  return { green: PREORDER_MODE ? 0 : values[0], cream: PREORDER_MODE ? 0 : values[1], preorder: { green: open ? values[2] : 0, cream: open ? values[3] : 0 }, batch: PREORDER_BATCH, timing: PREORDER_TIMING, localTest: localStockTest() };
 }
 // Returned stock belongs to paid customers before new checkouts. Run inside the
 // same Redis operation as a release/commit so no buyer can take it in between.
@@ -33,7 +34,7 @@ local function allocatePaid(stock, quota, orders, received)
   local rows = redis.call('HGETALL', orders)
   for i = 1, #rows, 2 do
     local d = cjson.decode(rows[i + 1])
-    if d.status == 'paid' and ((d.preorderGreen or 0) > 0 or (d.preorderCream or 0) > 0) then
+    if d.status == 'paid' and not d.preorderOnly and ((d.preorderGreen or 0) > 0 or (d.preorderCream or 0) > 0) then
       table.insert(waiting, {reference=rows[i], allocation=d})
     end
   end
@@ -75,6 +76,7 @@ allocatePaid(KEYS[1], KEYS[2], KEYS[3], KEYS[4])
 if redis.call('HEXISTS', KEYS[3], ARGV[1]) == 1 then return {0, 0, 0} end
 local g = tonumber(redis.call('HGET', KEYS[1], 'green'))
 local c = tonumber(redis.call('HGET', KEYS[1], 'cream'))
+if ARGV[7] == '1' then g = 0; c = 0 end
 local pg = math.max(0, tonumber(ARGV[2]) - g)
 local pc = math.max(0, tonumber(ARGV[3]) - c)
 if pg > tonumber(ARGV[4]) or pc > tonumber(ARGV[5]) then return {0, 0, 0} end
@@ -83,15 +85,15 @@ redis.call('HINCRBY', KEYS[1], 'green', -(tonumber(ARGV[2]) - pg))
 redis.call('HINCRBY', KEYS[1], 'cream', -(tonumber(ARGV[3]) - pc))
 redis.call('HINCRBY', KEYS[2], 'green', -pg)
 redis.call('HINCRBY', KEYS[2], 'cream', -pc)
-redis.call('HSET', KEYS[3], ARGV[1], cjson.encode({green=tonumber(ARGV[2]), cream=tonumber(ARGV[3]), preorderGreen=pg, preorderCream=pc, status='held', createdAt=ARGV[6]}))
+redis.call('HSET', KEYS[3], ARGV[1], cjson.encode({green=tonumber(ARGV[2]), cream=tonumber(ARGV[3]), preorderGreen=pg, preorderCream=pc, status='held', createdAt=ARGV[6], preorderOnly=ARGV[7] == '1'}))
 return {1, pg, pc}
 `;
 export async function reservePurchase(cart: CartState, reference: string, consent: unknown): Promise<{ reserved: boolean; preorder?: PreorderDetails }> {
   await seed();
   const d = consent as { batch?: string; quantities?: CartState; accepted?: boolean } | undefined;
-  const accepted = d?.accepted === true && d.batch === PREORDER_BATCH && Date.now() < Date.parse(`${PREORDER_BATCH}T00:00:00+02:00`);
+  const accepted = d?.accepted === true && d.batch === PREORDER_BATCH && PREORDER_MODE;
   const safe = (n: unknown) => typeof n === 'number' && Number.isSafeInteger(n) && n >= 0 && n <= 99 ? n : 0;
-  const r = await adminStore().eval<(string | number)[], number[]>(RESERVE_PURCHASE, [stockKey(), quotaKey(), `${prefix()}:orders`, `${prefix()}:received:${PREORDER_BATCH}`], [reference, cart.green, cart.cream, accepted ? safe(d?.quantities?.green) : 0, accepted ? safe(d?.quantities?.cream) : 0, new Date().toISOString()]);
+  const r = await adminStore().eval<(string | number)[], number[]>(RESERVE_PURCHASE, [stockKey(), quotaKey(), `${prefix()}:orders`, `${prefix()}:received:${PREORDER_BATCH}`], [reference, cart.green, cart.cream, accepted ? safe(d?.quantities?.green) : 0, accepted ? safe(d?.quantities?.cream) : 0, new Date().toISOString(), PREORDER_MODE ? '1' : '0']);
   return { reserved: r[0] === 1, ...(r[1] + r[2] > 0 ? { preorder: { batch: PREORDER_BATCH, arrival: PREORDER_ARRIVAL, quantities: { green: r[1], cream: r[2] } } } : {}) };
 }
 export const COMMIT_PURCHASE = `${REALLOCATE_PAID}
@@ -211,7 +213,7 @@ export async function expirePurchaseReservations(now = Date.now()) {
         if (payment.status === 'success') {
           const cart = sanitizeCart(payment.metadata?.cart);
           const voucher = parseVoucherMetadata(payment.metadata?.voucher);
-          if (payment.metadata?.inventoryReservation !== reference || cart.green !== order.green || cart.cream !== order.cream || payment.currency !== 'ZAR' || payment.amount !== discountedCheckoutTotal(cart, payment.metadata?.shippingMethod, voucher?.amount ?? 0) * 100)
+          if (payment.metadata?.inventoryReservation !== reference || cart.green !== order.green || cart.cream !== order.cream || payment.currency !== 'ZAR' || payment.amount !== paidCheckoutTotal(cart, payment.metadata?.shippingMethod, voucher?.amount ?? 0, payment.metadata?.unitPrice) * 100)
             throw new Error('Paid reservation requires reconciliation');
           if (await commitPurchase(reference, cart)) result.paid++;
           else result.retained++;

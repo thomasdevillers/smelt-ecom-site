@@ -1,3 +1,4 @@
+import { PREORDER_MODE } from "@/lib/salesMode";
 import Image from "next/image";
 import Button from "./ui/Button";
 import StarMark from "./ui/StarMark";
@@ -16,7 +17,7 @@ export default function Hero() {
         </p>
         <div className={styles.ctas}>
           <Button href="/product" variant="solid">
-            Shop now <span>→</span>
+            {PREORDER_MODE ? "Pre-order · R450" : "Shop now"} <span>→</span>
           </Button>
         </div>
         <div className={styles.stars}>
@@ -31,7 +32,8 @@ export default function Hero() {
           width={330}
           height={330}
           className={styles.hat}
-          priority
+          loading="eager"
+          fetchPriority="high"
         />
       </div>
     </section>

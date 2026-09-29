@@ -5,7 +5,7 @@ import { Resend } from "resend";
 import { ownerOrderEmail } from "./emails/ownerOrder";
 import { orderConfirmationEmail } from "./emails/orderConfirmation";
 import { sanitizeAddress } from "./address";
-import { discountedCheckoutTotal, sanitizeCart } from "./checkoutShared";
+import { paidCheckoutTotal, paidUnitPrice, sanitizeCart } from "./checkoutShared";
 import { PRODUCT } from "./product";
 import type { CartState } from "./cartReducer";
 import { formatMoney, parseShippingMethod } from "./pricing";
@@ -23,6 +23,7 @@ export interface ConfirmedOrder {
   shippingMethod?: unknown;
   preorder?: unknown;
   voucher?: unknown;
+  unitPrice?: unknown;
 }
 
 type Message = { from: string; to: string; subject: string; html: string; text: string };
@@ -39,7 +40,7 @@ async function sendOrderEmail(order: ConfirmedOrder, audience: "customer" | "own
   const email = typeof order.email === "string" ? order.email.trim() : "";
   const cart = sanitizeCart(order.cart);
   const voucher = parseVoucherMetadata(order.voucher);
-  const expectedTotal = discountedCheckoutTotal(cart, order.shippingMethod, voucher?.amount ?? 0);
+  const expectedTotal = paidCheckoutTotal(cart, order.shippingMethod, voucher?.amount ?? 0, order.unitPrice);
   if (!reference || !/^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(email) ||
       expectedTotal <= 0 || order.currency !== "ZAR" || expectedTotal * 100 !== order.amount) {
     throw new Error("order_confirmation_invalid_payment_data");
@@ -71,7 +72,7 @@ async function sendOrderEmail(order: ConfirmedOrder, audience: "customer" | "own
       address: order.address ? sanitizeAddress(order.address) : null,
     };
     const message = audience === "owner"
-      ? ownerOrderEmail({ ...details, email, customerName: typeof order.customerName === "string" ? order.customerName.trim() : "", paidAt: order.paidAt, cart, test: !process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_") })
+      ? ownerOrderEmail({ ...details, email, customerName: typeof order.customerName === "string" ? order.customerName.trim() : "", paidAt: order.paidAt, cart, unitPrice: paidUnitPrice(order.unitPrice), test: !process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_") })
       : orderConfirmationEmail(details);
     receipt = await db.eval<unknown[], Receipt>(PREPARE_CONFIRMATION, [key], [JSON.stringify({
       status: "pending", startedAt: Date.now(), message: { from, to: audience === "owner" ? "thomasdevilliers100@gmail.com" : email, ...message },

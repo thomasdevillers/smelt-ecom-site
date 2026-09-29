@@ -39,6 +39,8 @@ vi.mock("./reviewStore", () => ({
 import { processReviewRequests, processReviewRewards } from "./reviewAutomation";
 
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-09-22T10:00:00.000Z"));
   vi.clearAllMocks(); mocks.values.clear(); mocks.queued.splice(0); Object.keys(mocks.completed).forEach(key => delete mocks.completed[key]);
   Object.entries({
     UPSTASH_REDIS_REST_URL: "https://redis.example.com", UPSTASH_REDIS_REST_TOKEN: "test",
@@ -49,7 +51,7 @@ beforeEach(() => {
   mocks.createInvitation.mockResolvedValue({ token: "private-token", email: "buyer@example.com", suggestedName: "Tumi" });
   mocks.hasInvite.mockResolvedValue(false); mocks.hasReview.mockResolvedValue(false);
 });
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
 
 describe("review outreach automation", () => {
   it("emails a personal review link ten days after completion and deduplicates it", async () => {

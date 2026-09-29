@@ -5,7 +5,7 @@ import { sendTikTokPurchase } from "@/lib/tiktokEvents";
 import type { TikTokClientContext } from "@/lib/tiktok";
 import { verifyTransaction } from "@/lib/paystack";
 import type { OrderItem } from "@/lib/orderTypes";
-import { discountedCheckoutTotal, sanitizeCart } from "@/lib/checkoutShared";
+import { paidCheckoutTotal, sanitizeCart } from "@/lib/checkoutShared";
 import { parseShippingMethod } from "@/lib/pricing";
 import { PRODUCT } from "@/lib/product";
 import { type CartState } from "@/lib/cartReducer";
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
       items?: OrderItem[];
       inventoryReservation?: unknown;
       preorder?: unknown;
-      voucher?: unknown;
+      voucher?: unknown; unitPrice?: unknown;
     } | null;
 
     const cart = sanitizeCart(meta?.cart ?? body.cart);
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     // tampered client could pay for a cheap cart while claiming an expensive
     // one in `items`/`cart`.
     const voucher = parseVoucherMetadata(meta?.voucher);
-    const expectedAmountRand = discountedCheckoutTotal(cart, meta?.shippingMethod, voucher?.amount ?? 0);
+    const expectedAmountRand = paidCheckoutTotal(cart, meta?.shippingMethod, voucher?.amount ?? 0, meta?.unitPrice);
     const paidAmountRand = Math.round(verified.amount / 100);
     const amountMatches = expectedAmountRand > 0 && verified.amount === expectedAmountRand * 100 && verified.currency === "ZAR";
 
@@ -106,7 +106,7 @@ export async function POST(request: Request) {
 
     after(() => tryOrderConfirmation({
       reference: verified.reference, email: verified.customerEmail ?? "", customerName: meta?.customerName, paidAt: verified.paidAt,
-      amount: verified.amount, currency: verified.currency, cart, address: meta?.shippingAddress, shippingMethod: meta?.shippingMethod, preorder: meta?.preorder, voucher: meta?.voucher,
+      amount: verified.amount, currency: verified.currency, cart, address: meta?.shippingAddress, shippingMethod: meta?.shippingMethod, preorder: meta?.preorder, voucher: meta?.voucher, unitPrice: meta?.unitPrice,
     }));
     after(() => sendTikTokPurchase({
       reference: verified.reference, email: verified.customerEmail ?? "",
@@ -154,11 +154,11 @@ export async function GET(request: Request) {
       shippingMethod?: unknown;
       inventoryReservation?: unknown;
       preorder?: unknown;
-      voucher?: unknown;
+      voucher?: unknown; unitPrice?: unknown;
     } | null;
     const cart = sanitizeCart(meta?.cart);
     const voucher = parseVoucherMetadata(meta?.voucher);
-    const expectedAmount = discountedCheckoutTotal(cart, meta?.shippingMethod, voucher?.amount ?? 0);
+    const expectedAmount = paidCheckoutTotal(cart, meta?.shippingMethod, voucher?.amount ?? 0, meta?.unitPrice);
     if (expectedAmount * 100 !== verified.amount || expectedAmount <= 0 || verified.currency !== "ZAR") {
       return Response.json({ error: "Payment total does not match the order." }, { status: 409 });
     }
@@ -172,7 +172,7 @@ export async function GET(request: Request) {
     }
     after(() => tryOrderConfirmation({
       reference: verified.reference, email: verified.customerEmail ?? "", customerName: meta?.customerName, paidAt: verified.paidAt,
-      amount: verified.amount, currency: verified.currency, cart, address: meta?.shippingAddress, shippingMethod: meta?.shippingMethod, preorder: meta?.preorder, voucher: meta?.voucher,
+      amount: verified.amount, currency: verified.currency, cart, address: meta?.shippingAddress, shippingMethod: meta?.shippingMethod, preorder: meta?.preorder, voucher: meta?.voucher, unitPrice: meta?.unitPrice,
     }));
     after(() => sendTikTokPurchase({
       reference: verified.reference, email: verified.customerEmail ?? "",

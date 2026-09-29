@@ -1,4 +1,5 @@
 'use client';
+import { PREORDER_MODE } from '@/lib/salesMode';
 import { useState } from 'react';
 import { PRODUCT, type Colour } from '@/lib/product';
 import styles from './RestockChoice.module.css';
@@ -38,6 +39,11 @@ export default function RestockChoice({ colour, colours, bundle, timing, canPreo
     else setPhone('');
     setBusy(false);
   }
+
+  if (PREORDER_MODE) return <aside className={styles.choice}>
+    <strong>{canPreorder ? 'Reserve yours with full payment' : 'Pre-orders full for this selection'}</strong>
+    <p>{timing}</p>
+  </aside>;
 
   return <aside className={styles.choice}>
     <span className={styles.eyebrow}>{bundle ? 'Two-hat bundle' : names(options)}</span>

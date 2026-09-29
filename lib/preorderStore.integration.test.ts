@@ -17,6 +17,20 @@ describe.skipIf(process.env.RUN_INVENTORY_REDIS_TESTS !== '1')('atomic purchase 
   });
   afterEach(async () => { if (keys) await db.del(...keys); });
   const reserve = (id: string, g: number, c: number, pg: number, pc: number) => db.eval(RESERVE_PURCHASE, keys, [id, g, c, pg, pc, '2026-09-22T10:00:00.000Z']);
+  it('forces all campaign hats into the incoming batch despite stale physical stock', async () => {
+    expect(await db.eval(RESERVE_PURCHASE, keys, ['campaign', 1, 1, 1, 1, '2026-09-29T10:00:00.000Z', '1'])).toEqual([1, 1, 1]);
+    expect(await db.hgetall(keys[0])).toEqual({ green: 1, cream: 0 });
+    expect(await db.hgetall(keys[1])).toEqual({ green: 1, cream: 1 });
+    expect(await db.eval(COMMIT_PURCHASE, [keys[2], keys[0], keys[1], keys[3]], ['campaign', 1, 1])).toBe(1);
+    expect(await db.hget(keys[2], 'campaign')).toMatchObject({ preorderGreen: 1, preorderCream: 1, preorderOnly: true });
+    expect(await db.eval(RECEIVE_BATCH, keys, [100, 100, 'received'])).toBe(1);
+    expect(await db.hgetall(keys[0])).toEqual({ green: 100, cream: 99 });
+  });
+  it('requires consent even if old physical counters suggest availability', async () => {
+    expect(await db.eval(RESERVE_PURCHASE, keys, ['campaign', 1, 0, 0, 0, '2026-09-29T10:00:00.000Z', '1'])).toEqual([0, 0, 0]);
+    expect(await db.hgetall(keys[0])).toEqual({ green: 1, cream: 0 });
+    expect(await db.hgetall(keys[1])).toEqual({ green: 2, cream: 2 });
+  });
   it('requires explicit consent for the shortfall and leaves both colours unchanged on rejection', async () => {
     expect(await reserve('no-consent', 2, 1, 0, 0)).toEqual([0, 0, 0]);
     expect(await db.hgetall(keys[0])).toEqual({ green: 1, cream: 0 });

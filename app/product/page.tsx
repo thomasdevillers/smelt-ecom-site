@@ -1,3 +1,4 @@
+import { PREORDER_MODE } from "@/lib/salesMode";
 import type { Metadata } from "next";
 import ProductClient from "@/components/ProductClient";
 import { PRODUCT } from "@/lib/product";
@@ -41,7 +42,7 @@ const productLd = {
     priceCurrency: "ZAR",
     price: BASE_PRICE,
     priceValidUntil: PRICE_VALID_UNTIL,
-    // Availability is loaded live; do not publish a static in-stock claim.
+    ...(PREORDER_MODE ? { availability: "https://schema.org/PreOrder" } : {}),
     itemCondition: "https://schema.org/NewCondition",
     hasMerchantReturnPolicy: {
       "@type": "MerchantReturnPolicy",
