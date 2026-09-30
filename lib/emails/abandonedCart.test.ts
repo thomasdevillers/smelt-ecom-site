@@ -6,8 +6,8 @@ describe("abandonedCartEmail", () => {
     name: "Sam", items: [{ colour: "green", name: "Forest Green", qty: 1 }],
     total: "R540", cartUrl: "https://saunahat.co.za/cart",
   });
-  it("has a warming-up subject", () => {
-    expect(e.subject).toMatch(/warming up/i);
+  it("has a pre-order subject", () => {
+    expect(e.subject).toMatch(/pre-order/i);
   });
   it("greets by name, links to cart, and offers an opt-out", () => {
     expect(e.html).toContain("Sam");
