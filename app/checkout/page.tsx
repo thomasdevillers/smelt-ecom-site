@@ -1,7 +1,6 @@
 "use client";
 import { useAvailability } from "@/lib/useAvailability";
 import { hasPreorder, preorderQuantities } from "@/lib/preorders";
-import PreorderNotice from "@/components/PreorderNotice";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
@@ -24,10 +23,8 @@ type AppliedVoucher = { code: string; amount: number; expiresAt: string; email: 
 export default function CheckoutPage() {
   const { cart, subtotal, dispatch } = useCart();
   const { stock, error: stockError, refresh } = useAvailability();
-  const [acceptedPreorder, setAcceptedPreorder] = useState("");
   const quantities = stock ? preorderQuantities(cart, stock) : { green: 0, cream: 0 };
   const needsPreorder = hasPreorder(quantities);
-  const consentKey = stock ? JSON.stringify([stock.batch, cart, quantities]) : "";
   const available = stock !== null && cart.green <= stock.green + stock.preorder.green && cart.cream <= stock.cream + stock.preorder.cream;
   const lines = COLOURS.filter((c) => cart[c] > 0);
   const checkoutTracked = useRef(false);
@@ -125,8 +122,8 @@ export default function CheckoutPage() {
   async function handlePay(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!available || (needsPreorder && acceptedPreorder !== consentKey)) {
-      setError("Review availability and accept the pre-order timing before paying."); setStatus("error"); return;
+    if (!available) {
+      setError("Review availability before paying."); setStatus("error"); return;
     }
     if (voucherCode.trim() && !activeVoucher) {
       setError("Your email discount has not been applied yet. Check the message above before paying."); setStatus("error"); return;
@@ -306,7 +303,6 @@ export default function CheckoutPage() {
           {voucherError && <button type="button" onClick={() => setVoucherAttempt(attempt => attempt + 1)}>Retry discount</button>}
           <button type="button" onClick={clearEmailDiscount}>Continue without discount</button>
         </div>}
-        <PreorderNotice />
         {stockError && <p role="alert">{stockError} <button onClick={() => void refresh()}>Retry availability</button></p>}
         {stock && !available && <p role="alert">Some quantities exceed available stock and pre-order capacity. <Link href="/cart">Edit your bag</Link>.</p>}
         {lines.length > 0 && (
@@ -483,12 +479,11 @@ export default function CheckoutPage() {
                 required
               />
             </label>
-            {needsPreorder && <label className={styles.shippingOption}><input type="checkbox" required checked={acceptedPreorder === consentKey} onChange={e => setAcceptedPreorder(e.target.checked ? consentKey : "")} /><span>I understand this is a paid pre-order. {stock?.timing} All hats will ship together. I can cancel before dispatch for a full refund by contacting hello@saunahat.co.za.</span></label>}
             {status === "error" && <p className={styles.err}>{error}</p>}
             <button
               className={styles.pay}
               type="submit"
-              disabled={status === "submitting" || Boolean(voucherCode && !activeVoucher) || !available || (needsPreorder && acceptedPreorder !== consentKey)}
+              disabled={status === "submitting" || Boolean(voucherCode && !activeVoucher) || !available}
             >
               {status === "submitting"
                 ? "Starting secure checkout…"
