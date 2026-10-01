@@ -474,7 +474,7 @@ export default function CheckoutPage() {
                 autoComplete="tel"
                 value={address.phone}
                 onChange={(e) => setAddr("phone", e.target.value)}
-                placeholder="+27 82 000 0000"
+                placeholder="0832342234"
                 required
               />
             </label>
