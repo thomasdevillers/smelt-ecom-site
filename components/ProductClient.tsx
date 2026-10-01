@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import ProductGallery from "@/components/ProductGallery";
 import Accordion from "@/components/Accordion";
 import HairPSA from "@/components/HairPSA";
+import InTheWild from "@/components/InTheWild";
 import ProductReviews from "@/components/ProductReviews";
 import { POLICIES } from "@/content/policies";
 import SectionLabel from "@/components/ui/SectionLabel";
@@ -232,6 +233,7 @@ export default function ProductClient() {
 
       <ProductReviews />
       <HairPSA />
+      <InTheWild />
       <div className={styles.stickyBar}>
         <div className={styles.stickyInfo}>{selectionLabel} · {formatMoney(total)}</div>
         <button className={styles.stickyAdd} onClick={add} disabled={!selectionInStock}>{stock === null ? "Checking…" : selectionInStock ? (isPreorder ? purchaseOption === "bundle" ? "Pre-order two" : "Pre-order" : purchaseOption === "bundle" ? "Add two" : "Add to bag") : unavailableLabel}</button>

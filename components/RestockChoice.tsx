@@ -40,11 +40,6 @@ export default function RestockChoice({ colour, colours, bundle, timing, canPreo
     setBusy(false);
   }
 
-  if (PREORDER_MODE) return <aside className={styles.choice}>
-    <strong>{canPreorder ? 'Reserve yours with full payment' : 'Pre-orders full for this selection'}</strong>
-    <p>{timing}</p>
-  </aside>;
-
   return <aside className={styles.choice}>
     <span className={styles.eyebrow}>{bundle ? 'Two-hat bundle' : names(options)}</span>
     <h3>{canPreorder ? 'Pre-order or get notified' : 'Get a restock alert'}</h3>
