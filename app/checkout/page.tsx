@@ -267,8 +267,7 @@ export default function CheckoutPage() {
 
         <h1 className={styles.h1}>Almost warm.</h1>
         <p className={styles.copy}>
-          Enter your delivery details and we&rsquo;ll confirm each colour is still
-          available before opening secure payment.
+          Enter your delivery details.
         </p>
 
         {lines.length > 0 ? (
@@ -281,10 +280,6 @@ export default function CheckoutPage() {
                 <span>{formatMoney(lineTotal(cart[c]))}</span>
               </div>
             ))}
-            <div className={styles.row}>
-              <span>Subtotal</span>
-              <span>{formatMoney(subtotal)}</span>
-            </div>
             <div className={styles.row}>
               <span>{SHIPPING_OPTIONS[shippingMethod].label}</span>
               <span>
