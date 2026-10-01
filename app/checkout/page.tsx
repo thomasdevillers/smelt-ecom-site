@@ -316,7 +316,7 @@ export default function CheckoutPage() {
               {shippingChoice("aramex")}
             </fieldset>
             <label className={styles.field}>
-              <span className={styles.label}>Email for your order and checkout support</span>
+              <span className={styles.label}>Email Address</span>
               <input
                 className={styles.input}
                 type="email"
@@ -494,7 +494,6 @@ export default function CheckoutPage() {
                 ? "Starting secure checkout…"
                 : `${needsPreorder ? "Pay for pre-order" : "Pay"} ${formatMoney(totalAmount)} securely`}
             </button>
-            <p className={styles.secure}>Card and available secure payment methods powered by Paystack.</p>
           </form>
         )}
 
