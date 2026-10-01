@@ -10,7 +10,6 @@ import { trackVercelEvent, vercelProductData } from "@/lib/vercelAnalytics";
 import { useAvailability } from "@/lib/useAvailability";
 import { PREORDER_MODE } from "@/lib/salesMode";
 import PreorderPrice from "./PreorderPrice";
-import RestockChoice from "@/components/RestockChoice";
 
 export default function ProductExplorer() {
   const [colour, setColour] = useState<Colour>("green");
@@ -83,7 +82,6 @@ export default function ProductExplorer() {
             {stock === null ? "Checking stock…" : inStock ? `${isPreorder ? "Pre-order" : "Add to bag"} · ${formatMoney(BASE_PRICE)}` : PREORDER_MODE ? "Pre-orders fully reserved" : stock[colour] === 0 ? "Out of stock" : "Not enough stock"}
           </button>
           {stockError && <p role="alert">{stockError} <button onClick={() => void refresh()}>Retry</button></p>}
-          {stock && stock[colour] === 0 && <RestockChoice key={colour} colour={colour} timing={stock.timing} canPreorder={stock.preorder[colour] > 0} />}
         </div>
       </div>
     </section>

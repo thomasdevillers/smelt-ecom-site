@@ -180,7 +180,6 @@ export default function CheckoutPage() {
         trackCheckoutStage("CheckoutError");
         setError(data.error || "Could not start secure payment. Please try again.");
         setStatus("error");
-        setAcceptedPreorder("");
         void refresh();
         return;
       }

@@ -21,7 +21,6 @@ import styles from "@/app/product/product.module.css";
 import { useAvailability } from "@/lib/useAvailability";
 import { PREORDER_MODE } from "@/lib/salesMode";
 import PreorderPrice from "./PreorderPrice";
-import RestockChoice from "@/components/RestockChoice";
 
 type PurchaseOption = "single" | "bundle";
 type BundleMix = "mixed" | "green" | "cream";
@@ -91,7 +90,6 @@ export default function ProductClient() {
     return stock[value] >= cart[value] + 2 ? "In stock" : "Extra hats on pre-order";
   };
   const selectedColours = COLOURS.filter(c => purchaseOption === "single" ? c === colour : bundleMix === "mixed" || c === bundleMix);
-  const waitingColours = selectedColours.filter(c => stock && cart[c] + (purchaseOption === "bundle" && bundleMix !== "mixed" ? 2 : 1) > stock[c]);
   const unavailableLabel = PREORDER_MODE ? "Pre-orders fully reserved" : purchaseOption === "single" && stock?.[colour] === 0
     ? "Out of stock"
     : "Not enough stock";
@@ -195,7 +193,7 @@ export default function ProductClient() {
               const ready = Math.min(qty, Math.max(0, stock[c] - cart[c]));
               return <li key={c}><span>{qty} × {PRODUCT.variants[c].name}</span><span>{PREORDER_MODE ? "Pre-order" : ready === qty ? "In stock" : stock[c] === 0 ? "Out of stock" : ready > 0 ? `${ready} in stock · ${qty - ready} on pre-order` : "Additional hats on pre-order"}</span></li>;
             })}</ul>
-            {isPreorder && <p>{selectionInStock ? "Both hats ship together. Free delivery." : (PREORDER_MODE ? "Choose another available mix." : "Choose another mix or get a restock alert below.")}</p>}
+            {isPreorder && <p>{selectionInStock ? "Both hats ship together. Free delivery." : "Choose another available mix."}</p>}
           </div>}
 
           <button className={styles.add} onClick={add} disabled={!selectionInStock}>
@@ -203,9 +201,6 @@ export default function ProductClient() {
           </button>
 
           {stockError && <p role="alert">{stockError} <button onClick={() => void refresh()}>Retry</button></p>}
-          {stock && waitingColours.length > 0 && (purchaseOption === "bundle"
-            ? <RestockChoice key={`bundle-${bundleMix}-${waitingColours.join("-")}`} colours={waitingColours} bundle timing={stock.timing} canPreorder={selectionInStock} />
-            : <RestockChoice key={colour} colour={colour} timing={stock.timing} canPreorder={selectionInStock} />)}
           {!isPreorder && <div className={styles.reassure}>
             <span>In-stock orders dispatched from Cape Town within 1–3 business days</span>
           </div>}
