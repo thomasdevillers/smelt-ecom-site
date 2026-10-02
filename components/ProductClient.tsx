@@ -8,6 +8,7 @@ import HairPSA from "@/components/HairPSA";
 import InTheWild from "@/components/InTheWild";
 import Faq from "@/components/Faq";
 import ProductReviews from "@/components/ProductReviews";
+import AskAboutHat from "@/components/AskAboutHat";
 import { POLICIES } from "@/content/policies";
 import SectionLabel from "@/components/ui/SectionLabel";
 import { COLOURS, PRODUCT, type Colour } from "@/lib/product";
@@ -205,6 +206,8 @@ export default function ProductClient() {
           {!isPreorder && <div className={styles.reassure}>
             <span>In-stock orders dispatched from Cape Town within 1–3 business days</span>
           </div>}
+
+          {process.env.NEXT_PUBLIC_ASK_HAT_ENABLED !== "false" && <AskAboutHat />}
 
           <div className={styles.accordions}>
             <Accordion title="Details" defaultOpen>

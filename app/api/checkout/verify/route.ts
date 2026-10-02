@@ -13,6 +13,7 @@ import { sendMetaPurchase } from "@/lib/metaConversions";
 import type { MetaClientContext } from "@/lib/meta";
 import { commitInventory } from "@/lib/inventory";
 import { commitVoucher, parseVoucherMetadata } from "@/lib/vouchers";
+import { getDeliveryAddress } from "@/lib/deliveryMap";
 
 async function commitReservedStock(reservation: unknown, cart: CartState, reference: string): Promise<boolean> {
   if (reference.startsWith("smeltp-") && reservation !== reference) return false;
@@ -184,6 +185,7 @@ export async function GET(request: Request) {
       paid: true,
       preorder: await resolvePurchasePreorder(verified.reference, meta?.preorder),
       shippingMethod: parseShippingMethod(meta?.shippingMethod),
+      address: getDeliveryAddress(meta?.shippingAddress),
       reference: verified.reference,
       amountRand: Math.round(verified.amount / 100),
       discountRand: voucher?.amount ?? 0,
@@ -191,7 +193,7 @@ export async function GET(request: Request) {
       items: (Object.keys(cart) as Array<keyof CartState>)
         .filter((colour) => cart[colour] > 0)
         .map((colour) => ({ colour, name: PRODUCT.variants[colour].name, qty: cart[colour] })),
-    });
+    }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (err) {
     console.error("Paystack read verification error:", err);
     return Response.json(

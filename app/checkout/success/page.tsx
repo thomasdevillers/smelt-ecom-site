@@ -1,6 +1,8 @@
 "use client";
 import { parsePreorder, preorderTiming, type PreorderDetails } from "@/lib/preorders";
 import SocialLinks from "@/components/SocialLinks";
+import DeliveryMap from "@/components/DeliveryMap";
+import { getDeliveryAddress, type DeliveryAddress } from "@/lib/deliveryMap";
 import { SOCIAL_HANDLE } from "@/content/social";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -22,7 +24,7 @@ interface PaidItem {
 
 type State =
   | { kind: "verifying" }
-  | { kind: "paid"; preorder?: PreorderDetails; amount: number; reference: string; items: PaidItem[]; shippingMethod: ShippingMethod }
+  | { kind: "paid"; preorder?: PreorderDetails; amount: number; reference: string; items: PaidItem[]; shippingMethod: ShippingMethod; address: DeliveryAddress | null }
   | { kind: "failed"; message: string };
 
 export default function CheckoutSuccessPage() {
@@ -91,6 +93,7 @@ export default function CheckoutSuccessPage() {
             reference: data.reference,
             items: data.items ?? [],
             shippingMethod: parseShippingMethod(data.shippingMethod) ?? "aramex",
+            address: getDeliveryAddress(data.address),
           });
         } else {
           setState({
@@ -142,6 +145,7 @@ export default function CheckoutSuccessPage() {
                 <span>{state.reference}</span>
               </div>
             </div>
+            {state.address && <DeliveryMap address={state.address} />}
             <div className={styles.social}>
               <p className={styles.copy}>
                 See you on the bench. Tag {SOCIAL_HANDLE} when your hat arrives.

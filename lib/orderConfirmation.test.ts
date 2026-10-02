@@ -64,6 +64,29 @@ async function flush() {
 }
 
 describe("confirmation delivery", () => {
+  it("returns only sanitized delivery fields after verified payment and prevents caching", async () => {
+    mocks.verify.mockResolvedValueOnce({ ...order, status: "success", metadata: {
+      cart: order.cart,
+      shippingAddress: { line1: " 1 Test Street ", city: "Cape Town", province: "Western Cape",
+        postalCode: "8001", phone: "0831234567",
+        lat: -33.9249, lng: 18.4241, placeId: "test-place", secret: "private" },
+    } });
+    const response = await verifyGet(new Request(`https://example.com/api/checkout/verify?reference=${order.reference}`));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    const data = await response.json();
+    expect(data.address).toMatchObject({ line1: "1 Test Street", lat: -33.9249, lng: 18.4241, placeId: "test-place" });
+    expect(data.address).not.toHaveProperty("phone");
+    expect(data.address).not.toHaveProperty("secret");
+  });
+
+  it("keeps historical paid orders without delivery metadata accessible", async () => {
+    mocks.verify.mockResolvedValueOnce({ ...order, status: "success", metadata: { cart: order.cart } });
+    const response = await verifyGet(new Request(`https://example.com/api/checkout/verify?reference=${order.reference}`));
+    expect(response.status).toBe(200);
+    expect((await response.json()).address).toBeNull();
+  });
+
   it("sends the branded receipt with reconciled total, catalogue items, and address", async () => {
     await sendOrderConfirmation(order);
     const message = mocks.send.mock.calls[0][0];

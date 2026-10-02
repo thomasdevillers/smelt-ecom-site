@@ -15,6 +15,15 @@ type EventName =
 type Properties = { colour: string; quantity: number };
 const purchases = new Set<string>();
 
+/** Measure assistant use without sending customer questions or conversation text. */
+export function trackHatAssistantEvent(
+  event: "AskHatOpened" | "AskHatQuestion" | "AskHatAnswered" | "AskHatError",
+  properties: { needsHuman?: boolean } = {},
+): void {
+  if (typeof window === "undefined") return;
+  try { track(event, properties); } catch { /* Assistant use must not depend on analytics. */ }
+}
+
 export function vercelProductData(colour: Colour, quantity: number): Properties {
   return { colour, quantity };
 }
