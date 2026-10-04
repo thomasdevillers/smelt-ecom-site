@@ -12,6 +12,9 @@ const bricolage = Bricolage_Grotesque({
 const space = Space_Grotesk({
   subsets: ['latin'],
   variable: '--font-space',
+  // Body copy: if the font misses the first paint, keep the fallback rather
+  // than swapping mid-read, which re-wraps the hero and shifts the layout.
+  display: 'optional',
 })
 const caveat = Caveat({
   subsets: ['latin'],

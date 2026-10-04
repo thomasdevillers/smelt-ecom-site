@@ -24,14 +24,19 @@ export default function SiteChrome({ children, structuredData }: { children: Rea
     <CartDrawer />
   </CartProvider>;
   return <>
-        <Script id="meta-pixel" strategy="lazyOnload">
+        {/* The fbq stub queues events immediately; the heavy fbevents.js (two
+            ~400ms main-thread tasks) is only fetched on the first interaction,
+            then flushes the queue. Keeps it out of page load entirely. */}
+        <Script id="meta-pixel">
           {`!function(f,b,e,v,n,t,s)
 {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
 n.callMethod.apply(n,arguments):n.queue.push(arguments)};
 if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-n.queue=[];t=b.createElement(e);t.async=!0;
-t.src=v;s=b.getElementsByTagName(e)[0];
-s.parentNode.insertBefore(t,s)}(window, document,'script',
+n.queue=[];var ev=['pointerdown','keydown','scroll','touchstart'];
+var load=function(){ev.forEach(function(x){f.removeEventListener(x,load)});
+t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)};
+ev.forEach(function(x){f.addEventListener(x,load,{once:true,passive:true})})}(window, document,'script',
 'https://connect.facebook.net/en_US/fbevents.js');
 fbq('init', '${META_PIXEL_ID}');
 fbq('track', 'PageView');
