@@ -79,7 +79,7 @@
 }
 
 .star {
-  color: var(--terracotta);
+  color: var(--terracotta-text);
 }
 
 @media (min-width: 640px) {

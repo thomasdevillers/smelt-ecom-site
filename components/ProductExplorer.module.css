@@ -7,7 +7,7 @@
 .panel { border: var(--border-ink); border-radius: var(--radius-card); padding: 28px 24px; display: flex; flex-direction: column; gap: 22px; }
 .name { font-family: var(--font-bricolage), sans-serif; font-weight: 700; font-size: 28px; letter-spacing: -.02em; margin: 0 0 4px; }
 .price { font-size: 15px; color: rgba(14,59,42,.7); }
-.optLabel { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: rgba(14,59,42,.55); margin-bottom: 10px; }
+.optLabel { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: rgba(14,59,42,.72); margin-bottom: 10px; }
 .chips { display: flex; gap: 10px; flex-wrap: wrap; }
 .chip { display: grid; justify-items: start; gap: 2px; padding: 10px 16px; border-radius: var(--radius-pill); cursor: pointer; font-family: inherit; font-weight: 600; font-size: 13px; border: 1px solid rgba(14,59,42,.3); background: transparent; color: var(--ink); min-height: 48px; }
 .chip small { font-size: 10px; font-weight: 700; opacity: .72; }
@@ -15,7 +15,7 @@
 .chip:disabled { cursor: not-allowed; opacity: .52; text-decoration: line-through; }
 .add { margin-top: 6px; background: var(--ink); color: var(--paper); border: none; border-radius: 14px; padding: 17px; font-family: inherit; font-weight: 600; font-size: 15px; cursor: pointer; min-height: 52px; }
 .add:disabled { cursor: not-allowed; opacity: .55; }
-.reassure { font-size: 13px; color: rgba(14,59,42,.6); line-height: 1.5; }
+.reassure { font-size: 13px; color: rgba(14,59,42,.72); line-height: 1.5; }
 
 @media (min-width: 880px) {
   .section { padding: 88px 32px 40px; }

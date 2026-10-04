@@ -5,7 +5,7 @@
 .price { font-size: 20px; font-weight: 700; margin-bottom: 16px; }
 .productAssistant { margin-bottom: 24px; }
 .opt { margin-bottom: 20px; }
-.optLabel { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: rgba(14,59,42,.55); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.optLabel { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: rgba(14,59,42,.72); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
 .purchaseOptions { min-width: 0; margin: 0 0 22px; padding: 0; border: 0; display: grid; gap: 10px; }
 .purchaseCard { position: relative; display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 12px; padding: 15px; border: var(--border-ink-soft); border-radius: 14px; cursor: pointer; transition: background .2s ease, border-color .2s ease; }
 .purchaseCardWithBanner { padding-top: 32px; }
@@ -16,9 +16,9 @@
 .purchaseCard > span { display: grid; gap: 4px; min-width: 0; }
 .purchaseCard strong { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; font-size: 15px; }
 .purchaseCard strong em { padding: 3px 7px; border-radius: var(--radius-pill); background: var(--terracotta); color: var(--paper); font-size: 9px; font-style: normal; letter-spacing: .06em; text-transform: uppercase; }
-.purchaseCard small { color: rgba(14,59,42,.68); font-size: 12px; line-height: 1.4; }
+.purchaseCard small { color: rgba(14,59,42,.72); font-size: 12px; line-height: 1.4; }
 .purchaseCard > b { font-size: 13px; white-space: nowrap; }
-.savingsNote { margin: -10px 0 22px; font-size: 11px; line-height: 1.5; color: rgba(14,59,42,.68); }
+.savingsNote { margin: -10px 0 22px; font-size: 11px; line-height: 1.5; color: rgba(14,59,42,.72); }
 .chips { display: flex; gap: 10px; flex-wrap: wrap; }
 .chip { display: grid; justify-items: start; gap: 2px; padding: 10px 16px; border-radius: var(--radius-pill); cursor: pointer; font-family: inherit; font-weight: 600; font-size: 13px; border: 1px solid rgba(14,59,42,.3); background: transparent; color: var(--ink); min-height: 48px; }
 .chip small, .bundleChoice small { font-size: 10px; font-weight: 700; opacity: .72; }

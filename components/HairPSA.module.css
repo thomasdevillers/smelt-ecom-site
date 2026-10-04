@@ -5,12 +5,12 @@
 .grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
 .cardLight { border: var(--border-ink-soft); border-radius: var(--radius-card); padding: 28px 24px; }
 .cardDark { border: var(--border-ink); border-radius: var(--radius-card); padding: 28px 24px; background: var(--ink); color: var(--paper); }
-.tagWithout { font-size: 12px; font-weight: 700; letter-spacing: .1em; color: var(--terracotta); margin-bottom: 16px; }
+.tagWithout { font-size: 12px; font-weight: 700; letter-spacing: .1em; color: var(--terracotta-text); margin-bottom: 16px; }
 .tagWith { font-size: 12px; font-weight: 700; letter-spacing: .1em; color: var(--peach); margin-bottom: 16px; }
 .cardH3 { font-family: var(--font-bricolage), sans-serif; font-weight: 700; font-size: 22px; letter-spacing: -.02em; margin: 0 0 16px; }
 .list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; font-size: 15px; line-height: 1.5; }
 .list li { display: flex; gap: 12px; }
-.minus { color: var(--terracotta); font-weight: 700; }
+.minus { color: var(--terracotta-text); font-weight: 700; }
 .plus { color: var(--peach); font-weight: 700; }
 .cta { text-align: center; margin-top: 28px; }
 @media (min-width: 880px) { .section { padding: 80px 32px 40px; } .grid { grid-template-columns: 1fr 1fr; gap: 24px; } }

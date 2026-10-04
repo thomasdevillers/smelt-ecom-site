@@ -17,7 +17,7 @@
 .qtyRow button { background: none; border: none; font-size: 18px; cursor: pointer; width: 28px; height: 28px; }
 .lineTotal { font-weight: 700; }
 .foot { padding: 20px; border-top: var(--border-ink); }
-.shipMsg { font-family: var(--font-caveat), cursive; font-size: 18px; color: var(--terracotta); margin-bottom: 8px; }
+.shipMsg { font-family: var(--font-caveat), cursive; font-size: 18px; color: var(--terracotta-text); margin-bottom: 8px; }
 .shipBar { height: 6px; border-radius: var(--radius-pill); background: rgba(14,59,42,.12); overflow: hidden; margin-bottom: 14px; }
 .shipFill { height: 100%; border-radius: var(--radius-pill); background: var(--terracotta); transition: width .35s ease; }
 .shipFull { background: var(--ink); }

@@ -5,6 +5,8 @@
   --ink-deep: #0A2C20;
   --terracotta: #E4633C;
   --peach: #F2A98C;
+  /* Terracotta darkened for small text on paper (WCAG AA 4.5:1). */
+  --terracotta-text: #A9401F;
 
   --radius-card: 24px;
   --radius-pill: 999px;

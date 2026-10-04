@@ -70,7 +70,7 @@
   height: 36px;
   border-radius: 50%;
   background: rgba(228, 99, 60, 0.12);
-  color: var(--terracotta);
+  color: var(--terracotta-text);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -121,7 +121,7 @@
 
 .time {
   font-weight: 700;
-  color: var(--terracotta);
+  color: var(--terracotta-text);
   background: rgba(228, 99, 60, 0.1);
   padding: 4px 10px;
   border-radius: var(--radius-pill);
@@ -139,12 +139,12 @@
 .hygieneLabel {
   font-weight: 700;
   font-size: 15px;
-  color: var(--terracotta);
+  color: var(--terracotta-text);
   margin-bottom: 4px;
 }
 
 .emailLink {
-  color: var(--terracotta);
+  color: var(--terracotta-text);
   text-decoration: underline;
   text-underline-offset: 3px;
   font-weight: 600;
@@ -157,7 +157,7 @@
 .signoff {
   font-family: var(--font-caveat), cursive;
   font-size: 28px;
-  color: var(--terracotta);
+  color: var(--terracotta-text);
   text-align: center;
   margin-top: 40px;
 }

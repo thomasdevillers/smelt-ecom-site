@@ -29,7 +29,7 @@
 .form:focus-within { border-color: var(--ink); outline: 2px solid var(--ink); outline-offset: 2px; }
 .form input { min-width: 0; flex: 1; min-height: 44px; border: 0; padding: 10px; color: var(--ink); background: transparent; font: inherit; font-size: 16px; }
 .form input:focus-visible { outline: none; }
-.form input::placeholder { color: rgba(14,59,42,.64); font-size: 13px; }
+.form input::placeholder { color: rgba(14,59,42,.72); font-size: 13px; }
 .form > button { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 10px; border: 0; border-radius: 9px; color: var(--paper); background: var(--ink); cursor: pointer; }
 .form > button svg { width: 22px; height: 22px; }
 .form > button:disabled { opacity: .45; cursor: default; }

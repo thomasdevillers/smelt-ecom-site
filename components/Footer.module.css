@@ -3,7 +3,7 @@
 .grid { display: grid; grid-template-columns: 1fr; gap: 28px; padding-bottom: 40px; border-bottom: 1px solid rgba(242,233,207,.2); }
 .brand { font-family: var(--font-caveat), cursive; font-weight: 700; font-size: 40px; line-height: 1; margin-bottom: 14px; }
 .blurb { font-size: 15px; line-height: 1.6; color: rgba(242,233,207,.75); max-width: 300px; margin: 0 0 18px; }
-.colTitle { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: rgba(242,233,207,.5); margin-bottom: 14px; }
+.colTitle { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: rgba(242,233,207,.68); margin-bottom: 14px; }
 .colLinks { display: flex; flex-direction: column; gap: 11px; font-size: 14px; }
 .colLinks a { text-decoration: none; }
 .base { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; padding-top: 24px; font-size: 13px; color: rgba(242,233,207,.6); }

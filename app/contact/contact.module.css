@@ -9,7 +9,7 @@
 .sideTitle { font-family: var(--font-bricolage), sans-serif; font-weight: 700; font-size: 20px; margin: 0 0 18px; }
 .methods { list-style: none; margin: 0 0 20px; padding: 0; display: grid; gap: 16px; }
 .method { display: grid; gap: 3px; }
-.methodLabel { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--terracotta); }
+.methodLabel { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--terracotta-text); }
 .methodValue { font-size: 16px; font-weight: 600; color: var(--ink); text-decoration: none; }
 a.methodValue:hover { text-decoration: underline; }
 .hours { font-size: 14px; line-height: 1.55; color: rgba(14,59,42,.75); margin: 0 0 20px; }

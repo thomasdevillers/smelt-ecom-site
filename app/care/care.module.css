@@ -5,7 +5,7 @@
 
 .steps { display: grid; grid-template-columns: 1fr; gap: 4px; margin-bottom: 48px; }
 .step { display: flex; gap: 20px; align-items: flex-start; padding: 24px 0; border-bottom: var(--border-ink-soft); }
-.num { font-family: var(--font-bricolage), sans-serif; font-weight: 800; font-size: 22px; color: var(--terracotta); flex-shrink: 0; width: 40px; }
+.num { font-family: var(--font-bricolage), sans-serif; font-weight: 800; font-size: 22px; color: var(--terracotta-text); flex-shrink: 0; width: 40px; }
 .stepTitle { font-family: var(--font-bricolage), sans-serif; font-weight: 700; font-size: 20px; margin: 0 0 8px; }
 .stepBody { font-size: 15px; line-height: 1.6; color: rgba(14,59,42,.8); margin: 0; }
 
@@ -34,6 +34,6 @@
 .moreList { display: grid; grid-template-columns: 1fr; gap: 12px; }
 .moreCard { display: block; border: var(--border-ink-soft); border-radius: var(--radius-card); padding: 18px 20px; text-decoration: none; color: inherit; font-family: var(--font-bricolage), sans-serif; font-weight: 700; font-size: 17px; line-height: 1.25; transition: border-color .18s ease, transform .18s ease; }
 .moreCard:hover { border-color: var(--ink); transform: translateY(-2px); }
-.moreMeta { display: block; font-family: var(--font-space), sans-serif; font-weight: 400; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--terracotta); margin-bottom: 7px; }
+.moreMeta { display: block; font-family: var(--font-space), sans-serif; font-weight: 400; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--terracotta-text); margin-bottom: 7px; }
 
 @media (min-width: 700px) { .moreList { grid-template-columns: repeat(3, 1fr); } }

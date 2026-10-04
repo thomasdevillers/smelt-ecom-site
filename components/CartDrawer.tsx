@@ -29,12 +29,14 @@ export default function CartDrawer() {
       <div
         className={`${styles.scrim} ${isOpen ? styles.scrimOpen : ""}`}
         onClick={closeCart}
-        aria-hidden={!isOpen}
+        aria-hidden="true"
       />
       <aside
         className={`${styles.drawer} ${isOpen ? styles.open : ""}`}
         aria-label="Shopping bag"
-        aria-hidden={!isOpen}
+        // inert (not aria-hidden) so the closed drawer's links and buttons
+        // also leave the tab order and the accessibility tree.
+        inert={!isOpen}
       >
         <div className={styles.head}>
           <span className={styles.title}>Your bag · {count}</span>

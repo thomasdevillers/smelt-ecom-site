@@ -4,19 +4,17 @@ import SiteChrome from '@/components/SiteChrome'
 import './globals.css'
 import { SITE_URL, abs } from '@/lib/seo'
 
+// Variable fonts (no `weight`): one file per family instead of one per weight.
 const bricolage = Bricolage_Grotesque({
   subsets: ['latin'],
-  weight: ['400', '600', '700', '800'],
   variable: '--font-bricolage',
 })
 const space = Space_Grotesk({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
   variable: '--font-space',
 })
 const caveat = Caveat({
   subsets: ['latin'],
-  weight: ['600', '700'],
   variable: '--font-caveat',
 })
 

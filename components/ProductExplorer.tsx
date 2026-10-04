@@ -72,7 +72,8 @@ export default function ProductExplorer() {
                   aria-pressed={colour === choice}
                 >
                   <span>{PRODUCT.variants[choice].name}</span>
-                  {stock && <small>{PREORDER_MODE ? (stock.preorder[choice] > 0 ? "Pre-order" : "Fully reserved") : stock[choice] === 0 ? "Out of stock" : `${stock[choice]} left`}</small>}
+                  {/* Always rendered so the chip height doesn't jump when stock loads. */}
+                  {!stock ? <small aria-hidden="true">&nbsp;</small> : <small>{PREORDER_MODE ? (stock.preorder[choice] > 0 ? "Pre-order" : "Fully reserved") : stock[choice] === 0 ? "Out of stock" : `${stock[choice]} left`}</small>}
                 </button>
               ))}
             </div>
