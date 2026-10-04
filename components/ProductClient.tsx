@@ -15,8 +15,6 @@ import { BUNDLE_GREEN_COUNTS, PURCHASE_QUANTITIES, bundleChoiceLabel, canAddSele
 import type { CartState } from "@/lib/cartReducer";
 import { META_CURRENCY, metaVariantContent } from "@/lib/meta";
 import { trackMetaEvent } from "@/lib/metaPixel";
-import { tiktokContent } from "@/lib/tiktok";
-import { trackTikTokEvent } from "@/lib/tiktokPixel";
 import { trackVercelEvent, vercelProductData } from "@/lib/vercelAnalytics";
 import styles from "@/app/product/product.module.css";
 import { useAvailability } from "@/lib/useAvailability";
@@ -92,7 +90,6 @@ export default function ProductClient() {
     if (viewed.current) return;
     viewed.current = true;
     trackVercelEvent("ViewContent", vercelProductData("green", 1));
-    trackTikTokEvent("ViewContent", { contents: [tiktokContent("green", 1)], value: BASE_PRICE, currency: "ZAR" });
     const content = metaVariantContent("green", 1);
     trackMetaEvent("ViewContent", {
       content_name: PRODUCT.name,

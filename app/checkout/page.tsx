@@ -10,8 +10,6 @@ import { AddressAutocomplete, type ParsedPlaceAddress } from "@/components/Addre
 import { isCompleteAddress, type ShippingAddress } from "@/lib/address";
 import { META_CURRENCY, metaCartContents } from "@/lib/meta";
 import { getMetaClientContext, trackMetaEvent } from "@/lib/metaPixel";
-import { tiktokCartParameters } from "@/lib/tiktok";
-import { getTikTokClientContext, identifyTikTok, trackTikTokEvent } from "@/lib/tiktokPixel";
 import { trackVercelEvent, vercelCartData } from "@/lib/vercelAnalytics";
 import styles from "./checkout.module.css";
 import { useCheckoutFollowup } from "@/lib/useCheckoutFollowup";
@@ -108,7 +106,6 @@ export default function CheckoutPage() {
     if (checkoutTracked.current || subtotal <= 0) return;
     checkoutTracked.current = true;
     trackVercelEvent("InitiateCheckout", vercelCartData(cart));
-    trackTikTokEvent("InitiateCheckout", tiktokCartParameters(cart, grandTotal(subtotal, shippingMethod)));
     const contents = metaCartContents(cart);
     trackMetaEvent("InitiateCheckout", {
       content_ids: contents.map((item) => item.id),
@@ -145,8 +142,6 @@ export default function CheckoutPage() {
       return;
     }
 
-    identifyTikTok({ email, phone: address.phone });
-
     // Hand off to Paystack
     setStatus("submitting");
     setFollowupStage("payment_opened");
@@ -173,7 +168,6 @@ export default function CheckoutPage() {
           preorderConsent: needsPreorder ? { accepted: true, batch: stock?.batch, quantities } : undefined,
           voucherCode: activeVoucher?.code,
           metaClient: getMetaClientContext(),
-          tiktokClient: getTikTokClientContext(),
         }),
       });
       const data = await response.json();

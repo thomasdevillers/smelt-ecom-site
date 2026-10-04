@@ -1,4 +1,3 @@
-import { tiktokUser } from "@/lib/tiktokEvents";
 import { cartSubtotal, type CartState } from "@/lib/cartReducer";
 import { PRODUCT } from "@/lib/product";
 import { initializeTransaction, isPaystackConfigured, PaystackInitializationRejected } from "@/lib/paystack";
@@ -19,7 +18,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Request origin is not allowed." }, { status: 403 });
   }
 
-  let body: { shippingMethod?: unknown; email?: unknown; cart?: unknown; name?: unknown; address?: unknown; metaClient?: MetaClientContext; tiktokClient?: unknown; preorderConsent?: unknown; voucherCode?: unknown };
+  let body: { shippingMethod?: unknown; email?: unknown; cart?: unknown; name?: unknown; address?: unknown; metaClient?: MetaClientContext; preorderConsent?: unknown; voucherCode?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -106,7 +105,6 @@ export async function POST(request: Request) {
         voucher,
         cancel_action: `${origin}/api/checkout/cancel?reservation=${encodeURIComponent(reservationId)}`,
         metaClient: body.metaClient,
-        tiktokClient: tiktokUser(body.tiktokClient, request),
       },
     });
     return Response.json({ configured: true, authorizationUrl, reference });

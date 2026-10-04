@@ -10,9 +10,6 @@ import { useCart } from "@/lib/cart";
 import { formatMoney, parseShippingMethod, SHIPPING_OPTIONS, type ShippingMethod } from "@/lib/pricing";
 import { META_CURRENCY, metaContentId } from "@/lib/meta";
 import { trackMetaEvent } from "@/lib/metaPixel";
-import { COLOURS, type Colour } from "@/lib/product";
-import { tiktokContent } from "@/lib/tiktok";
-import { trackTikTokEvent } from "@/lib/tiktokPixel";
 import { trackVercelPurchase } from "@/lib/vercelAnalytics";
 import { EMAIL_VOUCHER_STORAGE_KEY } from "@/lib/cartRecoveryShared";
 import styles from "../checkout.module.css";
@@ -50,17 +47,6 @@ export default function CheckoutSuccessPage() {
         if (res.ok && data.paid) {
           try { sessionStorage.removeItem(EMAIL_VOUCHER_STORAGE_KEY); } catch { /* Payment is already verified. */ }
           trackVercelPurchase(data);
-          const tiktokParameters = {
-            contents: ((data.items ?? []) as PaidItem[])
-              .filter((item) => COLOURS.includes(item.colour as Colour) && item.qty > 0)
-              .map((item) => tiktokContent(item.colour as Colour, item.qty)),
-            value: data.amountRand,
-            currency: data.currency || "ZAR",
-          };
-          // Paystack owns payment entry; a verified payment is our reliable signal.
-          trackTikTokEvent("AddPaymentInfo", tiktokParameters, data.reference);
-          trackTikTokEvent("PlaceAnOrder", tiktokParameters, data.reference);
-          trackTikTokEvent("Purchase", tiktokParameters, data.reference);
           const purchaseStorageKey = `smelt-meta-purchase-${data.reference}`;
           if (!sessionStorage.getItem(purchaseStorageKey)) {
             const items = (data.items ?? []) as PaidItem[];

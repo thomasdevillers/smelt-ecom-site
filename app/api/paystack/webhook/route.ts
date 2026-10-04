@@ -1,7 +1,4 @@
-import { after } from "next/server";
 import { sendOrderNotifications, logOrderConfirmationFailure } from "@/lib/orderConfirmation";
-import { sendTikTokPurchase } from "@/lib/tiktokEvents";
-import type { TikTokClientContext } from "@/lib/tiktok";
 import crypto from "node:crypto";
 import type { OrderItem } from "@/lib/orderTypes";
 import { sendPaymentFailedEmail } from "@/lib/email";
@@ -62,7 +59,6 @@ export async function POST(request: Request) {
         items?: OrderItem[];
         amountRand?: number;
         metaClient?: MetaClientContext;
-        tiktokClient?: TikTokClientContext;
         shippingAddress?: { phone?: unknown };
         shippingMethod?: unknown;
         inventoryReservation?: unknown;
@@ -123,13 +119,6 @@ export async function POST(request: Request) {
       return new Response("voucher reconciliation pending", { status: 503 });
     }
 
-    if (d.currency === "ZAR" && paidAmountRand > 0) {
-      after(() => sendTikTokPurchase({
-        reference: d.reference ?? "", email: d.customer?.email ?? "",
-        phone: d.metadata?.shippingAddress?.phone, amount: paidAmountRand, currency: d.currency!,
-        cart, paidAt: d.paid_at, client: d.metadata?.tiktokClient,
-      }));
-    }
     try {
       await sendOrderNotifications({
         reference: d.reference ?? "", email: d.customer?.email ?? "", customerName: d.metadata?.customerName, paidAt: d.paid_at,

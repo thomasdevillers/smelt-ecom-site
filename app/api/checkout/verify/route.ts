@@ -1,8 +1,6 @@
 import { resolvePurchasePreorder } from "@/lib/preorderStore";
 import { after } from "next/server";
 import { tryOrderConfirmation } from "@/lib/orderConfirmation";
-import { sendTikTokPurchase } from "@/lib/tiktokEvents";
-import type { TikTokClientContext } from "@/lib/tiktok";
 import { verifyTransaction } from "@/lib/paystack";
 import type { OrderItem } from "@/lib/orderTypes";
 import { paidCheckoutTotal, sanitizeCart } from "@/lib/checkoutShared";
@@ -25,7 +23,6 @@ export async function POST(request: Request) {
     reference?: unknown;
     cart?: unknown;
     metaClient?: MetaClientContext;
-    tiktokClient?: TikTokClientContext;
   };
   try {
     body = await request.json();
@@ -51,7 +48,6 @@ export async function POST(request: Request) {
     // inline widget — treat it as untrusted input, same as `body`.
     const meta = verified.metadata as {
       cart?: unknown;
-      tiktokClient?: TikTokClientContext;
       shippingAddress?: { phone?: unknown };
       customerName?: unknown;
       shippingMethod?: unknown;
@@ -109,11 +105,6 @@ export async function POST(request: Request) {
       reference: verified.reference, email: verified.customerEmail ?? "", customerName: meta?.customerName, paidAt: verified.paidAt,
       amount: verified.amount, currency: verified.currency, cart, address: meta?.shippingAddress, shippingMethod: meta?.shippingMethod, preorder: meta?.preorder, voucher: meta?.voucher, unitPrice: meta?.unitPrice, pricingVersion: meta?.pricingVersion,
     }));
-    after(() => sendTikTokPurchase({
-      reference: verified.reference, email: verified.customerEmail ?? "",
-      phone: meta?.shippingAddress?.phone, amount: paidAmountRand, currency: verified.currency,
-      cart, paidAt: verified.paidAt, request, client: body.tiktokClient ?? meta?.tiktokClient,
-    }));
 
     await sendMetaPurchase({
       reference,
@@ -149,7 +140,7 @@ export async function GET(request: Request) {
     }
 
     const meta = verified.metadata as {
-      items?: OrderItem[]; cart?: unknown; tiktokClient?: TikTokClientContext;
+      items?: OrderItem[]; cart?: unknown;
       shippingAddress?: { phone?: unknown };
       customerName?: unknown;
       shippingMethod?: unknown;
@@ -174,12 +165,6 @@ export async function GET(request: Request) {
     after(() => tryOrderConfirmation({
       reference: verified.reference, email: verified.customerEmail ?? "", customerName: meta?.customerName, paidAt: verified.paidAt,
       amount: verified.amount, currency: verified.currency, cart, address: meta?.shippingAddress, shippingMethod: meta?.shippingMethod, preorder: meta?.preorder, voucher: meta?.voucher, unitPrice: meta?.unitPrice, pricingVersion: meta?.pricingVersion,
-    }));
-    after(() => sendTikTokPurchase({
-      reference: verified.reference, email: verified.customerEmail ?? "",
-      phone: meta?.shippingAddress?.phone, amount: Math.round(verified.amount / 100),
-      currency: verified.currency, cart, paidAt: verified.paidAt,
-      client: meta?.tiktokClient, request,
     }));
     return Response.json({
       paid: true,

@@ -8,7 +8,6 @@ vi.mock("resend", () => ({ Resend: class { emails = { send: mocks.send }; } }));
 vi.mock("next/server", () => ({ after: mocks.after }));
 vi.mock("./paystack", () => ({ verifyTransaction: mocks.verify }));
 vi.mock("./metaConversions", () => ({ sendMetaPurchase: vi.fn() }));
-vi.mock("./tiktokEvents", () => ({ sendTikTokPurchase: vi.fn() }));
 vi.mock("./inventory", () => ({ commitInventory: mocks.commitInventory }));
 vi.mock("./vouchers", () => ({
   parseVoucherMetadata: (value: unknown) => value && typeof value === "object" && (value as { amount?: unknown }).amount === 50 ? value : null,

@@ -1,5 +1,4 @@
 import { beforeEach, expect, it, vi } from "vitest";
-vi.mock("@/lib/tiktokEvents", () => ({ tiktokUser: () => ({}) }));
 vi.mock("@/lib/paystack", () => ({
   isPaystackConfigured: () => true,
   PaystackInitializationRejected: class extends Error {},

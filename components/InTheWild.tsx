@@ -62,7 +62,7 @@ export default function InTheWild() {
         ))}
       </div>
       <div className={styles.social}>
-        <p className={styles.copy}>Find us on Instagram and TikTok {SOCIAL_HANDLE}.</p>
+        <p className={styles.copy}>Find us on Instagram {SOCIAL_HANDLE}.</p>
         <SocialLinks />
       </div>
     </section>
