@@ -70,7 +70,7 @@ export function renderEmail(input: EmailInput): { html: string; text: string } {
     `<p class="email-text" style="margin:24px 0 0;font-family:${FONT_STACK};font-size:16px;line-height:1.6;color:${COLORS.ink};">${signoff}</p>` +
     `</td></tr>` +
     `<tr><td class="email-footer" align="center" style="padding:24px 8px;font-family:${FONT_STACK};font-size:12px;line-height:1.6;color:${COLORS.inkSoft};">` +
-    `Hand-felted in Cape Town. 100% wool.<br/>` +
+    `100% wool felt. Shipped from Cape Town.<br/>` +
     `100% WOOL FELT · EMBROIDERED, NOT PRINTED · MADE TO SWEAT IN` +
     `</td></tr>` +
     `</table></td></tr></table></body></html>`;
@@ -102,7 +102,7 @@ export function renderEmail(input: EmailInput): { html: string; text: string } {
     "Warm regards,",
     "Tom & Marc",
     "",
-    "Hand-felted in Cape Town. 100% wool.",
+    "100% wool felt. Shipped from Cape Town.",
   ]
     .join("\n")
     .replace(/\n{3,}/g, "\n\n");

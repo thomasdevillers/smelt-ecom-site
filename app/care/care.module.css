@@ -21,3 +21,19 @@
 .signoff { font-family: var(--font-caveat), cursive; font-size: 30px; color: var(--terracotta); margin-bottom: 20px; }
 
 @media (min-width: 880px) { .page { padding: 64px 32px; } }
+
+.h2 { font-family: var(--font-bricolage), sans-serif; font-weight: 800; font-size: clamp(24px,4.6vw,38px); line-height: 1.05; letter-spacing: -.02em; margin: 12px 0 16px; }
+
+.cleaning { border-top: var(--border-ink-soft); padding-top: 44px; margin-bottom: 48px; }
+.cleaningHead { text-align: center; margin-bottom: 24px; }
+.cleaningIntro { font-size: 16px; line-height: 1.62; color: rgba(14,59,42,.82); margin: 0 auto; max-width: 620px; }
+.cleaningList { border-top: var(--border-ink-soft); }
+
+.more { margin-bottom: 48px; }
+.moreTitle { font-family: var(--font-bricolage), sans-serif; font-weight: 800; font-size: clamp(20px,3.6vw,28px); margin: 0 0 16px; }
+.moreList { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.moreCard { display: block; border: var(--border-ink-soft); border-radius: var(--radius-card); padding: 18px 20px; text-decoration: none; color: inherit; font-family: var(--font-bricolage), sans-serif; font-weight: 700; font-size: 17px; line-height: 1.25; transition: border-color .18s ease, transform .18s ease; }
+.moreCard:hover { border-color: var(--ink); transform: translateY(-2px); }
+.moreMeta { display: block; font-family: var(--font-space), sans-serif; font-weight: 400; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--terracotta); margin-bottom: 7px; }
+
+@media (min-width: 700px) { .moreList { grid-template-columns: repeat(3, 1fr); } }

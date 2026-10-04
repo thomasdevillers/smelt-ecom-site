@@ -69,7 +69,7 @@ const organizationLd = {
   url: SITE_URL,
   logo: abs('/images/hat-green-front.jpeg'),
   description:
-    'Smelt makes 100% wool felt sauna hats — embroidered, never printed. Made in Cape Town.',
+    'Smelt makes 100% wool felt sauna hats, embroidered, never printed. Based in Cape Town, shipping nationwide.',
   address: {
     '@type': 'PostalAddress',
     addressLocality: 'Cape Town',

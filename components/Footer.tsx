@@ -10,7 +10,7 @@ export default function Footer() {
         <div className={styles.grid}>
           <div>
             <div className={styles.brand}>Smelt</div>
-            <p className={styles.blurb}>Sauna hats made in Cape Town. Less heat on your head, more time on the bench.</p>
+            <p className={styles.blurb}>Sauna hats shipped nationwide from Cape Town. Less heat on your head, more time on the bench.</p>
             <div className={styles.socialHandle}>{SOCIAL_HANDLE}</div>
             <SocialLinks />
           </div>
@@ -32,7 +32,8 @@ export default function Footer() {
           <div>
             <div className={styles.colTitle}>Help</div>
             <div className={styles.colLinks}>
-              <Link href="/care">Care guide</Link>
+              <Link href="/articles">Guides &amp; articles</Link>
+              <Link href="/care">Care &amp; cleaning</Link>
               <Link href="/#faq">FAQ</Link>
               <Link href="/policies">Store policies</Link>
               <Link href="/contact">Contact us</Link>

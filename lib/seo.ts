@@ -29,3 +29,44 @@ export function jsonLdScript(data: unknown) {
     },
   };
 }
+
+/** FAQPage JSON-LD from question/answer pairs. */
+export function faqLd(items: { q: string; a: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: items.map(({ q, a }) => ({
+      "@type": "Question",
+      name: q,
+      acceptedAnswer: { "@type": "Answer", text: a },
+    })),
+  };
+}
+
+/** Article JSON-LD for an editorial guide page. */
+export function articleLd(opts: {
+  headline: string;
+  description: string;
+  path: string;
+  image: string;
+  published: string;
+  updated: string;
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: opts.headline,
+    description: opts.description,
+    mainEntityOfPage: { "@type": "WebPage", "@id": abs(opts.path) },
+    image: [abs(opts.image)],
+    datePublished: opts.published,
+    dateModified: opts.updated,
+    author: { "@type": "Organization", name: "Smelt", url: SITE_URL },
+    publisher: {
+      "@type": "Organization",
+      name: "Smelt",
+      url: SITE_URL,
+      logo: { "@type": "ImageObject", url: abs("/images/hat-green-front.jpeg") },
+    },
+  };
+}
