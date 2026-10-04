@@ -15,7 +15,7 @@ export default function PreorderPrice() {
   }, []);
   return <section className={styles.card} aria-label="Pre-order price and expected arrival">
     <div className={styles.priceBlock}>
-      <span className={styles.eyebrow}>Pre-order price</span>
+      <span className={styles.eyebrow}>Sold out · Pre-orders open</span>
       <div className={styles.price}>{formatMoney(PREORDER_PRICE)}<span>per hat</span></div>
       <p>{PREORDER_COPY}</p>
     </div>
