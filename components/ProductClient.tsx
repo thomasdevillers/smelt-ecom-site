@@ -1,19 +1,18 @@
 "use client";
-import Link from "next/link";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import ProductGallery from "@/components/ProductGallery";
-import Accordion from "@/components/Accordion";
 import HairPSA from "@/components/HairPSA";
 import InTheWild from "@/components/InTheWild";
 import Faq from "@/components/Faq";
 import ProductReviews from "@/components/ProductReviews";
 import AskAboutHat from "@/components/AskAboutHat";
-import { POLICIES } from "@/content/policies";
 import SectionLabel from "@/components/ui/SectionLabel";
 import { COLOURS, PRODUCT, type Colour } from "@/lib/product";
-import { BASE_PRICE, shippingFee, formatMoney, lineTotal } from "@/lib/pricing";
+import { BASE_PRICE, shippingFee, formatMoney, bundleSubtotal, bundleDeliveredSaving } from "@/lib/pricing";
 import { useCart } from "@/lib/cart";
+import { BUNDLE_GREEN_COUNTS, PURCHASE_QUANTITIES, bundleChoiceLabel, canAddSelection, type PurchaseQuantity } from "@/lib/bundleChoices";
+import type { CartState } from "@/lib/cartReducer";
 import { META_CURRENCY, metaVariantContent } from "@/lib/meta";
 import { trackMetaEvent } from "@/lib/metaPixel";
 import { tiktokContent } from "@/lib/tiktok";
@@ -24,77 +23,70 @@ import { useAvailability } from "@/lib/useAvailability";
 import { PREORDER_MODE } from "@/lib/salesMode";
 import PreorderPrice from "./PreorderPrice";
 
-type PurchaseOption = "single" | "bundle";
-type BundleMix = "mixed" | "green" | "cream";
-
-function ProductLinkSelection({ onSelect }: { onSelect: (colour: Colour, option: PurchaseOption) => void }) {
+function ProductLinkSelection({ onSelect }: { onSelect: (colour: Colour, quantity: PurchaseQuantity) => void }) {
   const params = useSearchParams();
   const colour = params.get("colour") === "cream" ? "cream" : "green";
-  const option = params.get("order") === "bundle" ? "bundle" : "single";
+  const order = params.get("order");
+  const quantity: PurchaseQuantity = order === "bundle" || order === "2" ? 2 : order === "3" ? 3 : order === "4" ? 4 : 1;
   useEffect(() => {
-    onSelect(colour, option);
-  }, [colour, option, onSelect]);
+    onSelect(colour, quantity);
+  }, [colour, quantity, onSelect]);
   return null;
 }
 
 export default function ProductClient() {
   const viewed = useRef(false);
   const [colour, setColour] = useState<Colour>("green");
-  const [purchaseOption, setPurchaseOption] = useState<PurchaseOption>("single");
-  const [bundleMix, setBundleMix] = useState<BundleMix>("mixed");
-  const selectFromLink = useCallback((selectedColour: Colour, option: PurchaseOption) => {
+  const [quantity, setQuantity] = useState<PurchaseQuantity>(1);
+  const [bundleGreen, setBundleGreen] = useState(1);
+  const selectFromLink = useCallback((selectedColour: Colour, quantity: PurchaseQuantity) => {
     setColour(selectedColour);
-    setPurchaseOption(option);
-    setBundleMix("mixed");
+    setQuantity(quantity);
+    setBundleGreen(Math.ceil(quantity / 2));
   }, []);
   const { stock, error: stockError, refresh } = useAvailability();
   const { cart, dispatch, openCart } = useCart();
   const v = PRODUCT.variants[colour];
-  const quantity = purchaseOption === "bundle" ? 2 : 1;
-  const total = lineTotal(quantity);
-  const selectionLabel = purchaseOption === "single"
-    ? v.name
-    : bundleMix === "mixed"
-      ? "One of each"
-      : `Two ${PRODUCT.variants[bundleMix].name}`;
-  const selectionInStock = stock !== null && (purchaseOption === "single"
-    ? stock[colour] + stock.preorder[colour] >= cart[colour] + 1
-    : bundleMix === "mixed"
-      ? stock.green + stock.preorder.green >= cart.green + 1 && stock.cream + stock.preorder.cream >= cart.cream + 1
-      : stock[bundleMix] + stock.preorder[bundleMix] >= cart[bundleMix] + 2);
-  const isPreorder = stock !== null && (purchaseOption === "single" ? cart[colour] + 1 > stock[colour] : bundleMix === "mixed" ? cart.green + 1 > stock.green || cart.cream + 1 > stock.cream : cart[bundleMix] + 2 > stock[bundleMix]);
+  const total = bundleSubtotal(quantity);
+  const isBundle = quantity > 1;
+  const selection: CartState = isBundle
+    ? { green: bundleGreen, cream: quantity - bundleGreen }
+    : { green: colour === "green" ? 1 : 0, cream: colour === "cream" ? 1 : 0 };
+  const bundleChoices = quantity === 1 ? [] : BUNDLE_GREEN_COUNTS[quantity];
+  const selectionLabel = isBundle ? bundleChoiceLabel(bundleGreen, quantity) : v.name;
+  const selectionInStock = stock !== null && canAddSelection(selection, cart, stock);
+  const selectedColours = COLOURS.filter(c => selection[c] > 0);
+  const isPreorder = stock !== null && selectedColours.some(c => cart[c] + selection[c] > stock[c]);
   const add = () => {
     if (!selectionInStock) return;
-    if (purchaseOption === "single") {
-      dispatch({ type: "add", colour, qty: 1 });
-    } else if (bundleMix === "mixed") {
-      dispatch({ type: "add", colour: "green", qty: 1 });
-      dispatch({ type: "add", colour: "cream", qty: 1 });
-    } else {
-      dispatch({ type: "add", colour: bundleMix, qty: 2 });
-    }
+    if (isBundle) dispatch({ type: "addBundle", quantities: selection });
+    else dispatch({ type: "add", colour, qty: 1 });
     openCart();
   };
-  const singleDelivery = shippingFee(BASE_PRICE);
-  const bundleAvailable = (value: BundleMix) => stock === null || (value === "mixed"
-    ? stock.green + stock.preorder.green >= cart.green + 1 && stock.cream + stock.preorder.cream >= cart.cream + 1
-    : stock[value] + stock.preorder[value] >= cart[value] + 2);
-  const bundleStatus = (value: BundleMix) => {
-    if (!stock) return "Checking stock…";
-    if (PREORDER_MODE) return bundleAvailable(value) ? "Pre-order" : "Fully reserved";
-    if (value === "mixed") {
-      if (stock.green === 0 && stock.cream === 0) return "Both out of stock";
-      if (stock.green === 0) return "Green out of stock";
-      if (stock.cream === 0) return "Cream out of stock";
-      return stock.green > cart.green && stock.cream > cart.cream ? "In stock" : "Extra hats on pre-order";
-    }
-    if (stock[value] === 0) return "Out of stock";
-    return stock[value] >= cart[value] + 2 ? "In stock" : "Extra hats on pre-order";
+  const chooseQuantity = (next: PurchaseQuantity) => {
+    setQuantity(next);
+    setBundleGreen(Math.ceil(next / 2));
   };
-  const selectedColours = COLOURS.filter(c => purchaseOption === "single" ? c === colour : bundleMix === "mixed" || c === bundleMix);
-  const unavailableLabel = PREORDER_MODE ? "Pre-orders fully reserved" : purchaseOption === "single" && stock?.[colour] === 0
+  const singleDelivery = shippingFee(BASE_PRICE);
+  const bundleStatus = (green: number) => {
+    if (!stock) return "Checking stock…";
+    const mix = { green, cream: quantity - green };
+    if (!canAddSelection(mix, cart, stock)) return PREORDER_MODE ? "Fully reserved" : "Not enough stock";
+    if (PREORDER_MODE) return "Pre-order";
+    return COLOURS.some(c => mix[c] > 0 && cart[c] + mix[c] > stock[c]) ? "Includes pre-order" : "In stock";
+  };
+  const selectionStatus = (c: Colour) => {
+    if (!stock) return "Checking stock…";
+    const qty = selection[c];
+    if (stock[c] + stock.preorder[c] < cart[c] + qty) return PREORDER_MODE ? "Fully reserved" : "Not enough stock";
+    if (PREORDER_MODE) return "Pre-order";
+    const ready = Math.min(qty, Math.max(0, stock[c] - cart[c]));
+    return ready === qty ? "In stock" : ready > 0 ? `${ready} in stock · ${qty - ready} on pre-order` : "Pre-order";
+  };
+  const unavailableLabel = PREORDER_MODE ? "Pre-orders fully reserved" : !isBundle && stock?.[colour] === 0
     ? "Out of stock"
     : "Not enough stock";
+  const addLabel = isPreorder ? (isBundle ? `Pre-order ${quantity} hats` : "Pre-order") : isBundle ? `Add ${quantity} hats` : "Add to bag";
 
   useEffect(() => {
     if (viewed.current) return;
@@ -117,116 +109,98 @@ export default function ProductClient() {
     <main className={styles.page}>
       <Suspense fallback={null}><ProductLinkSelection onSelect={selectFromLink} /></Suspense>
       <div className={styles.grid}>
-        <ProductGallery colour={colour} />
+        <ProductGallery colour={colour} onColourChange={setColour} />
 
         <div className={styles.info}>
           <SectionLabel>The collection (all two of them)</SectionLabel>
           <h1 className={styles.h1}>{PRODUCT.name}</h1>
           {PREORDER_MODE ? <PreorderPrice /> : <div className={styles.price}>{formatMoney(BASE_PRICE)}</div>}
-          <p className={styles.desc}>100% wool felt, embroidered (never printed) with &ldquo;Smelt&rdquo; on the front and &ldquo;Warm regards&rdquo; on the back. One size fits most heads. Made to sweat in.</p>
-          <ul className={styles.benefits}>
-            <li>Insulates your scalp and ears from intense sauna heat</li>
-            <li>Dense 100% wool felt with no synthetic blend</li>
-            <li>Relaxed one-size shape designed to sit loose, not clamp</li>
-          </ul>
+          {process.env.NEXT_PUBLIC_ASK_HAT_ENABLED !== "false" && <div className={styles.productAssistant}><AskAboutHat /></div>}
 
           <fieldset className={styles.purchaseOptions}>
             <legend className={styles.optLabel}>Choose your order</legend>
-            <label className={`${styles.purchaseCard} ${purchaseOption === "single" ? styles.purchaseCardOn : ""}`}>
-              <input type="radio" name="purchaseOption" value="single" checked={purchaseOption === "single"} onChange={() => setPurchaseOption("single")} />
-              <span><strong>One hat</strong><small>{formatMoney(BASE_PRICE)} · {singleDelivery ? `${formatMoney(singleDelivery)} delivery` : "Free delivery"}</small></span>
-              <b>{formatMoney(BASE_PRICE + singleDelivery)} total</b>
-            </label>
-            <label className={`${styles.purchaseCard} ${purchaseOption === "bundle" ? styles.purchaseCardOn : ""}`}>
-              <input type="radio" name="purchaseOption" value="bundle" checked={purchaseOption === "bundle"} onChange={() => setPurchaseOption("bundle")} />
-              <span><strong>Two-hat bundle <em>Free delivery</em></strong><small>{formatMoney(lineTotal(2))} · {singleDelivery ? `Save ${formatMoney(singleDelivery)} on delivery` : "Free delivery"}</small></span>
-              <b>{formatMoney(lineTotal(2))} total</b>
-            </label>
+            {PURCHASE_QUANTITIES.map(qty => (
+              <label key={qty} className={`${styles.purchaseCard} ${qty >= 3 ? styles.purchaseCardWithBanner : ""} ${quantity === qty ? styles.purchaseCardOn : ""}`}>
+                {qty >= 3 && <em className={styles.purchaseBanner}>{qty === 4 ? "Best value" : "Most popular"}</em>}
+                <input type="radio" name="purchaseOption" value={qty} checked={quantity === qty} onChange={() => chooseQuantity(qty)} />
+                <span>
+                  <strong>{qty === 1 ? "One hat" : qty === 2 ? "Two-hat bundle" : `${qty}-hat bundle`}{qty > 1 && <em>Save {formatMoney(bundleDeliveredSaving(qty))}</em>}</strong>
+                  <small>{qty === 1
+                    ? `${formatMoney(BASE_PRICE)} · ${singleDelivery ? `${formatMoney(singleDelivery)} delivery` : "Free delivery"}`
+                    : "Free delivery"}</small>
+                </span>
+                <b>{formatMoney(qty === 1 ? BASE_PRICE + singleDelivery : bundleSubtotal(qty))} total</b>
+              </label>
+            ))}
           </fieldset>
+          {quantity >= 3 && <p className={styles.savingsNote}>Savings compared with {formatMoney(BASE_PRICE)} per hat plus R90 delivery.</p>}
 
-          {purchaseOption === "single" ? <div className={styles.opt}>
+          {!isBundle ? <div className={styles.opt}>
             <div className={styles.optLabel}>Colourway</div>
-            <div className={styles.chips}>
-              {(["green", "cream"] as Colour[]).map((c) => (
+            <div className={`${styles.bundleChoices} ${styles.bundleChoicesLarge}`}>
+              {COLOURS.map((c) => (
                 <button
                   key={c}
-                  className={`${styles.chip} ${colour === c ? styles.chipOn : ""}`}
+                  type="button"
+                  className={`${styles.bundleChoice} ${colour === c ? styles.bundleChoiceOn : ""}`}
                   onClick={() => setColour(c)}
                   aria-pressed={colour === c}
                 >
+                  <span className={styles.bundleSwatches} aria-hidden="true">
+                    <i style={{ backgroundColor: PRODUCT.variants[c].swatch }} />
+                  </span>
                   <span>{PRODUCT.variants[c].name}</span>
                   {stock && <small>{PREORDER_MODE ? (stock.preorder[c] > 0 ? "Pre-order" : "Fully reserved") : stock[c] === 0 ? "Out of stock" : `${stock[c]} left`}</small>}
                 </button>
               ))}
             </div>
           </div> : <div className={styles.opt}>
-            <div className={styles.optLabel}>Choose your two hats</div>
-            <div className={styles.bundleChoices}>
-              {([
-                ["mixed", "One of each"],
-                ["green", "Two green"],
-                ["cream", "Two cream"],
-              ] as const).map(([value, label]) => {
-                const available = bundleAvailable(value);
+            <div className={styles.optLabel}>Choose your {quantity} hats</div>
+            <div className={`${styles.bundleChoices} ${quantity >= 3 ? styles.bundleChoicesLarge : ""}`}>
+              {bundleChoices.map(green => {
+                const mix = { green, cream: quantity - green };
+                const available = stock === null || canAddSelection(mix, cart, stock);
                 return (
                   <button
-                    key={value}
+                    key={green}
                     type="button"
-                    className={`${styles.bundleChoice} ${bundleMix === value ? styles.bundleChoiceOn : ""}`}
+                    className={`${styles.bundleChoice} ${bundleGreen === green ? styles.bundleChoiceOn : ""}`}
                     onClick={() => {
-                      setBundleMix(value);
-                      if (value !== "mixed") setColour(value);
+                      setBundleGreen(green);
+                      setColour(green === 0 ? "cream" : "green");
                     }}
-                    aria-pressed={bundleMix === value}
+                    aria-pressed={bundleGreen === green}
+                    disabled={!available}
                   >
-                    <span>{label}</span>
-                    <small>{bundleStatus(value)}</small>
-                    {stock && !available && <small>Pre-order unavailable</small>}
+                    <span className={styles.bundleSwatches} aria-hidden="true">
+                      {COLOURS.flatMap(c => Array.from({ length: mix[c] }, (_, i) => (
+                        <i key={`${c}-${i}`} style={{ backgroundColor: PRODUCT.variants[c].swatch }} />
+                      )))}
+                    </span>
+                    <span>{bundleChoiceLabel(green, quantity)}</span>
+                    <small>{bundleStatus(green)}</small>
                   </button>
                 );
               })}
             </div>
           </div>}
 
-          {purchaseOption === "bundle" && stock && <div className={styles.bundleStock} aria-live="polite">
-            <strong>{isPreorder ? "Bundle pre-order" : "Your bundle is in stock"}</strong>
-            <ul>{selectedColours.map(c => {
-              const qty = bundleMix === "mixed" ? 1 : 2;
-              const ready = Math.min(qty, Math.max(0, stock[c] - cart[c]));
-              return <li key={c}><span>{qty} × {PRODUCT.variants[c].name}</span><span>{PREORDER_MODE ? "Pre-order" : ready === qty ? "In stock" : stock[c] === 0 ? "Out of stock" : ready > 0 ? `${ready} in stock · ${qty - ready} on pre-order` : "Additional hats on pre-order"}</span></li>;
-            })}</ul>
-            {isPreorder && <p>{selectionInStock ? "Both hats ship together. Free delivery." : "Choose another available mix."}</p>}
+          {isBundle && <div className={styles.bundleStock} aria-live="polite" aria-atomic="true">
+            <strong>Your bundle · {quantity} hats</strong>
+            <ul>{selectedColours.map(c => (
+              <li key={c}><span>{selection[c]} × {PRODUCT.variants[c].name}</span><span>{selectionStatus(c)}</span></li>
+            ))}</ul>
+            {stock && !selectionInStock ? <p>Choose another available mix.</p> : <p>All hats ship together. Free delivery.</p>}
           </div>}
 
           <button className={styles.add} onClick={add} disabled={!selectionInStock}>
-            {stock === null ? "Checking stock…" : selectionInStock ? `${isPreorder ? purchaseOption === "bundle" ? "Pre-order two hats" : "Pre-order" : purchaseOption === "bundle" ? "Add two hats" : "Add to bag"} · ${formatMoney(total)}` : unavailableLabel}
+            {stock === null ? "Checking stock…" : selectionInStock ? `${addLabel} · ${formatMoney(total)}` : unavailableLabel}
           </button>
 
           {stockError && <p role="alert">{stockError} <button onClick={() => void refresh()}>Retry</button></p>}
           {!isPreorder && <div className={styles.reassure}>
             <span>In-stock orders dispatched from Cape Town within 1–3 business days</span>
           </div>}
-
-          {process.env.NEXT_PUBLIC_ASK_HAT_ENABLED !== "false" && <AskAboutHat />}
-
-          <div className={styles.accordions}>
-            <Accordion title="Details" defaultOpen>
-              <ul>
-                <li>100% wool felt</li>
-                <li>Embroidered lettering, front and back</li>
-                <li>One size fits most heads</li>
-                <li>Hang to dry between sessions</li>
-              </ul>
-            </Accordion>
-            <Accordion title="Felt care">Air it out after each session and let it dry fully. Spot-clean with cool water. Never machine wash, because felt holds a grudge.</Accordion>
-            <Accordion title="Shipping &amp; returns">
-              <p>R90 delivery nationwide across South Africa. Buy two or more hats, in any colour combination, for free delivery.</p>
-              <p>{POLICIES.shipping.dispatch} Courier transit times after dispatch:</p>
-              <ul>{POLICIES.shipping.timelines.map(({ area, time }) => <li key={area}>{area}: {time}</li>)}</ul>
-              <p>{POLICIES.shipping.tracking}</p>
-              <Link href="/policies#returns-policy">Read our returns policy</Link>
-            </Accordion>
-          </div>
         </div>
       </div>
 
@@ -236,7 +210,7 @@ export default function ProductClient() {
       <Faq />
       <div className={styles.stickyBar}>
         <div className={styles.stickyInfo}>{selectionLabel} · {formatMoney(total)}</div>
-        <button className={styles.stickyAdd} onClick={add} disabled={!selectionInStock}>{stock === null ? "Checking…" : selectionInStock ? (isPreorder ? purchaseOption === "bundle" ? "Pre-order two" : "Pre-order" : purchaseOption === "bundle" ? "Add two" : "Add to bag") : unavailableLabel}</button>
+        <button className={styles.stickyAdd} onClick={add} disabled={!selectionInStock}>{stock === null ? "Checking…" : selectionInStock ? addLabel : unavailableLabel}</button>
       </div>
     </main>
   );

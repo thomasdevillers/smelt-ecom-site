@@ -22,13 +22,33 @@ export function parseShippingMethod(value: unknown): ShippingMethod | null {
   return value === "aramex" || value === "founders" ? value : null;
 }
 export const FREE_SHIP_THRESHOLD = 500;
+// Record this version in payment metadata. Keep its rules stable for paid orders.
+export const PRICING_VERSION = "hat-bundles-v1";
+export const THREE_HAT_PRICE = 1250;
+export const FOUR_HAT_PRICE = 1600;
 
-/** Every hat has the same price, regardless of quantity or colour. */
+/** Apply packs across the whole order, regardless of the colour mix. */
+export function bundleSubtotal(qty: number, price = BASE_PRICE): number {
+  const packs = Math.floor(qty / 4);
+  const remainder = qty % 4;
+  return packs * FOUR_HAT_PRICE + (remainder === 3 ? THREE_HAT_PRICE : remainder * price);
+}
+
+export function bundleDiscount(qty: number, price = BASE_PRICE): number {
+  return qty * price - bundleSubtotal(qty, price);
+}
+
+/** Advertised saving includes one standard delivery fee at full item price. */
+export function bundleDeliveredSaving(qty: number): number {
+  return bundleDiscount(qty) + SHIPPING_FEE;
+}
+
+/** Undiscounted single-hat price; pack savings apply to the whole order. */
 export function unitPrice(): number {
   return BASE_PRICE;
 }
 
-/** Total for `qty` units of one colour. */
+/** Undiscounted line total. Show the bundle discount separately. */
 export function lineTotal(qty: number): number {
   return unitPrice() * qty;
 }

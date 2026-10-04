@@ -17,6 +17,7 @@ vi.mock("@/lib/vouchers", () => ({
 }));
 import { POST } from "@/app/api/checkout/route";
 import { initializeTransaction } from "@/lib/paystack";
+import { PRICING_VERSION } from "./pricing";
 import { reserveVoucher } from "@/lib/vouchers";
 vi.mock("@/lib/preorderStore", () => ({
   releaseRejectedPurchase: vi.fn(),
@@ -64,4 +65,23 @@ it("rejects cross-origin attempts before holding stock", async () => {
   }));
   expect(response.status).toBe(403);
   expect(reservePurchase).not.toHaveBeenCalled();
+});
+
+it.each([3, 4])("initializes the %i-hat bundle server-side for every colour mix", async qty => {
+  const total = qty === 3 ? 1250 : 1600;
+  for (let green = 0; green <= qty; green++) {
+    const cart = { green, cream: qty - green };
+    const response = await POST(request({ phone: "0837875826" }, { cart, amount: 1, pricingVersion: "forged" }));
+    expect(response.status).toBe(200);
+    expect(reservePurchase).toHaveBeenLastCalledWith(cart, expect.any(String), undefined);
+    expect(initializeTransaction).toHaveBeenLastCalledWith(expect.objectContaining({
+      amount: total,
+      metadata: expect.objectContaining({ cart, unitPrice: 450, pricingVersion: PRICING_VERSION }),
+    }));
+  }
+});
+it("applies the server-validated voucher after the mixed bundle discount", async () => {
+  const response = await POST(request({ phone: "0837875826" }, { cart: { green: 2, cream: 2 }, voucherCode: "SMELT-ABCDEFGHIJKL" }));
+  expect(response.status).toBe(200);
+  expect(initializeTransaction).toHaveBeenLastCalledWith(expect.objectContaining({ amount: 1550 }));
 });

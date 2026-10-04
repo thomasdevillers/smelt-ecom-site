@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useCart } from "@/lib/cart";
 import { PRODUCT, COLOURS } from "@/lib/product";
 import {
+  bundleDiscount,
   formatMoney,
   grandTotal,
   lineTotal,
@@ -21,6 +22,7 @@ export default function CartDrawer() {
   const shipProgress = freeShip ? 100 : 50;
   const delivery = shippingFee(subtotal);
   const total = grandTotal(subtotal);
+  const discount = bundleDiscount(cart.green + cart.cream);
 
   return (
     <>
@@ -127,6 +129,10 @@ export default function CartDrawer() {
                   style={{ width: `${shipProgress}%` }}
                 />
               </div>
+              {discount > 0 && <>
+                <div className={styles.costRow}><span>Hats before discount</span><span>{formatMoney(subtotal + discount)}</span></div>
+                <div className={styles.costRow}><span>Bundle discount</span><span>−{formatMoney(discount)}</span></div>
+              </>}
               <div className={styles.costRow}>
                 <span>Subtotal</span>
                 <span>{formatMoney(subtotal)}</span>

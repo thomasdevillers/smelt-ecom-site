@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
+  bundleSubtotal,
+  bundleDiscount,
+  bundleDeliveredSaving,
   BASE_PRICE,
   SHIPPING_FEE,
   FREE_SHIP_THRESHOLD,
@@ -22,6 +25,17 @@ describe("pricing", () => {
   it.each([1, 2, 3, 4, 10])("charges R450 per hat at quantity %i", (qty) => {
     expect(unitPrice()).toBe(450);
     expect(lineTotal(qty)).toBe(450 * qty);
+  });
+
+  it.each([[3, 1250, 100, 190], [4, 1600, 200, 290]])("prices a %i-hat pack and separates item savings from delivery", (qty, total, discount, saving) => {
+    expect(bundleSubtotal(qty)).toBe(total);
+    expect(bundleDiscount(qty)).toBe(discount);
+    expect(bundleDeliveredSaving(qty)).toBe(saving);
+    expect(grandTotal(total)).toBe(total);
+  });
+
+  it.each([[0, 0], [1, 450], [2, 900], [5, 2050], [6, 2500], [7, 2850], [8, 3200], [11, 4450]])("combines packs and single hats at quantity %i", (qty, total) => {
+    expect(bundleSubtotal(qty)).toBe(total);
   });
 
   it("formats money with a space thousands separator", () => {

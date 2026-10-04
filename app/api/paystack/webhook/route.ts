@@ -67,7 +67,7 @@ export async function POST(request: Request) {
         shippingMethod?: unknown;
         inventoryReservation?: unknown;
         preorder?: unknown;
-        voucher?: unknown; unitPrice?: unknown;
+        voucher?: unknown; unitPrice?: unknown; pricingVersion?: unknown;
       };
     };
   };
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
     // whatever amountRand the client claims in metadata.
     const cart = sanitizeCart(d.metadata?.cart);
     const voucher = parseVoucherMetadata(d.metadata?.voucher);
-    const expectedAmountRand = paidCheckoutTotal(cart, d.metadata?.shippingMethod, voucher?.amount ?? 0, d.metadata?.unitPrice);
+    const expectedAmountRand = paidCheckoutTotal(cart, d.metadata?.shippingMethod, voucher?.amount ?? 0, d.metadata?.unitPrice, d.metadata?.pricingVersion);
     const amountMatches = expectedAmountRand > 0 && d.amount === expectedAmountRand * 100 && d.currency === "ZAR";
 
     if (!amountMatches) {
@@ -133,7 +133,7 @@ export async function POST(request: Request) {
     try {
       await sendOrderNotifications({
         reference: d.reference ?? "", email: d.customer?.email ?? "", customerName: d.metadata?.customerName, paidAt: d.paid_at,
-        amount: d.amount!, currency: d.currency!, cart, address: d.metadata?.shippingAddress, shippingMethod: d.metadata?.shippingMethod, preorder: d.metadata?.preorder, voucher: d.metadata?.voucher, unitPrice: d.metadata?.unitPrice,
+        amount: d.amount!, currency: d.currency!, cart, address: d.metadata?.shippingAddress, shippingMethod: d.metadata?.shippingMethod, preorder: d.metadata?.preorder, voucher: d.metadata?.voucher, unitPrice: d.metadata?.unitPrice, pricingVersion: d.metadata?.pricingVersion,
       });
     } catch (error) {
       logOrderConfirmationFailure(d.reference ?? "", error);

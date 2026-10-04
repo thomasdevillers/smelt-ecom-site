@@ -9,12 +9,13 @@ import type { ShippingAddress } from "../address";
 export function orderConfirmationEmail(d: {
   shippingMethod?: ShippingMethod;
   preorder?: unknown;
-  reference: string; total: string; items: OrderItem[]; address?: ShippingAddress | null; discount?: number;
+  reference: string; total: string; items: OrderItem[]; address?: ShippingAddress | null; discount?: number; bundleDiscount?: number;
 }): { subject: string; html: string; text: string } {
   const preorder = parsePreorder(d.preorder);
   const blocks = [
     `<p>Order reference: <strong>${escapeHtml(d.reference)}</strong></p>`,
     orderItemsTable(d.items),
+    d.bundleDiscount ? moneyRow("Bundle discount", `−R${d.bundleDiscount}`) : "",
     d.discount ? moneyRow("Review voucher", `−R${d.discount}`) : "",
     moneyRow("Total paid", d.total),
     `<p><strong>Shipping:</strong> ${SHIPPING_OPTIONS[d.shippingMethod ?? "aramex"].label}</p>`,

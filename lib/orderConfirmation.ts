@@ -8,7 +8,7 @@ import { sanitizeAddress } from "./address";
 import { paidCheckoutTotal, paidUnitPrice, sanitizeCart } from "./checkoutShared";
 import { PRODUCT } from "./product";
 import type { CartState } from "./cartReducer";
-import { formatMoney, parseShippingMethod } from "./pricing";
+import { bundleDiscount, PRICING_VERSION, formatMoney, parseShippingMethod } from "./pricing";
 import { parseVoucherMetadata } from "./vouchers";
 
 export interface ConfirmedOrder {
@@ -24,6 +24,7 @@ export interface ConfirmedOrder {
   preorder?: unknown;
   voucher?: unknown;
   unitPrice?: unknown;
+  pricingVersion?: unknown;
 }
 
 type Message = { from: string; to: string; subject: string; html: string; text: string };
@@ -40,7 +41,7 @@ async function sendOrderEmail(order: ConfirmedOrder, audience: "customer" | "own
   const email = typeof order.email === "string" ? order.email.trim() : "";
   const cart = sanitizeCart(order.cart);
   const voucher = parseVoucherMetadata(order.voucher);
-  const expectedTotal = paidCheckoutTotal(cart, order.shippingMethod, voucher?.amount ?? 0, order.unitPrice);
+  const expectedTotal = paidCheckoutTotal(cart, order.shippingMethod, voucher?.amount ?? 0, order.unitPrice, order.pricingVersion);
   if (!reference || !/^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(email) ||
       expectedTotal <= 0 || order.currency !== "ZAR" || expectedTotal * 100 !== order.amount) {
     throw new Error("order_confirmation_invalid_payment_data");
@@ -68,6 +69,7 @@ async function sendOrderEmail(order: ConfirmedOrder, audience: "customer" | "own
       .map((colour) => ({ colour, name: PRODUCT.variants[colour].name, qty: cart[colour] }));
     const details = {
       reference, total: formatMoney(order.amount / 100), items, preorder: await resolvePurchasePreorder(reference, order.preorder), discount: voucher?.amount,
+      bundleDiscount: order.pricingVersion === PRICING_VERSION ? bundleDiscount(cart.green + cart.cream, paidUnitPrice(order.unitPrice)) : 0,
       shippingMethod: parseShippingMethod(order.shippingMethod)!,
       address: order.address ? sanitizeAddress(order.address) : null,
     };

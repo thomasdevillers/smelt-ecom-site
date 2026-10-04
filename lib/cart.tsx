@@ -1,13 +1,13 @@
 "use client";
 import { createContext, useContext, useEffect, useReducer, useState, useCallback } from "react";
 import { cartReducer, emptyCart, cartCount, cartSubtotal, type CartState, type CartAction } from "./cartReducer";
-import { META_CURRENCY, metaVariantContent, metaVariantName } from "./meta";
+import { META_CURRENCY, metaCartContents, metaVariantContent, metaVariantName } from "./meta";
 import { trackMetaEvent } from "./metaPixel";
 
-import { tiktokContent } from "./tiktok";
+import { tiktokCartParameters, tiktokContent } from "./tiktok";
 import { trackTikTokEvent } from "./tiktokPixel";
 
-import { trackVercelEvent, vercelProductData } from "./vercelAnalytics";
+import { trackVercelEvent, vercelCartData, vercelProductData } from "./vercelAnalytics";
 
 const STORAGE_KEY = "smelt-cart-v1";
 
@@ -47,6 +47,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const closeCart = useCallback(() => setIsOpen(false), []);
   const dispatch = useCallback((action: CartAction) => {
     baseDispatch(action);
+    if (action.type === "addBundle") {
+      const contents = metaCartContents(action.quantities);
+      const value = cartSubtotal(action.quantities);
+      trackVercelEvent("AddToCart", vercelCartData(action.quantities));
+      trackTikTokEvent("AddToCart", tiktokCartParameters(action.quantities, value));
+      trackMetaEvent("AddToCart", {
+        content_name: "Smelt Sauna Hat bundle", content_ids: contents.map(c => c.id),
+        contents, content_type: "product", currency: META_CURRENCY, value,
+      });
+    }
     if (action.type === "add" && action.qty > 0) {
       trackVercelEvent("AddToCart", vercelProductData(action.colour, action.qty));
       const content = metaVariantContent(action.colour, action.qty);

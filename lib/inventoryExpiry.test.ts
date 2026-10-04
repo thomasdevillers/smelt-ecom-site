@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({ hgetall: vi.fn(), hget: vi.fn(), eval: vi.fn()
 vi.mock('./admin/store', () => ({ adminStore: () => mocks, AdminError: class extends Error {} }));
 vi.mock('./paystack', () => ({ verifyTransaction: mocks.verify }));
 import { expirePurchaseReservations, purchaseNeedsReview, resolvePurchasePreorder, EXPIRE_PURCHASE, COMMIT_PURCHASE } from './preorderStore';
+import { PRICING_VERSION } from './pricing';
 import { GET } from '../app/api/cron/inventory/route';
 
 const now = Date.parse('2026-09-23T12:00:00.000Z');
@@ -39,6 +40,14 @@ describe('reservation expiry reconciliation', () => {
     mocks.verify.mockResolvedValue({ ...payment, status: 'success' });
     expect(await expirePurchaseReservations(now)).toEqual({ released: 0, paid: 1, retained: 0 });
     expect(mocks.eval).toHaveBeenCalledWith(COMMIT_PURCHASE, expect.any(Array), [reference, 1, 0]);
+  });
+  it('commits a paid mixed four-hat bundle during expiry reconciliation', async () => {
+    const cart = { green: 2, cream: 2 };
+    mocks.hgetall.mockResolvedValue({ [reference]: { ...held, ...cart } });
+    mocks.verify.mockResolvedValue({ ...payment, status: 'success', amount: 160000,
+      metadata: { ...payment.metadata, cart, unitPrice: 450, pricingVersion: PRICING_VERSION } });
+    expect(await expirePurchaseReservations(now)).toEqual({ released: 0, paid: 1, retained: 0 });
+    expect(mocks.eval).toHaveBeenCalledWith(COMMIT_PURCHASE, expect.any(Array), [reference, 2, 2]);
   });
   it.each([{ reference: 'wrong-reference' }, { amount: 1 }, { currency: 'USD' }, { metadata: {} }])('retains inconsistent payment records: %j', async mismatch => {
     mocks.verify.mockResolvedValue({ ...payment, status: 'success', ...mismatch });

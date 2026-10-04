@@ -2,10 +2,13 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { PRODUCT, type Colour } from "@/lib/product";
+import { COLOURS, PRODUCT, type Colour } from "@/lib/product";
 import styles from "./ProductGallery.module.css";
 
-export default function ProductGallery({ colour }: { colour: Colour }) {
+export default function ProductGallery({ colour, onColourChange }: {
+  colour: Colour;
+  onColourChange: (colour: Colour) => void;
+}) {
   const [selected, setSelected] = useState(0);
   const variant = PRODUCT.variants[colour];
   const media = [
@@ -33,6 +36,24 @@ export default function ProductGallery({ colour }: { colour: Colour }) {
           fetchPriority={selected === 0 ? "high" : "auto"}
         />
         <span className={styles.caption}>{active.label}</span>
+      </div>
+
+      <div className={styles.colourChoices} role="group" aria-label="Hat colour">
+        {COLOURS.map(choice => (
+          <button
+            key={choice}
+            type="button"
+            className={`${styles.colourChoice} ${colour === choice ? styles.colourChoiceOn : ""}`}
+            aria-pressed={colour === choice}
+            onClick={() => {
+              onColourChange(choice);
+              setSelected(current => current > 1 ? 0 : current);
+            }}
+          >
+            <span className={styles.swatch} style={{ backgroundColor: PRODUCT.variants[choice].swatch }} aria-hidden="true" />
+            <span>{PRODUCT.variants[choice].name}</span>
+          </button>
+        ))}
       </div>
 
       <div className={styles.thumbnails} aria-label="Product images">

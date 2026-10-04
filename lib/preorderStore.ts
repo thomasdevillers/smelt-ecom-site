@@ -213,7 +213,7 @@ export async function expirePurchaseReservations(now = Date.now()) {
         if (payment.status === 'success') {
           const cart = sanitizeCart(payment.metadata?.cart);
           const voucher = parseVoucherMetadata(payment.metadata?.voucher);
-          if (payment.metadata?.inventoryReservation !== reference || cart.green !== order.green || cart.cream !== order.cream || payment.currency !== 'ZAR' || payment.amount !== paidCheckoutTotal(cart, payment.metadata?.shippingMethod, voucher?.amount ?? 0, payment.metadata?.unitPrice) * 100)
+          if (payment.metadata?.inventoryReservation !== reference || cart.green !== order.green || cart.cream !== order.cream || payment.currency !== 'ZAR' || payment.amount !== paidCheckoutTotal(cart, payment.metadata?.shippingMethod, voucher?.amount ?? 0, payment.metadata?.unitPrice, payment.metadata?.pricingVersion) * 100)
             throw new Error('Paid reservation requires reconciliation');
           if (await commitPurchase(reference, cart)) result.paid++;
           else result.retained++;

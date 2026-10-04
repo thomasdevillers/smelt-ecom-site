@@ -16,6 +16,7 @@ vi.mock("./vouchers", () => ({
 }));
 import { sendOrderConfirmation, sendOwnerOrderNotification, type ConfirmedOrder } from "./orderConfirmation";
 import { checkoutTotal } from "./checkoutShared";
+import { PRICING_VERSION } from "./pricing";
 import { POST as webhook } from "../app/api/paystack/webhook/route";
 import { POST as verifyPost, GET as verifyGet } from "../app/api/checkout/verify/route";
 
@@ -48,11 +49,11 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 
-function webhookRequest(amount = order.amount, signatureValid = true, shippingMethod?: unknown) {
+function webhookRequest(amount = order.amount, signatureValid = true, shippingMethod?: unknown, metadata: Record<string, unknown> = {}) {
   const body = JSON.stringify({ event: "charge.success", data: {
     ...order, amount, status: "success", customer: { email: order.email },
     paid_at: "2026-09-26T05:00:00.000Z",
-    metadata: { cart: order.cart, shippingAddress: order.address, shippingMethod, customerName: "Test Buyer" },
+    metadata: { cart: order.cart, shippingAddress: order.address, shippingMethod, customerName: "Test Buyer", ...metadata },
   } });
   const signature = createHmac("sha512", "fake-paystack").update(body).digest("hex");
   return new Request("https://example.com/api/paystack/webhook", { method: "POST", body,
@@ -149,6 +150,46 @@ describe("confirmation delivery", () => {
 });
 
 describe("payment route integration", () => {
+  it.each([
+    ["POST", 3], ["GET", 3], ["webhook", 3],
+    ["POST", 4], ["GET", 4], ["webhook", 4],
+  ])("reconciles through %s a mixed %i-hat bundle with voucher and receipt discounts", async (route, qty) => {
+    const count = Number(qty);
+    const cart = { green: 2, cream: count - 2 };
+    const amount = (count === 3 ? 1200 : 1550) * 100;
+    const metadata = { cart, unitPrice: 450, pricingVersion: PRICING_VERSION, shippingMethod: "aramex", voucher: { amount: 50 } };
+    mocks.verify.mockResolvedValue({ ...order, amount, status: "success", customerEmail: order.email, metadata });
+    const response = route === "webhook"
+      ? await webhook(webhookRequest(amount, true, "aramex", metadata))
+      : route === "GET"
+        ? await verifyGet(new Request(`https://example.com/api/checkout/verify?reference=${order.reference}`))
+        : await verifyPost(new Request("https://example.com/api/checkout/verify", { method: "POST", body: JSON.stringify({ reference: order.reference }) }));
+    expect(response.status).toBe(200);
+    await flush();
+    expect(mocks.send).toHaveBeenCalledTimes(2);
+    for (const [message] of mocks.send.mock.calls) {
+      expect(message.text).toContain("Bundle discount");
+      expect(message.text).toContain(count === 3 ? "R100" : "R200");
+      expect(message.text).toContain(count === 3 ? "R1 200" : "R1 550");
+    }
+  });
+
+  it.each(["POST", "GET", "webhook"])("preserves older mixed four-hat payments through %s", async route => {
+    const cart = { green: 2, cream: 2 };
+    const metadata = { cart, unitPrice: 450 };
+    mocks.verify.mockResolvedValue({ ...order, amount: 180000, status: "success", customerEmail: order.email, metadata });
+    const response = route === "webhook"
+      ? await webhook(webhookRequest(180000, true, "aramex", metadata))
+      : route === "GET"
+        ? await verifyGet(new Request(`https://example.com/api/checkout/verify?reference=${order.reference}`))
+        : await verifyPost(new Request("https://example.com/api/checkout/verify", { method: "POST", body: JSON.stringify({ reference: order.reference }) }));
+    expect(response.status).toBe(200);
+    await flush();
+    expect(mocks.send).toHaveBeenCalledTimes(2);
+    expect(mocks.send.mock.calls[0][0].text).toContain("R1 800");
+    expect(mocks.send.mock.calls[0][0].text).not.toContain("Bundle discount");
+  });
+
   it.each(["POST", "GET", "webhook"])("reconciles founder delivery through %s and includes it in the receipt", async (route) => {
     const amount = 545000;
     mocks.verify.mockResolvedValue({ ...order, amount, status: "success", customerEmail: order.email,

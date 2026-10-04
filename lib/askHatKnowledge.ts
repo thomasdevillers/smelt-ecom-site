@@ -4,7 +4,7 @@ import { CONTACT } from "@/content/contact";
 import { POLICIES } from "@/content/policies";
 import { PRODUCT, COLOURS } from "./product";
 import { BASE_PRICE } from "./pricing";
-import { formatMoney, lineTotal, shippingFee, SHIPPING_OPTIONS } from "./pricing";
+import { bundleSubtotal, bundleDeliveredSaving, formatMoney, lineTotal, shippingFee, SHIPPING_OPTIONS } from "./pricing";
 import { PREORDER_MODE, PREORDER_COPY, REGULAR_PRICE } from "./salesMode";
 import type { Availability } from "./preorders";
 
@@ -24,7 +24,12 @@ export function hatKnowledge(availability: Availability | null) {
       currency: "ZAR",
       pricePerHat: formatMoney(BASE_PRICE),
       twoHats: formatMoney(lineTotal(2)),
-      twoHatDiscount: "There is no per-hat bundle discount; eligible orders get free express delivery.",
+      threeHats: formatMoney(bundleSubtotal(3)),
+      fourHats: formatMoney(bundleSubtotal(4)),
+      threeHatDeliveredSaving: formatMoney(bundleDeliveredSaving(3)),
+      fourHatDeliveredSaving: formatMoney(bundleDeliveredSaving(4)),
+      bundleRule: "Any green/cream combination. Three and four hats include free express delivery. Savings compare full item prices plus R90 delivery. Four hats are best value. Larger carts use four-hat packs, then a three-hat pack if possible, with remaining hats at the single price.",
+      twoHatDiscount: "The two-hat bundle has no item discount and includes free express delivery.",
       oneHatExpressDelivery: formatMoney(shippingFee(BASE_PRICE)),
       twoHatExpressDelivery: formatMoney(shippingFee(lineTotal(2))),
       preorderMode: PREORDER_MODE,

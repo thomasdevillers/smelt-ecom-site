@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useCart } from "@/lib/cart";
 import { PRODUCT, COLOURS } from "@/lib/product";
 import {
+  bundleDiscount,
   formatMoney,
   grandTotal,
   lineTotal,
@@ -20,6 +21,7 @@ export default function CartPage() {
   const freeShip = qualifiesForFreeShipping(subtotal);
   const delivery = shippingFee(subtotal);
   const total = grandTotal(subtotal);
+  const discount = bundleDiscount(cart.green + cart.cream);
 
   return (
     <main className={styles.page}>
@@ -91,6 +93,10 @@ export default function CartPage() {
                 ? "Free shipping unlocked. Warm regards."
                 : "Add a second hat in either colour for free delivery."}
             </div>
+            {discount > 0 && <>
+              <div className={styles.row}><span>Hats before discount</span><span>{formatMoney(subtotal + discount)}</span></div>
+              <div className={styles.row}><span>Bundle discount</span><span>−{formatMoney(discount)}</span></div>
+            </>}
             <div className={styles.row}>
               <span>Subtotal</span>
               <span>{formatMoney(subtotal)}</span>

@@ -10,7 +10,7 @@ import type { OrderItem } from '../orderTypes';
 export function ownerOrderEmail(d: {
   reference: string; email: string; customerName: string; paidAt?: string | null;
   total: string; cart: CartState; items: OrderItem[]; address: ShippingAddress | null;
-  unitPrice?: number; shippingMethod: ShippingMethod; discount?: number; preorder?: unknown; test: boolean;
+  unitPrice?: number; shippingMethod: ShippingMethod; discount?: number; bundleDiscount?: number; preorder?: unknown; test: boolean;
 }) {
   const preorder = parsePreorder(d.preorder);
   const subtotal = (d.cart.green + d.cart.cream) * (d.unitPrice ?? 450);
@@ -29,7 +29,8 @@ export function ownerOrderEmail(d: {
       row('Phone', d.address?.phone || 'Not supplied'),
       orderItemsTable(d.items),
       moneyRow('Items subtotal', formatMoney(subtotal)),
-      moneyRow('Delivery', formatMoney(shippingFee(subtotal, d.shippingMethod))),
+      ...(d.bundleDiscount ? [moneyRow('Bundle discount', `−${formatMoney(d.bundleDiscount)}`)] : []),
+      moneyRow('Delivery', formatMoney(shippingFee(subtotal - (d.bundleDiscount ?? 0), d.shippingMethod))),
       ...(d.discount ? [moneyRow('Voucher discount', `−${formatMoney(d.discount)}`)] : []),
       moneyRow('Total paid (ZAR)', d.total),
       row('Delivery method', SHIPPING_OPTIONS[d.shippingMethod].label),

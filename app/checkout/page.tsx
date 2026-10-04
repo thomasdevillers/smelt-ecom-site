@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
 import { COLOURS, PRODUCT } from "@/lib/product";
-import { formatMoney, lineTotal, shippingFee, grandTotal, SHIPPING_OPTIONS, type ShippingMethod } from "@/lib/pricing";
+import { bundleDiscount, formatMoney, lineTotal, shippingFee, grandTotal, SHIPPING_OPTIONS, type ShippingMethod } from "@/lib/pricing";
 import { AddressAutocomplete, type ParsedPlaceAddress } from "@/components/AddressAutocomplete";
 import { isCompleteAddress, type ShippingAddress } from "@/lib/address";
 import { META_CURRENCY, metaCartContents } from "@/lib/meta";
@@ -22,6 +22,7 @@ type Status = "idle" | "submitting" | "error";
 type AppliedVoucher = { code: string; amount: number; expiresAt: string; email: string };
 export default function CheckoutPage() {
   const { cart, subtotal, dispatch } = useCart();
+  const discount = bundleDiscount(cart.green + cart.cream);
   const { stock, error: stockError, refresh } = useAvailability();
   const quantities = stock ? preorderQuantities(cart, stock) : { green: 0, cream: 0 };
   const needsPreorder = hasPreorder(quantities);
@@ -276,6 +277,10 @@ export default function CheckoutPage() {
                 <span>{formatMoney(lineTotal(cart[c]))}</span>
               </div>
             ))}
+            {discount > 0 && <div className={`${styles.row} ${styles.discount}`}>
+              <span>Bundle discount</span>
+              <span>−{formatMoney(discount)}</span>
+            </div>}
             <div className={styles.row}>
               <span>{SHIPPING_OPTIONS[shippingMethod].label}</span>
               <span>
