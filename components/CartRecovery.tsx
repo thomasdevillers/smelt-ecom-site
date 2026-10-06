@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { CART_RECOVERY_STORAGE_KEY, type CartRecoveryData } from "@/lib/cartRecoveryShared";
 import styles from "./EmailPreference.module.css";
+import { captureBrowserAttribution } from "@/lib/attributionClient";
 
 export default function CartRecovery({ data }: { data: CartRecoveryData | null }) {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function CartRecovery({ data }: { data: CartRecoveryData | null }
     started.current = true;
     try {
       sessionStorage.setItem(CART_RECOVERY_STORAGE_KEY, JSON.stringify(data));
+      captureBrowserAttribution();
       router.replace("/checkout");
     } catch { queueMicrotask(() => setStorageFailed(true)); }
   }, [data, router]);

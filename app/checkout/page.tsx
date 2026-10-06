@@ -15,6 +15,7 @@ import styles from "./checkout.module.css";
 import { useCheckoutFollowup } from "@/lib/useCheckoutFollowup";
 import { CART_RECOVERY_STORAGE_KEY, EMAIL_VOUCHER_STORAGE_KEY, type CartRecoveryData } from "@/lib/cartRecoveryShared";
 import { sanitizeCart } from "@/lib/checkoutShared";
+import { getCheckoutAttribution } from "@/lib/attributionClient";
 
 type Status = "idle" | "submitting" | "error";
 type AppliedVoucher = { code: string; amount: number; expiresAt: string; email: string };
@@ -168,6 +169,7 @@ export default function CheckoutPage() {
           preorderConsent: needsPreorder ? { accepted: true, batch: stock?.batch, quantities } : undefined,
           voucherCode: activeVoucher?.code,
           metaClient: getMetaClientContext(),
+          attribution: getCheckoutAttribution(),
         }),
       });
       const data = await response.json();

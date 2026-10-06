@@ -10,6 +10,7 @@ import { reservePurchase, getAvailability, releaseRejectedPurchase } from "@/lib
 import { localStockTest } from "@/lib/stockEnvironment";
 import { releaseVoucherCodeReservation, releaseVoucherReservation, reserveVoucher, type VoucherMetadata } from "@/lib/vouchers";
 import { AdminError } from "@/lib/admin/store";
+import { activeAttribution } from "@/lib/attribution";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Request origin is not allowed." }, { status: 403 });
   }
 
-  let body: { shippingMethod?: unknown; email?: unknown; cart?: unknown; name?: unknown; address?: unknown; metaClient?: MetaClientContext; preorderConsent?: unknown; voucherCode?: unknown };
+  let body: { shippingMethod?: unknown; email?: unknown; cart?: unknown; name?: unknown; address?: unknown; metaClient?: MetaClientContext; preorderConsent?: unknown; voucherCode?: unknown; attribution?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -105,6 +106,7 @@ export async function POST(request: Request) {
         voucher,
         cancel_action: `${origin}/api/checkout/cancel?reservation=${encodeURIComponent(reservationId)}`,
         metaClient: body.metaClient,
+        attribution: activeAttribution(body.attribution),
       },
     });
     return Response.json({ configured: true, authorizationUrl, reference });

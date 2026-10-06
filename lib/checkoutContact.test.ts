@@ -24,11 +24,26 @@ vi.mock("@/lib/preorderStore", () => ({
   getAvailability: vi.fn().mockResolvedValue({ green: 0, cream: 13, preorder: { green: 0, cream: 0 } }),
 }));
 import { reservePurchase } from "@/lib/preorderStore";
+import { ATTRIBUTION_WINDOW_MS, captureTouch, mergeAttribution } from "./attribution";
 const request = (address: unknown, extra: Record<string, unknown> = {}) => new Request("https://saunahat.co.za/api/checkout", {
   method: "POST", headers: { "Content-Type": "application/json", Origin: "https://saunahat.co.za" },
   body: JSON.stringify({ email: "buyer@example.com", cart: { green: 1 }, address, shippingMethod: "aramex", ...extra }),
 });
 beforeEach(() => vi.clearAllMocks());
+it("saves bounded attribution with the payment and accepts missing or invalid tracking", async () => {
+  const now = Date.now();
+  const touch = captureTouch(new URL("https://saunahat.co.za/product?utm_source=facebook&utm_medium=paid_social&utm_campaign=october"), "", now)!;
+  const attribution = mergeAttribution(null, touch, now)!;
+  const response = await POST(request({ phone: "0837875826" }, { attribution: { ...attribution, email: "should-not-be-stored", lastTouch: { ...touch, landingPath: "/checkout/recover/private-token?email=secret", campaign: "a".repeat(500), secret: "private" } } }));
+  expect(response.status).toBe(200);
+  const metadata = vi.mocked(initializeTransaction).mock.calls.at(-1)![0].metadata!;
+  expect(metadata.attribution).toMatchObject({ firstTouch: { source: "facebook" }, lastTouch: { landingPath: "/checkout/recover", campaign: "a".repeat(160) } });
+  expect(JSON.stringify(metadata.attribution)).not.toMatch(/private|should-not-be-stored|secret/);
+  for (const invalid of [undefined, { version: 1 }, mergeAttribution(null, captureTouch(new URL("https://saunahat.co.za/product"), "", now - ATTRIBUTION_WINDOW_MS - 1000), now - ATTRIBUTION_WINDOW_MS - 1000)]) {
+    expect((await POST(request({ phone: "0837875826" }, { attribution: invalid }))).status).toBe(200);
+    expect(vi.mocked(initializeTransaction).mock.calls.at(-1)![0].metadata?.attribution).toBeNull();
+  }
+});
 it("rejects missing or whitespace-only phone numbers before creating a payment", async () => {
   for (const phone of [undefined, "", "   "]) {
     expect((await POST(request({ phone }))).status).toBe(400);

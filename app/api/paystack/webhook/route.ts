@@ -63,7 +63,7 @@ export async function POST(request: Request) {
         shippingMethod?: unknown;
         inventoryReservation?: unknown;
         preorder?: unknown;
-        voucher?: unknown; unitPrice?: unknown; pricingVersion?: unknown;
+        voucher?: unknown; unitPrice?: unknown; pricingVersion?: unknown; attribution?: unknown;
       };
     };
   };
@@ -122,7 +122,7 @@ export async function POST(request: Request) {
     try {
       await sendOrderNotifications({
         reference: d.reference ?? "", email: d.customer?.email ?? "", customerName: d.metadata?.customerName, paidAt: d.paid_at,
-        amount: d.amount!, currency: d.currency!, cart, address: d.metadata?.shippingAddress, shippingMethod: d.metadata?.shippingMethod, preorder: d.metadata?.preorder, voucher: d.metadata?.voucher, unitPrice: d.metadata?.unitPrice, pricingVersion: d.metadata?.pricingVersion,
+        amount: d.amount!, currency: d.currency!, cart, address: d.metadata?.shippingAddress, shippingMethod: d.metadata?.shippingMethod, preorder: d.metadata?.preorder, voucher: d.metadata?.voucher, unitPrice: d.metadata?.unitPrice, pricingVersion: d.metadata?.pricingVersion, attribution: d.metadata?.attribution,
       });
     } catch (error) {
       logOrderConfirmationFailure(d.reference ?? "", error);

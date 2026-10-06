@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { Bricolage_Grotesque, Space_Grotesk, Caveat } from 'next/font/google'
 import SiteChrome from '@/components/SiteChrome'
+import AttributionTracker from '@/components/AttributionTracker'
+import { Suspense } from 'react'
 import './globals.css'
 import { SITE_URL, abs } from '@/lib/seo'
 
@@ -90,6 +92,7 @@ export default function RootLayout({
       data-scroll-behavior="smooth"
     >
       <body>
+        <Suspense fallback={null}><AttributionTracker /></Suspense>
         <SiteChrome structuredData={<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationLd).replace(/</g, '\\u003c') }} />}>
           {children}
         </SiteChrome>

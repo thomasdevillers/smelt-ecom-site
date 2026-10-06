@@ -1,5 +1,5 @@
 import { renderEmail } from "./layout";
-import { COLORS, FONT_STACK, absoluteUrl, escapeHtml } from "./theme";
+import { COLORS, FONT_STACK, absoluteUrl, escapeHtml, marketingEmailUrl } from "./theme";
 import type { VoucherReward } from "../vouchers";
 
 export function reviewRewardEmail(d: { name?: string | null; voucher: VoucherReward }) {
@@ -15,7 +15,7 @@ export function reviewRewardEmail(d: { name?: string | null; voucher: VoucherRew
       `<table class="email-panel" role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${COLORS.paper}" style="margin:8px 0 20px;border:1px solid ${COLORS.border};border-radius:16px;background-color:${COLORS.paper};"><tr><td class="email-text" align="center" style="padding:22px;"><span class="email-muted" style="font-family:${FONT_STACK};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${COLORS.inkSoft};">R${d.voucher.amount} off your next order</span><br/><strong style="display:inline-block;margin-top:8px;font-family:${FONT_STACK};font-size:24px;letter-spacing:.08em;color:${COLORS.ink};">${escapeHtml(d.voucher.code)}</strong></td></tr></table>`,
       p(`Click below and your discount will apply automatically at checkout when you use the same email address. Use it before <strong>${escapeHtml(expires)}</strong>. It can be used once and cannot be exchanged for cash.`),
     ],
-    cta: { label: "Shop with my discount", url: absoluteUrl(`/checkout/offer/${encodeURIComponent(d.voucher.code)}`) },
+    cta: { label: "Shop with my discount", url: escapeHtml(marketingEmailUrl(absoluteUrl(`/checkout/offer/${encodeURIComponent(d.voucher.code)}`), "review_reward")) },
   });
   return { subject: `Your R${d.voucher.amount} Smelt thank-you voucher`, html, text };
 }

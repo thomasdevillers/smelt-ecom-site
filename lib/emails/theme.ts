@@ -22,6 +22,16 @@ export function absoluteUrl(path: string, base = process.env.SITE_URL || "https:
   return `${b}${p}`;
 }
 
+/** Tag store-generated marketing links while preserving private recovery/voucher paths. */
+export function marketingEmailUrl(value: string, campaign: string, content?: string): string {
+  const url = new URL(value);
+  url.searchParams.set("utm_source", "smelt");
+  url.searchParams.set("utm_medium", "email");
+  url.searchParams.set("utm_campaign", campaign);
+  if (content) url.searchParams.set("utm_content", content);
+  return url.toString();
+}
+
 /** Escape HTML-special characters so customer-derived strings are safe to interpolate. */
 export function escapeHtml(s: string): string {
   return s

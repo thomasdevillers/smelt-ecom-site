@@ -1,5 +1,6 @@
 import type { ShippingAddress } from "../address";
 import type { OrderItem } from "../orderTypes";
+import type { AttributionChannel, OrderAttribution } from "../attribution";
 export interface ShippingReceipt {
   status: "pending" | "accepted";
   trackingNumber: string;
@@ -18,6 +19,7 @@ export interface AdminOrder {
   amount: number;
   currency: string;
   paidAt: string | null;
+  attribution?: OrderAttribution | null;
   items: OrderItem[];
   address: ShippingAddress;
   shippingMethod: string;
@@ -51,6 +53,7 @@ export interface AnalyticsPeriod {
   checkoutErrors: number;
   orders: number;
   revenue: number;
+  channels: Array<{ channel: AttributionChannel; orders: number; revenue: number }>;
 }
 
 export interface ConversionAnalytics {

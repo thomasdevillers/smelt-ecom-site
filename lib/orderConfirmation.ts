@@ -10,6 +10,7 @@ import { PRODUCT } from "./product";
 import type { CartState } from "./cartReducer";
 import { bundleDiscount, PRICING_VERSION, formatMoney, parseShippingMethod } from "./pricing";
 import { parseVoucherMetadata } from "./vouchers";
+import { parseAttribution } from "./attribution";
 
 export interface ConfirmedOrder {
   reference: string;
@@ -25,9 +26,10 @@ export interface ConfirmedOrder {
   voucher?: unknown;
   unitPrice?: unknown;
   pricingVersion?: unknown;
+  attribution?: unknown;
 }
 
-type Message = { from: string; to: string; subject: string; html: string; text: string };
+type Message = { from: string; to: string; cc?: string; subject: string; html: string; text: string };
 type Receipt = { status: "accepted"; id: string } | { status: "pending"; startedAt: number; message: Message };
 // Keep the first payload unchanged across concurrent callbacks, deployments, and retries.
 export const PREPARE_CONFIRMATION = `
@@ -74,10 +76,14 @@ async function sendOrderEmail(order: ConfirmedOrder, audience: "customer" | "own
       address: order.address ? sanitizeAddress(order.address) : null,
     };
     const message = audience === "owner"
-      ? ownerOrderEmail({ ...details, email, customerName: typeof order.customerName === "string" ? order.customerName.trim() : "", paidAt: order.paidAt, cart, unitPrice: paidUnitPrice(order.unitPrice), test: !process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_") })
+      ? ownerOrderEmail({ ...details, email, customerName: typeof order.customerName === "string" ? order.customerName.trim() : "", paidAt: order.paidAt, cart, unitPrice: paidUnitPrice(order.unitPrice), attribution: parseAttribution(order.attribution), test: !process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_") })
       : orderConfirmationEmail(details);
     receipt = await db.eval<unknown[], Receipt>(PREPARE_CONFIRMATION, [key], [JSON.stringify({
-      status: "pending", startedAt: Date.now(), message: { from, to: audience === "owner" ? "thomasdevilliers100@gmail.com" : email, ...message },
+      status: "pending", startedAt: Date.now(), message: {
+        from, to: audience === "owner" ? "thomasdevilliers100@gmail.com" : email,
+        ...(audience === "owner" ? { cc: "marcpape7@icloud.com" } : {}),
+        ...message,
+      },
     })]);
   }
   if (receipt.status === "accepted") return;

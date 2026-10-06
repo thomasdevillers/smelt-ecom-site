@@ -6,11 +6,13 @@ import { type CartState } from '../cartReducer';
 import { parsePreorder, preorderTiming } from '../preorders';
 import type { ShippingAddress } from '../address';
 import type { OrderItem } from '../orderTypes';
+import { attributionChannel, type OrderAttribution } from '../attribution';
 
 export function ownerOrderEmail(d: {
   reference: string; email: string; customerName: string; paidAt?: string | null;
   total: string; cart: CartState; items: OrderItem[]; address: ShippingAddress | null;
   unitPrice?: number; shippingMethod: ShippingMethod; discount?: number; bundleDiscount?: number; preorder?: unknown; test: boolean;
+  attribution?: OrderAttribution | null;
 }) {
   const preorder = parsePreorder(d.preorder);
   const subtotal = (d.cart.green + d.cart.cream) * (d.unitPrice ?? 450);
@@ -18,6 +20,7 @@ export function ownerOrderEmail(d: {
     ? new Intl.DateTimeFormat('en-ZA', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Johannesburg' }).format(new Date(d.paidAt)) + ' SAST'
     : 'Not supplied by payment provider';
   const row = (label: string, value: string) => `<p><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>`;
+  const source = attributionChannel(d.attribution?.lastTouch);
   const { html, text } = renderEmail({
     preheader: 'A successful Smelt payment has been confirmed.',
     heading: d.test ? 'Test order received' : 'New paid order',
@@ -27,6 +30,7 @@ export function ownerOrderEmail(d: {
       row('Customer', d.customerName || 'Name not supplied'),
       row('Email', d.email),
       row('Phone', d.address?.phone || 'Not supplied'),
+      row('Source', source === 'meta' ? 'Meta' : source === 'organic' ? 'Not Meta' : 'Not recorded'),
       orderItemsTable(d.items),
       moneyRow('Items subtotal', formatMoney(subtotal)),
       ...(d.bundleDiscount ? [moneyRow('Bundle discount', `−${formatMoney(d.bundleDiscount)}`)] : []),

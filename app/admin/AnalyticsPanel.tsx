@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AnalyticsDays, AnalyticsPeriod, ConversionAnalytics } from "@/lib/admin/types";
 import styles from "./admin.module.css";
+import { CHANNEL_LABELS } from "@/lib/attribution";
 
 class AnalyticsError extends Error { constructor(message: string, public status: number) { super(message); } }
 
@@ -121,6 +122,14 @@ export default function AnalyticsPanel({ onExpired }: { onExpired: () => void })
             <b>{formatNumber(stage.value)}</b>
           </div>)}
         </div>
+      </section>
+      <section className={styles.channelSection} aria-labelledby="channels-title">
+        <div className={styles.sectionIntro}><span>CONVERSION SOURCES</span><h2 id="channels-title">Meta or Organic.</h2><p>Meta means a tagged Meta ad visit in the 30 days before checkout. Organic includes all other visits, including direct. Older orders without tracking appear as Not recorded.</p></div>
+        {data.current.channels.length ? <div className={styles.channelTableWrap}><table className={styles.channelTable}>
+          <caption className={styles.channelCaption}>Paid orders and revenue from Meta or Organic</caption>
+          <thead><tr><th scope="col">Source</th><th scope="col">Orders</th><th scope="col">Share of orders</th><th scope="col">Revenue</th></tr></thead>
+          <tbody>{data.current.channels.map(row => <tr key={row.channel}><th scope="row">{CHANNEL_LABELS[row.channel]}</th><td>{formatNumber(row.orders)}</td><td>{formatPercent(percent(row.orders, data.current.orders))}</td><td>{formatMoney(row.revenue)}</td></tr>)}</tbody>
+        </table></div> : <p className={styles.note}>No paid orders in this period.</p>}
       </section>
       <div className={styles.analyticsNotes}>
         <p><strong>How to read this:</strong> Paystack is the sales truth. Vercel events diagnose where shoppers drop off; browser blocking or a closed tab can make those stages undercount.</p>

@@ -7,6 +7,7 @@ import { publicReceipt } from "./receipts";
 import { PRODUCT } from "../product";
 import { AdminError, adminStore, digest } from "./store";
 import type { AdminOrder, OrdersPage, ShippingReceipt } from "./types";
+import { parseAttribution } from "../attribution";
 
 export const orderReceiptKey = (reference: string) => `smelt:shipping:order:v1:${digest(reference)}`;
 export const shipmentKey = (email: string, tracking: string) => `smelt:shipping:receipt:v1:${digest(`${email.toLowerCase()}\n${tracking}`)}`;
@@ -40,6 +41,7 @@ export function normalizeOrder(input: unknown): AdminOrder {
     reference: str(d.reference), email, name: str(m.customerName) || [str(customer.first_name), str(customer.last_name)].filter(Boolean).join(" "),
     amount: typeof d.amount === "number" ? d.amount : 0, currency: str(d.currency), paidAt: str(d.paid_at) || null,
     preorder: parsePreorder(m.preorder),
+    attribution: parseAttribution(m.attribution),
     items, address: sanitizeAddress(m.shippingAddress), shippingMethod: method,
     canShip: !reviewReason, reviewReason, receipt: null, history: [], completedAt: null,
   };
