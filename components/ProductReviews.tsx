@@ -54,7 +54,7 @@ export default function ProductReviews() {
     </div>
 
     <div className={ctaStyles.writeReview}>
-      <div><span>OWN A SMELT?</span><strong>Put your sauna sessions on record.</strong><p>Leave an honest verified review and get R50 off your next order. Every rating qualifies.</p></div>
+      <div><span>OWN A SMELT?</span><strong>Put your sauna sessions on record.</strong><p>Leave one honest order review with photos of your hats. Get R50 back for every hat you bought. Every rating counts.</p></div>
       <Link href="/review">Write a review →</Link>
     </div>
 
@@ -67,7 +67,7 @@ export default function ProductReviews() {
     </div>
     <div className={styles.grid}>
       {data.reviews.map(review => <article className={styles.card} key={review.id}>
-        <div className={styles.cardTop}><Stars rating={review.rating} /><span>{review.incentivized ? "Verified purchase · R50 thank-you" : "Verified purchase ✓"}</span></div>
+        <div className={styles.cardTop}><Stars rating={review.rating} /><span>{review.incentivized ? "Verified purchase · Review thank-you" : "Verified purchase ✓"}</span></div>
         <p className={styles.body}>&ldquo;{review.body}&rdquo;</p>
         {review.photos.length > 0 && <div className={styles.photos}>
           {review.photos.map(photo => <button type="button" key={photo.url} onClick={() => setActivePhoto(photo.url)} aria-label={`Open photo from ${review.displayName}`}>

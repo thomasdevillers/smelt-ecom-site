@@ -61,6 +61,8 @@ describe("review outreach automation", () => {
     expect(mocks.send).toHaveBeenCalledTimes(1);
     expect(mocks.send.mock.calls[0][0]).toMatchObject({ to: "buyer@example.com", subject: expect.stringContaining("R50") });
     expect(mocks.send.mock.calls[0][0].html).toContain("https://saunahat.co.za/review/private-token");
+    expect(mocks.send.mock.calls[0][0].text).toContain("add photos of your hats");
+    expect(mocks.send.mock.calls[0][0].text).not.toContain("next order");
     await expect(processReviewRequests(now)).resolves.toMatchObject({ sent: 0 });
     expect(mocks.send).toHaveBeenCalledTimes(1);
   });
@@ -70,6 +72,16 @@ describe("review outreach automation", () => {
     mocks.hasInvite.mockResolvedValue(true);
     await expect(processReviewRequests(Date.parse("2026-09-22T10:00:00.000Z"))).resolves.toMatchObject({ skipped: 1 });
     expect(mocks.createInvitation).not.toHaveBeenCalled();
+    expect(mocks.send).not.toHaveBeenCalled();
+  });
+
+  it("holds a pending request from the retired voucher offer for reconciliation", async () => {
+    mocks.completed["order-1"] = "2026-09-01T10:00:00.000Z";
+    const { digest } = await import("./admin/store");
+    const key = `smelt:review-outreach:v1:test:request:${digest("order-1")}`;
+    mocks.values.set(key, { status: "pending", startedAt: Date.now(), message: { subject: "Old voucher offer" } });
+    await expect(processReviewRequests()).resolves.toMatchObject({ skipped: 1, sent: 0 });
+    expect(mocks.values.get(key)).toMatchObject({ status: "manual", reason: "review_offer_changed" });
     expect(mocks.send).not.toHaveBeenCalled();
   });
 

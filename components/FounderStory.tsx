@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import SectionLabel from "./ui/SectionLabel";
 import { ABOUT } from "@/content/about";
 import styles from "./FounderStory.module.css";
@@ -27,6 +28,7 @@ export default function FounderStory() {
         <SectionLabel>The people behind it</SectionLabel>
         <h2 className={styles.h2}>Made by two people who kept losing to the heat.</h2>
         <p className={styles.p}>{ABOUT.teaser}</p>
+        <Link href="/our-story" className={styles.storyLink}>Read our story <span aria-hidden="true">→</span></Link>
       </div>
     </section>
   );

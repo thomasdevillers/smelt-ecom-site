@@ -13,6 +13,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const routes: Route[] = [
     { path: "/", priority: 1, changeFrequency: "weekly" },
     { path: "/product", priority: 0.9, changeFrequency: "weekly" },
+    { path: "/our-story", priority: 0.6, changeFrequency: "yearly" },
     { path: "/articles", priority: 0.7, changeFrequency: "monthly" },
     ...GUIDES.map<Route>((g) => ({
       path: `/articles/${g.slug}`,

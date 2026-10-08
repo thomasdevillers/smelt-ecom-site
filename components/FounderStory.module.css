@@ -5,4 +5,5 @@
 .cap { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--terracotta-text); margin-top: 10px; }
 .h2 { font-family: var(--font-bricolage), sans-serif; font-weight: 800; font-size: clamp(26px,5vw,44px); line-height: 1.02; letter-spacing: -.02em; margin: 12px 0 18px; }
 .p { font-size: 16px; line-height: 1.65; color: rgba(14,59,42,.82); margin: 0; max-width: 460px; }
+.storyLink { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; margin-top: 16px; padding: 10px 0; font-size: 14px; font-weight: 600; text-underline-offset: 5px; }
 @media (min-width: 880px) { .section { padding: 0 32px; grid-template-columns: 1fr 1fr; gap: 56px; } }

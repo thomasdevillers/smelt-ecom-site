@@ -6,6 +6,7 @@ import styles from "./Header.module.css";
 
 const NAV = [
   { href: "/product", label: "Shop" },
+  { href: "/our-story", label: "Our story" },
   { href: "/articles", label: "Articles" },
   { href: "/policies", label: "Policies" },
   { href: "/contact", label: "Contact" },
