@@ -16,6 +16,7 @@ vi.mock("./vouchers", () => ({
 import { sendOrderConfirmation, sendOwnerOrderNotification, type ConfirmedOrder } from "./orderConfirmation";
 import { checkoutTotal } from "./checkoutShared";
 import { PRICING_VERSION } from "./pricing";
+import { captureTouch, mergeAttribution } from "./attribution";
 import { POST as webhook } from "../app/api/paystack/webhook/route";
 import { POST as verifyPost, GET as verifyGet } from "../app/api/checkout/verify/route";
 
@@ -64,6 +65,30 @@ async function flush() {
 }
 
 describe("confirmation delivery", () => {
+  it.each(["webhook", "verify-get", "verify-post"].flatMap(flow => [
+    { flow, query: "?utm_source=meta&utm_campaign=October%20%3Cpromo%3E&utm_content=video_01", label: "Meta" },
+    { flow, query: "", label: "Not Meta" },
+    { flow, query: null, label: "Not recorded" },
+  ]))("includes Source: $label in the owner email through $flow", async ({ flow, query, label }) => {
+    const attribution = query === null ? null : mergeAttribution(null, captureTouch(new URL(`https://saunahat.co.za/product${query}`), "", Date.parse("2026-10-06T10:00:00Z")), Date.parse("2026-10-06T10:00:00Z"));
+    mocks.verify.mockResolvedValue({ ...order, status: "success", customerEmail: order.email, metadata: { cart: order.cart, shippingAddress: order.address, attribution } });
+    const response = flow === "webhook" ? await webhook(webhookRequest(order.amount, true, undefined, { attribution }))
+      : flow === "verify-get" ? await verifyGet(new Request(`https://example.com/api/checkout/verify?reference=${order.reference}`))
+      : await verifyPost(new Request("https://example.com/api/checkout/verify", { method: "POST", body: JSON.stringify({ reference: order.reference, attribution: { forged: true } }) }));
+    expect(response.status).toBe(200);
+    if (flow === "verify-get") expect(await response.json()).not.toHaveProperty("attribution");
+    await flush();
+    const owner = mocks.send.mock.calls.find(([message]) => message.to !== order.email)![0];
+    const customer = mocks.send.mock.calls.find(([message]) => message.to === order.email)![0];
+    expect(owner.cc).toBe("marcpape7@icloud.com");
+    expect(customer).not.toHaveProperty("cc");
+    expect(owner.text).toContain(`Source: ${label}`);
+    expect(owner.html).toContain(`<strong>Source:</strong> ${label}`);
+    expect(owner.text).not.toContain("video_01");
+    expect(owner.html).not.toContain("October");
+    expect(customer.text).not.toContain("Source:");
+    expect(customer.html).not.toContain("October");
+  });
   it("returns only sanitized delivery fields after verified payment and prevents caching", async () => {
     mocks.verify.mockResolvedValueOnce({ ...order, status: "success", metadata: {
       cart: order.cart,
@@ -302,6 +327,7 @@ describe("owner notifications", () => {
     await sendOwnerOrderNotification({ ...order, customerName: "Test <Buyer>", paidAt: "2026-09-26T05:00:00.000Z", address: { ...order.address as object, phone: "0821234567", company: "Test Estate", addressLine2: "Unit 4" } });
     const message = mocks.send.mock.calls[0][0];
     expect(message.to).toBe("thomasdevilliers100@gmail.com");
+    expect(message.cc).toBe("marcpape7@icloud.com");
     for (const text of ["buyer@example.com", "0821234567", "Test Estate", "Unit 4", "1 Test Street", "Forest Green", "R450", "R90", "R540", "07:00", "SAST", "https://saunahat.co.za/admin"]) expect(message.text).toContain(text);
     expect(message.html).toContain("Test &lt;Buyer&gt;");
     expect(message.html).not.toContain("Test <Buyer>");
@@ -311,6 +337,7 @@ describe("owner notifications", () => {
     await sendOrderConfirmation(order);
     expect(mocks.send).toHaveBeenCalledTimes(2);
     expect(mocks.send.mock.calls[1][0].to).toBe(order.email);
+    expect(mocks.send.mock.calls[1][0]).not.toHaveProperty("cc");
     expect(store.size).toBe(2);
   });
   it("retries a failed owner alert without duplicating the customer confirmation", async () => {
@@ -321,6 +348,7 @@ describe("owner notifications", () => {
     const firstOwnerCall = mocks.send.mock.calls.find(([message]) => message.to === "thomasdevilliers100@gmail.com");
     expect(firstOwnerCall?.[0].text).toContain("Test Buyer");
     expect(firstOwnerCall?.[0].text).toContain("07:00");
+    expect(firstOwnerCall?.[0].cc).toBe("marcpape7@icloud.com");
     mocks.send.mockResolvedValue({ data: { id: "owner-accepted" }, error: null });
     expect((await webhook(webhookRequest())).status).toBe(200);
     expect(mocks.send.mock.calls.filter(([message]) => message.to === order.email)).toHaveLength(1);

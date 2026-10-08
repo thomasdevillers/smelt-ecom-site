@@ -2,7 +2,11 @@
 
 Open `/admin` on the deployed Smelt site. The dashboard lists successful Paystack payments, newest first, with 25 orders per page. Use **Active orders** and **Completed orders** to switch sections. Search by full customer email or payment reference within either section. Unpaid checkout attempts are not orders in this view.
 
+New paid-order owner notifications go to `thomasdevilliers100@gmail.com`, with `marcpape7@icloud.com` copied on the same email. Both receive the order details and Meta / Not Meta source. Customer receipts are sent separately. Already accepted notifications are not resent; pending retries keep their original frozen recipients and payload.
+
 Use **Store performance** for the conversion scorecard. It combines production Vercel Web Analytics traffic with successful Paystack payments over rolling 7-, 28-, or 90-day periods and compares each period with the immediately preceding period. Paystack is the source of truth for orders and revenue; browser events are diagnostic funnel signals.
+
+Each order shows **Meta** or **Organic**. **Store performance → Meta or Organic** shows paid orders, share of orders and revenue for these two sources. Historical orders without attribution appear as **Not recorded**. See [Conversion attribution](CONVERSION_ATTRIBUTION.md) for the 30-day rules, marketing-link setup and manual verification steps.
 
 The official store conversion rate is **successful Paystack orders / Vercel daily unique visitors**. Vercel resets its privacy-friendly visitor identity daily, so a person who returns on another day is counted again. Product views, add-to-bag activity, and checkout starts use unique visitors to the existing custom events. Browser blocking or closing the tab can make those stages undercount; it does not remove a verified Paystack order.
 

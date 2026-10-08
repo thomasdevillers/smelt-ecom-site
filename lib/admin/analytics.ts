@@ -1,6 +1,7 @@
 import { AdminError } from "./store";
 import type { AnalyticsDays, AnalyticsPeriod, ConversionAnalytics } from "./types";
 import { normalizeOrder } from "./orders";
+import { attributionChannel, type AttributionChannel } from "../attribution";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const JOHANNESBURG_OFFSET_MS = 2 * 60 * 60 * 1000;
@@ -107,6 +108,7 @@ function sumVisitors(rows: DailyMetric[], start: string, end: string) {
 function sales(transactions: PaidTransaction[], start: string, end: string) {
   const seen = new Set<string>();
   let orders = 0, revenue = 0;
+  const channels = new Map<AttributionChannel, { channel: AttributionChannel; orders: number; revenue: number }>();
   for (const transaction of transactions) {
     const order = normalizeOrder(transaction);
     const reference = order.reference;
@@ -117,8 +119,12 @@ function sales(transactions: PaidTransaction[], start: string, end: string) {
     const amount = Number.isFinite(order.amount) && order.amount > 0 ? order.amount : 0;
     if (!amount) continue;
     seen.add(reference); orders++; revenue += amount;
+    const channel = attributionChannel(order.attribution?.lastTouch);
+    const total = channels.get(channel) ?? { channel, orders: 0, revenue: 0 };
+    total.orders++; total.revenue += amount;
+    channels.set(channel, total);
   }
-  return { orders, revenue };
+  return { orders, revenue, channels: [...channels.values()].sort((a, b) => b.revenue - a.revenue || a.channel.localeCompare(b.channel)) };
 }
 
 export async function getConversionAnalytics(days: AnalyticsDays, now = new Date()): Promise<ConversionAnalytics> {

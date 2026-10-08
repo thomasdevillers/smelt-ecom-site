@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { EMAIL_VOUCHER_STORAGE_KEY } from "@/lib/cartRecoveryShared";
+import { captureBrowserAttribution } from "@/lib/attributionClient";
 
 export default function EmailOffer({ code }: { code: string }) {
   const router = useRouter();
@@ -10,6 +11,7 @@ export default function EmailOffer({ code }: { code: string }) {
   useEffect(() => {
     try {
       sessionStorage.setItem(EMAIL_VOUCHER_STORAGE_KEY, code);
+      captureBrowserAttribution();
       router.replace("/product");
     } catch { queueMicrotask(() => setFailed(true)); }
   }, [code, router]);

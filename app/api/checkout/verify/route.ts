@@ -54,7 +54,7 @@ export async function POST(request: Request) {
       items?: OrderItem[];
       inventoryReservation?: unknown;
       preorder?: unknown;
-      voucher?: unknown; unitPrice?: unknown; pricingVersion?: unknown;
+      voucher?: unknown; unitPrice?: unknown; pricingVersion?: unknown; attribution?: unknown;
     } | null;
 
     const cart = sanitizeCart(meta?.cart ?? body.cart);
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
 
     after(() => tryOrderConfirmation({
       reference: verified.reference, email: verified.customerEmail ?? "", customerName: meta?.customerName, paidAt: verified.paidAt,
-      amount: verified.amount, currency: verified.currency, cart, address: meta?.shippingAddress, shippingMethod: meta?.shippingMethod, preorder: meta?.preorder, voucher: meta?.voucher, unitPrice: meta?.unitPrice, pricingVersion: meta?.pricingVersion,
+      amount: verified.amount, currency: verified.currency, cart, address: meta?.shippingAddress, shippingMethod: meta?.shippingMethod, preorder: meta?.preorder, voucher: meta?.voucher, unitPrice: meta?.unitPrice, pricingVersion: meta?.pricingVersion, attribution: meta?.attribution,
     }));
 
     await sendMetaPurchase({
@@ -146,7 +146,7 @@ export async function GET(request: Request) {
       shippingMethod?: unknown;
       inventoryReservation?: unknown;
       preorder?: unknown;
-      voucher?: unknown; unitPrice?: unknown; pricingVersion?: unknown;
+      voucher?: unknown; unitPrice?: unknown; pricingVersion?: unknown; attribution?: unknown;
     } | null;
     const cart = sanitizeCart(meta?.cart);
     const voucher = parseVoucherMetadata(meta?.voucher);
@@ -164,7 +164,7 @@ export async function GET(request: Request) {
     }
     after(() => tryOrderConfirmation({
       reference: verified.reference, email: verified.customerEmail ?? "", customerName: meta?.customerName, paidAt: verified.paidAt,
-      amount: verified.amount, currency: verified.currency, cart, address: meta?.shippingAddress, shippingMethod: meta?.shippingMethod, preorder: meta?.preorder, voucher: meta?.voucher, unitPrice: meta?.unitPrice, pricingVersion: meta?.pricingVersion,
+      amount: verified.amount, currency: verified.currency, cart, address: meta?.shippingAddress, shippingMethod: meta?.shippingMethod, preorder: meta?.preorder, voucher: meta?.voucher, unitPrice: meta?.unitPrice, pricingVersion: meta?.pricingVersion, attribution: meta?.attribution,
     }));
     return Response.json({
       paid: true,

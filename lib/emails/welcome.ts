@@ -1,5 +1,5 @@
 import { renderEmail } from "./layout";
-import { absoluteUrl } from "./theme";
+import { absoluteUrl, escapeHtml, marketingEmailUrl } from "./theme";
 
 export function welcomeEmail(): { subject: string; html: string; text: string } {
   const blocks = [
@@ -10,7 +10,7 @@ export function welcomeEmail(): { subject: string; html: string; text: string } 
     preheader: "Warm regards from Smelt.",
     heading: "Warm regards from Smelt",
     blocks,
-    cta: { label: "Shop the hats", url: absoluteUrl("/product") },
+    cta: { label: "Shop the hats", url: escapeHtml(marketingEmailUrl(absoluteUrl("/product"), "welcome")) },
   });
   return { subject: "Warm regards from Smelt", html, text };
 }

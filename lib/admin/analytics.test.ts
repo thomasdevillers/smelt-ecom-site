@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getConversionAnalytics } from "./analytics";
+import { captureTouch, mergeAttribution } from "../attribution";
+
+const touchTime = Date.parse("2026-09-12T10:00:00Z");
+const attribution = mergeAttribution(null, captureTouch(new URL("https://saunahat.co.za/product?utm_source=facebook&utm_medium=paid_social"), "", touchTime), touchTime);
 
 const json = (body: unknown, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
 
@@ -13,8 +17,8 @@ describe("conversion analytics", () => {
       const url = new URL(String(input));
       if (url.hostname === "api.paystack.co") return json({ status: true, meta: { pageCount: 1 }, data: [
         { reference: "previous", status: "success", amount: 45000, currency: "ZAR", paid_at: "2026-09-05T10:00:00Z", metadata: { cart: { green: 1 } } },
-        { reference: "current-1", status: "success", amount: 45000, currency: "ZAR", paid_at: "2026-09-12T10:00:00Z", metadata: { cart: { green: 1 } } },
-        { reference: "current-1", status: "success", amount: 45000, currency: "ZAR", paid_at: "2026-09-12T10:00:00Z", metadata: { cart: { green: 1 } } },
+        { reference: "current-1", status: "success", amount: 45000, currency: "ZAR", paid_at: "2026-09-12T10:00:00Z", metadata: { cart: { green: 1 }, attribution } },
+        { reference: "current-1", status: "success", amount: 45000, currency: "ZAR", paid_at: "2026-09-12T10:00:00Z", metadata: { cart: { green: 1 }, attribution } },
         { reference: "current-2", status: "success", amount: 90000, currency: "ZAR", paid_at: "2026-09-14T10:00:00Z", metadata: { cart: { cream: 2 } } },
         { reference: "other-business", status: "success", amount: 200000, currency: "ZAR", paid_at: "2026-09-14T10:00:00Z", metadata: {} },
       ] });
@@ -41,6 +45,11 @@ describe("conversion analytics", () => {
       previous: { start: "2026-09-04", end: "2026-09-10", visitors: 10, productViews: 8, addToCarts: 4, checkoutStarts: 2, paymentOpened: 2, paymentCancelled: 1, checkoutErrors: 1, orders: 1, revenue: 45000 },
       current: { start: "2026-09-11", end: "2026-09-17", visitors: 20, productViews: 15, addToCarts: 6, checkoutStarts: 3, paymentOpened: 3, paymentCancelled: 1, checkoutErrors: 2, orders: 2, revenue: 135000 },
     });
+    expect(result.current.channels).toEqual([
+      { channel: "unrecorded", orders: 1, revenue: 90000 },
+      { channel: "meta", orders: 1, revenue: 45000 },
+    ]);
+    expect(result.previous.channels).toEqual([{ channel: "unrecorded", orders: 1, revenue: 45000 }]);
     const calls = vi.mocked(fetch).mock.calls.map(([input]) => String(input));
     const vercelCalls = calls.filter(url => url.includes("api.vercel.com"));
     expect(vercelCalls).toHaveLength(14);

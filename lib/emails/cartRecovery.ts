@@ -1,7 +1,7 @@
 import { PREORDER_MODE, PREORDER_COPY, PREORDER_PRICE, REGULAR_PRICE } from "../salesMode";
 import { renderEmail } from "./layout";
 import { orderItemsTable } from "./components";
-import { COLORS, FONT_STACK, escapeHtml } from "./theme";
+import { COLORS, FONT_STACK, escapeHtml, marketingEmailUrl } from "./theme";
 import type { OrderItem } from "../orderTypes";
 import type { VoucherReward } from "../vouchers";
 
@@ -49,7 +49,7 @@ export function cartRecoveryEmail(d: {
     blocks: [p(greeting), p(messages[d.step]), ...(PREORDER_MODE ? [p(`${escapeHtml(PREORDER_COPY)}`), p(`R${PREORDER_PRICE} per hat during pre-orders; regular price R${REGULAR_PRICE}. Payment is taken in full to confirm your pre-order.`)] : []), orderItemsTable(d.items), voucherBlock, p(PREORDER_MODE
       ? `Use the button below and the same email address to apply your R${d.voucher.amount} discount automatically. It comes off your checkout total, on top of the pre-order price. Pre-order availability is checked again before payment.`
       : "The private button below restores the quantities from this checkout. Current stock is confirmed again before payment.")],
-    cta: { label: PREORDER_MODE ? "Complete my pre-order" : "Return to my checkout", url: escapeHtml(d.recoveryUrl) },
+    cta: { label: PREORDER_MODE ? "Complete my pre-order" : "Return to my checkout", url: escapeHtml(marketingEmailUrl(d.recoveryUrl, "cart_recovery", `step_${d.step + 1}`)) },
     afterCtaBlocks: [...(PREORDER_MODE ? [p("Questions about the wait? Reply to this email. You can cancel before dispatch for a full refund by contacting hello@saunahat.co.za.")] : []), unsubscribe],
   });
   return { subject: subjects[d.step], html, text };

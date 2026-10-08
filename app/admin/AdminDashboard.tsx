@@ -9,6 +9,7 @@ import { preorderTiming } from "@/lib/preorders";
 import ReviewsPanel from "./ReviewsPanel";
 import { reviewWhatsAppUrl } from "@/lib/whatsapp";
 import styles from "./admin.module.css";
+import { attributionLabel } from "@/lib/attribution";
 
 class RequestError extends Error { constructor(message: string, public status: number) { super(message); } }
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -92,6 +93,7 @@ function OrderRow({ order, onReceipt, onExpired, onMoved }: { order: AdminOrder;
       <span className={styles.date}>{date(order.paidAt)}</span>
       <h2>{order.name || order.email.split("@")[0] || "Customer"}</h2>
       <a href={`mailto:${order.email}`} className={styles.email}>{order.email || "No email recorded"}</a>
+      <p className={styles.note}><strong>Source:</strong> {attributionLabel(order.attribution?.lastTouch)}</p>
       <details className={styles.details}><summary>Order & delivery details</summary>
         <p className={styles.reference}>Reference: {order.reference}</p>
         <p>{[address.company, address.addressLine2, address.line1, address.suburb, address.city, address.province, address.postalCode, address.country].filter(Boolean).join(", ")}</p>

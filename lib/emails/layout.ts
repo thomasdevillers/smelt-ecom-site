@@ -95,7 +95,7 @@ export function renderEmail(input: EmailInput): { html: string; text: string } {
     "",
     intro ?? "",
     ...blocks.map(stripTags),
-    cta ? `\n${cta.label}: ${cta.url}` : "",
+    cta ? `\n${cta.label}: ${cta.url.replace(/&amp;/g, "&")}` : "",
     "",
     ...afterCtaBlocks.map(stripTags),
     "",
