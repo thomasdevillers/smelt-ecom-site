@@ -19,7 +19,6 @@ export default function Hero() {
             Shop the hats <span aria-hidden="true">→</span>
           </Button>
         </div>
-        {PREORDER_MODE && <p className={styles.orderNote}>Pre-orders open · {formatMoney(BASE_PRICE)} per hat.<br />{PREORDER_COPY}</p>}
       </div>
       <figure className={styles.scene}>
         <Image
