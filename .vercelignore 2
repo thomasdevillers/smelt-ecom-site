@@ -1,0 +1,13 @@
+# Local operational records, credentials, preview emails and test scripts.
+.local/
+.env
+.env.*
+
+# Local dependencies, generated output and editor files.
+node_modules/
+.next/
+.git/
+.vercel/
+coverage/
+*.tsbuildinfo
+.DS_Store
