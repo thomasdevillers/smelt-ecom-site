@@ -100,6 +100,23 @@ const SIDE_FIT_2: GuideFigure = {
   height: 1000,
 };
 
+const IN_SAUNA: GuideFigure = {
+  src: "/images/cream-hat-sauna-closeup.webp",
+  alt: "Woman wearing a Natural Cream Smelt sauna hat in a wooden sauna",
+  caption:
+    "The same idea the banya has used for generations: put wool between the hottest air in the room and your scalp.",
+  width: 1086,
+  height: 1448,
+};
+
+const IN_SAUNA_SEATED: GuideFigure = {
+  src: "/images/cream-hat-sauna-portrait.webp",
+  alt: "Woman wearing a Natural Cream Smelt sauna hat while seated in a wooden sauna",
+  caption: "Worn low, covering the ears. That is how it is worn in a bathhouse, and why.",
+  width: 1086,
+  height: 1448,
+};
+
 export const GUIDES: Guide[] = [
   {
     slug: "what-does-a-sauna-hat-do",
@@ -112,7 +129,7 @@ export const GUIDES: Guide[] = [
     answer:
       "A sauna hat is a thick wool felt cap that insulates the top of your head and your ears from the hottest air in the room. Your head stops being the first thing to tap out, so you stay comfortable for longer sessions, and your hair comes out in much better shape.",
     published: "2026-10-04",
-    updated: "2026-10-04",
+    updated: "2026-10-08",
     readMinutes: 6,
     hero: ON_HEAD,
     takeaways: [
@@ -150,7 +167,7 @@ export const GUIDES: Guide[] = [
       {
         heading: "What we noticed first-hand",
         body: [
-          "We did not come at this academically. Two of us, a sauna in Cape Town, and a repeated problem: we would last about four minutes on the top bench before one of us bailed. We had read about the felt hats the Finns treat as standard kit, couldn't buy a decent one locally, and eventually made our own, which is the only reason [the Smelt hat](/product) exists at all.",
+          "We did not come at this academically. Two of us, a sauna in Cape Town, and a repeated problem: we would last about four minutes on the top bench before one of us bailed. We had read about the felt hats that are standard kit in the steam bathhouses of Eastern Europe, couldn't buy a decent one locally, and eventually made our own, which is the only reason [the Smelt hat](/product) exists at all.",
           "The first hatted session was the convincing one. Same room, same temperature, and the limiting factor moved from the scalp to the chest, which is where it is supposed to be. Tom now sits comfortably at 95°C, which he could not do before. Marc still prefers a civil 85°C and a slow exit, which tells you the hat changes your ceiling rather than your personality.",
           "Two smaller things we did not expect. First, the ear relief is more noticeable than the scalp relief: you stop doing that involuntary hunch to get your ears out of the heat. Second, hair. Repeated dry heat on wet hair is rough on it, and keeping it under felt instead made an obvious difference within a few weeks.",
         ],
@@ -190,7 +207,7 @@ export const GUIDES: Guide[] = [
     faq: [
       {
         q: "Does a sauna hat actually work, or is it just tradition?",
-        a: "Both. It is traditional in Finland and Russia because it works. Dense wool felt is a poor conductor of heat, so it delays how fast the hottest air in the room reaches your scalp and ears. The effect is obvious the first time you wear one on a top bench.",
+        a: "Both. It is traditional across the steam-bathing cultures of Eastern and Northern Europe, above all the Russian banya, because it works. Dense wool felt is a poor conductor of heat, so it delays how fast the hottest air in the room reaches your scalp and ears. The effect is obvious the first time you wear one on a top bench.",
       },
       {
         q: "Will a sauna hat make me sweat less?",
@@ -222,7 +239,7 @@ export const GUIDES: Guide[] = [
     answer:
       "Wool is used because it is the only common fibre that insulates well, absorbs a lot of sweat without feeling wet, resists odour, and will not melt or scorch near a hot stove. Cotton soaks through and conducts heat straight to your scalp; synthetics soften and hold smell. Felted wool also has no stitch holes, so there are no gaps in the insulation.",
     published: "2026-10-04",
-    updated: "2026-10-04",
+    updated: "2026-10-08",
     readMinutes: 7,
     hero: CREAM_FRONT,
     takeaways: [
@@ -236,7 +253,7 @@ export const GUIDES: Guide[] = [
         heading: "The short answer",
         body: [
           "Because a sauna is the worst possible environment for almost every other fibre. It is hot, it is wet, there is an open stove in the corner, and whatever you wear is going to be soaked in sweat and then expected to be fine again by Thursday. Wool is the one material that handles all four of those at once.",
-          "Tradition gets the credit, but the tradition exists because the material genuinely holds up. Finnish and Russian sauna culture settled on wool felt centuries before anyone had a phrase for thermal conductivity.",
+          "Tradition gets the credit, but the tradition exists because the material genuinely holds up. The bathhouse cultures of Eastern and Northern Europe settled on wool felt centuries before anyone had a phrase for thermal conductivity.",
         ],
       },
       {
@@ -459,6 +476,137 @@ export const GUIDES: Guide[] = [
       {
         q: "How many sauna hats do I need?",
         a: "One is fine for most people. The reason to own a second is drying time: if you sauna daily, a hat that hasn't fully air-dried is a hat that will start to smell. Two on rotation solves that without any other effort.",
+      },
+    ],
+  },
+
+  {
+    slug: "where-do-sauna-hats-come-from",
+    nav: "Where they come from",
+    title: "Where Do Sauna Hats Come From? Banya, Not Finland | Smelt",
+    h1: "Where do sauna hats actually come from?",
+    description:
+      "Almost every shop calls it a Finnish sauna hat. The felt bathing hat belongs to the sweat-bathing cultures of Eastern and Northern Europe, above all the Russian banya and the Baltic bathhouse. Here's why the Finnish label stuck anyway.",
+    question: "Where do sauna hats come from?",
+    answer:
+      "The felt bathing hat comes from the sweat-bathing cultures of Eastern and Northern Europe, and it is most strongly and continuously associated with the Russian banya and the Baltic steam-bathing traditions. It is widely sold as a Finnish invention, which it is not. Finland gets the credit largely because English borrowed the word sauna from Finnish, so Finland became the default label for everything sauna-adjacent.",
+    published: "2026-10-08",
+    updated: "2026-10-08",
+    readMinutes: 8,
+    hero: IN_SAUNA,
+    takeaways: [
+      "Hot steam bathing is a regional tradition across Northern and Eastern Europe, not one country's invention.",
+      "The felt hat is most at home in the Russian banya and the Baltic bathhouse, where it is standard kit rather than an accessory.",
+      "Finland gets the credit mostly because English took the word sauna from Finnish.",
+      "Nobody can give you a trustworthy date for the first felt bathing hat. Anyone who does is guessing.",
+    ],
+    blocks: [
+      {
+        heading: "The short answer",
+        body: [
+          "Search for a sauna hat and you will be told, over and over, that you are buying a Finnish tradition. We said a version of it ourselves on this site until recently.",
+          "It is not really true. Hot steam bathing is a shared tradition across a broad belt of Northern and Eastern Europe, and the felt hat specifically is most strongly and continuously associated with the Russian banya and the steam-bathing cultures of the Baltic. Finland has a deep and genuine sauna tradition of its own, and nobody is disputing that. The narrower claim, that the hat is a Finnish invention, is the part that does not hold up.",
+        ],
+      },
+      {
+        heading: "Sweat bathing was regional, not national",
+        body: [
+          "The framing is the first problem. Asking which country invented sauna bathing is a bit like asking which country invented bread. Across a wide region with cold winters, abundant timber and a wool-working tradition, people independently and continuously arrived at the same idea: a small sealed room, a pile of stones heated by fire, water thrown on the stones, and a hard cleansing sweat.",
+          "That tradition has a different name almost everywhere it exists. Sauna in Finland. Saun in Estonia. Pirts in Latvia, pirtis in Lithuania. Banya across Russia. Variations run through Ukraine, Belarus and well into Scandinavia. These are not copies of one original; they are regional expressions of a shared practice, with shared equipment, because the climate and the available materials were shared too.",
+          "Wool was part of that shared toolkit everywhere. So the interesting question is not who invented bathing, but where the felt hat became normal equipment rather than an afterthought.",
+        ],
+      },
+      {
+        heading: "Why the hat is most at home in the banya",
+        body: [
+          "The strongest evidence here is not a document, it is the practice itself, and it is still observable today.",
+          "Walk into a traditional banya and the felt hat is ordinary. It is sold at the door next to the birch whisks, it is in every changing room, and bathers put one on without discussion in the same way they pick up a towel. It is equipment, not a novelty. That cultural status is the thing that is genuinely distinctive, and it is far weaker in Finnish sauna culture, where plenty of people have never worn one.",
+          "There is also a reason it would be. Banya practice leans hard on heavy wet steam, and the venik, a bundle of birch or oak branches, is used to beat and brush the skin while the steam is at its peak. The bather is often sitting up high, in thick steam, being worked over with branches, next to a stove radiating serious heat. Under those conditions an unprotected scalp and a pair of unprotected ears stop being a minor discomfort fairly quickly. The hat is not decoration in that room; it is what lets the session happen.",
+        ],
+        figure: IN_SAUNA_SEATED,
+      },
+      {
+        heading: "The Baltic thread",
+        body: [
+          "The Baltic bathhouse traditions deserve more credit than they get, and they are routinely folded into the Finnish story by people who do not look closely.",
+          "Latvian pirts culture in particular has a living, structured ritual practice, including the role of a bath master who directs the whole session, the heat, the steam, the whisking and the cooling. Estonian and Lithuanian traditions run along similar lines. These are continuous folk practices, not revivals, and wool felt headwear sits inside them as normal equipment rather than as an import.",
+          "It is worth being honest about the limits of what anyone can tell you here. Folk textile history is poorly documented almost by definition, because working clothes get worn out and thrown away rather than archived. What we can say with confidence is that the hat is embedded in living practice across this region. What nobody can honestly tell you is which village made the first one.",
+        ],
+      },
+      {
+        heading: "Felt is far older than any of these countries",
+        body: [
+          "There is a layer underneath all of this that makes the question of national origin look even stranger.",
+          "Felting is one of the oldest textile techniques there is, and it predates weaving. It needs no loom and no spinning: just wool, moisture, heat and agitation, which is why it was available to anyone keeping sheep. The oldest surviving felt objects come out of frozen burial mounds in the Altai region of Central Asia, preserved in ice for well over two thousand years, and felt headwear has a long association with the wool-working cultures of the steppe.",
+          "We are not claiming a neat line from a Scythian burial to a bathhouse shelf, because there isn't one and anyone who draws it is decorating. The honest version is simpler: felt was an ancient, widely distributed technology that arrived in these regions long before the bathhouse hat existed. The bathhouse did not invent felt. It found an extremely good use for it.",
+        ],
+        figure: GREEN_BACK,
+      },
+      {
+        heading: "So why does everyone say Finland?",
+        body: [
+          "This is the part we find genuinely interesting, because the misattribution is not random. There are a few threads, and they reinforce each other.",
+          "The language is the big one. Sauna is the only word from this entire tradition that English borrowed wholesale, and it came from Finnish. Banya, pirts and saun never made the crossing. When one language hands you the only word you have for a thing, that language gets the credit for the thing, and every product built around it inherits the association. We call it a sauna hat in English for the same reason we call it a sauna.",
+          "Then there is promotion. Finland spent the twentieth century successfully presenting sauna to the world as part of its national identity, and that effort continues. Finnish sauna culture was added to the UNESCO list of intangible cultural heritage in 2020, which is a real and deserved recognition of Finnish sauna culture. It is not a statement about who invented felt hats, though it gets cited as though it were.",
+          "Geography and politics did the rest. For most of the decades in which sauna was being marketed to Western consumers, the banya and Baltic traditions sat behind the Iron Curtain and were not exporting anything to anybody. Russian and Baltic bathing culture never got a global brand during the window when the category was being defined in English.",
+          "After that it is just copying. Western sauna shops write their product descriptions by reading other Western sauna shops' product descriptions, so traditional Finnish sauna hat propagated as a phrase for decades without anyone stopping to check it. We know, because we did it too.",
+        ],
+      },
+      {
+        heading: "What we got wrong ourselves",
+        body: [
+          "We should own this, since it is the reason the article exists.",
+          "When we first went looking for a felt hat, we went looking for the Finnish one, because that is what the English-language internet told us to look for. Our own founder story still says we went hunting for the hats the Finns swear by, which is an accurate account of what we believed at the time and an inaccurate account of where the hat comes from.",
+          "The further into it we got, mostly through reading about banya practice and talking to people who grew up with it, the clearer it became that we had absorbed a marketing phrase and repeated it as history. We have corrected the wording in our other guides. We would rather be publicly wrong once than keep a tidy claim we no longer believe.",
+        ],
+      },
+      {
+        heading: "Does any of this change how you use one?",
+        body: [
+          "A bit, actually, which is the main reason this is worth more than a trivia answer. If the hat's real home is the banya, then banya habits are the ones worth copying.",
+          "Wet the hat. Dampening it with cool water before you go in is standard practice in a steam bathhouse, and it both feels better and insulates slightly better. Wear it low, properly over the ears, rather than perched on the crown, because ears are the part that genuinely suffers. Treat it as kit you always bring rather than something you remember occasionally. And follow the bathhouse rhythm: hotter, shorter rounds with real cool-downs in between beat one long grim endurance sit.",
+          "None of that is exotic. It is just what people do in rooms where the hat has been normal for generations. If you want the mechanism behind it, that's [what a sauna hat does](/articles/what-does-a-sauna-hat-do), and the practical buying version is [how to choose a sauna hat](/articles/how-to-choose-a-sauna-hat).",
+        ],
+        figure: ON_HEAD,
+      },
+      {
+        heading: "What we can and cannot say with confidence",
+        body: [
+          "Since this is a history question and the internet is full of confident nonsense about it, here is our own split between the solid and the shaky.",
+        ],
+        list: [
+          "Solid: hot steam bathing is a regional tradition across Northern and Eastern Europe with many independent local names and forms.",
+          "Solid: felting predates weaving and the oldest surviving felt comes from Central Asian burials, long before any European bathhouse hat.",
+          "Solid: the felt hat is near-universal standard kit in banya culture today, and considerably less entrenched in Finnish sauna culture.",
+          "Solid: English borrowed only the Finnish word, and Finnish sauna culture was listed by UNESCO in 2020.",
+          "Shaky, and we will not pretend otherwise: exactly when, where and by whom the first felt bathing hat was made. There is no reliable date, and the sources that give you one are repeating each other.",
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: "Are sauna hats Finnish?",
+        a: "Not originally, despite how they are usually marketed. The felt bathing hat belongs to the wider sweat-bathing cultures of Eastern and Northern Europe, and it is most strongly associated with the Russian banya and the Baltic bathhouse traditions. Finland has a genuine and ancient sauna tradition, but the hat is not a Finnish invention.",
+      },
+      {
+        q: "What is a banya hat?",
+        a: "The same object under a more accurate name. Banya is the Russian steam bathhouse, and a banya hat is the felt cap worn in it, where it is standard equipment sold alongside the birch whisks. In English the identical product is almost always sold as a sauna hat, because sauna is the word English adopted.",
+      },
+      {
+        q: "Do Finns wear sauna hats?",
+        a: "Some do, and you will certainly see them. The difference is cultural weight rather than existence: in banya culture the hat is near-universal and unremarkable, whereas plenty of Finnish sauna-goers have never worn one. That gap is a good part of the reason to doubt the Finnish-origin story.",
+      },
+      {
+        q: "Is there any difference between a banya hat and a sauna hat?",
+        a: "Functionally no. Both are thick wool felt caps doing the same job. The variation is in shape and decoration rather than purpose, and some of the more theatrical shapes you see, the tall cones and the elaborate folk designs, come out of banya tradition rather than Finnish restraint.",
+      },
+      {
+        q: "How old are sauna hats?",
+        a: "Nobody can tell you honestly. Felt itself is thousands of years old and well evidenced archaeologically, and bathhouse traditions in the region are very old too, but working clothes were used until they fell apart rather than preserved. Any specific founding date you read for the felt bathing hat is an invention.",
+      },
+      {
+        q: "Does the origin affect which hat I should buy?",
+        a: "Not the origin itself, but the banya's habits are worth copying: wet the hat before a session, wear it low over the ears, and treat it as standard kit rather than an occasional accessory. What matters when buying is still material, thickness and fit.",
       },
     ],
   },
