@@ -3,6 +3,7 @@ import Accordion from "@/components/Accordion";
 import Button from "@/components/ui/Button";
 import SectionLabel from "@/components/ui/SectionLabel";
 import { CARE } from "@/content/care";
+import { GUIDES } from "@/content/guides";
 import { breadcrumbLd, faqLd, jsonLdScript } from "@/lib/seo";
 import styles from "./care.module.css";
 
@@ -75,18 +76,12 @@ export default function CarePage() {
       <section className={styles.more}>
         <h2 className={styles.moreTitle}>More on sauna hats</h2>
         <div className={styles.moreList}>
-          <Link href="/articles/what-does-a-sauna-hat-do" className={styles.moreCard}>
-            <span className={styles.moreMeta}>Guide</span>
-            What does a sauna hat do?
-          </Link>
-          <Link href="/articles/why-is-wool-used-for-sauna-hats" className={styles.moreCard}>
-            <span className={styles.moreMeta}>Guide</span>
-            Why is wool used for sauna hats?
-          </Link>
-          <Link href="/articles/how-to-choose-a-sauna-hat" className={styles.moreCard}>
-            <span className={styles.moreMeta}>Guide</span>
-            How to choose a sauna hat
-          </Link>
+          {GUIDES.map((g) => (
+            <Link key={g.slug} href={`/articles/${g.slug}`} className={styles.moreCard}>
+              <span className={styles.moreMeta}>Guide</span>
+              {g.h1}
+            </Link>
+          ))}
         </div>
       </section>
 

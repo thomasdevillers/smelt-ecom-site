@@ -481,6 +481,145 @@ export const GUIDES: Guide[] = [
   },
 
   {
+    slug: "should-you-wet-your-sauna-hat",
+    nav: "Wet or dry",
+    title: "Should You Wet Your Sauna Hat? Wet vs Dry | Smelt",
+    h1: "Should you wet your sauna hat before a sauna?",
+    description:
+      "Lightly damp beats bone dry in a normal sauna, and soaked is worse than both. The three things water does to wool felt, why flooding it backfires, and why a steam room changes the answer.",
+    question: "Should you wet your sauna hat before a sauna?",
+    answer:
+      "Lightly damp with cool water is the best setting for a normal dry sauna: it feels cooler straight away and buys you a slower temperature rise. Soaking it is actively worse than leaving it dry, because flooding the felt's air pockets turns your insulator into a conductor. In a humid steam room, dry is fine, since evaporation cannot do its job.",
+    published: "2026-10-09",
+    updated: "2026-10-09",
+    readMinutes: 7,
+    hero: IN_SAUNA_SEATED,
+    takeaways: [
+      "Lightly damp is better than dry in a dry sauna. Soaked is worse than both.",
+      "Water helps in two ways, evaporative cooling and thermal mass, and hurts in one, conduction.",
+      "The felt's trapped air is the insulation. Flood it and you have thrown the insulation away.",
+      "In a steam room the air is already near saturation, so the evaporative benefit mostly disappears.",
+    ],
+    blocks: [
+      {
+        heading: "The short answer",
+        body: [
+          "Lightly damp, with cool water, in a normal dry sauna. That is the setting worth defaulting to, and it is what we do.",
+          "The part people get wrong is assuming that if damp is good then wetter is better. It isn't. There is a point where more water stops helping and starts making the hat worse than if you had left it alone, and plenty of people sail straight past it by holding the hat under a tap until it is heavy.",
+          "There is also a room-dependent caveat that almost nobody mentions: the wetting trick relies on evaporation, and a humid steam room has very little evaporation available. In that room, dry is perfectly sensible.",
+        ],
+      },
+      {
+        heading: "Three things water does to wool felt",
+        body: [
+          "The reason this question has a real answer rather than a preference is that wetting the felt sets off three separate effects. Two help you, one works against you, and the balance between them is what decides how damp is ideal.",
+          "The first is evaporative cooling, and it is the big one. Turning water into vapour takes a surprising amount of energy, and in a hot sauna that energy comes out of the hat's outer surface. While there is water evaporating off the outside of the felt, the outside cannot climb to the full air temperature of the room. You have effectively pinned the hot face of your insulation at a lower temperature, and everything underneath benefits.",
+          "The second is thermal mass. Water takes far more energy to warm up than wool fibre does, so a damp hat simply takes longer to get hot. This buys you time rather than protection, which is exactly the right currency, because a sauna session is short.",
+          "The third effect is the one that catches people out: water conducts heat roughly twenty-five times better than air does. Wool felt insulates because it is mostly trapped air by volume, so every pocket you fill with water is a pocket that has stopped insulating and started conducting. We make the same point about [why cotton fails in a sauna](/articles/why-is-wool-used-for-sauna-hats), and it applies to a soaked wool hat too.",
+        ],
+        figure: CREAM_BACK,
+      },
+      {
+        heading: "Why soaking it backfires",
+        body: [
+          "Put those three effects together and the shape of the answer appears. A light dampening gets you most of the evaporative cooling and most of the thermal mass while leaving the air structure of the felt broadly intact. The two benefits land, the penalty stays small.",
+          "Saturate it and the trade flips. The air pockets flood, the felt's insulating value drops sharply, and you are now wearing a dense wet mass pressed against your scalp with a direct conductive path through it. The evaporative cooling at the surface is still happening, but it is no longer enough to make up for having thrown away the insulation underneath it.",
+          "You can feel this one yourself, which is the best kind of claim. A properly soaked hat feels pleasant for about two minutes and then starts feeling heavy and uncomfortably warm against the scalp, usually earlier than a dry hat would have. It also drips down your neck, and by the back half of the session the water it is carrying is no longer cool.",
+        ],
+      },
+      {
+        heading: "How damp is lightly damp?",
+        body: [
+          "Vague advice is useless here, so here is the test we actually use. Wet the hat under cool running water, then squeeze the water out until it stops dripping entirely. Not nearly. Entirely.",
+          "What you want afterwards is felt that is cool and damp to the touch, still springy rather than limp, and roughly the weight it was when dry. If it feels heavier in the hand, it holds too much water. If squeezing it produces a trickle, it holds too much water. Felt that has gone floppy and dense has definitely gone too far.",
+          "Use cool water, not warm. Part of the immediate benefit is simply that you have put something cool on your head, and there is no reason to throw that away. Cool water is also the right call for the wool itself, which we go into at the end.",
+        ],
+        list: [
+          "Right: cool, damp to the touch, springy, no drips when squeezed, same weight as dry.",
+          "Too far: heavy in the hand, limp or dense, drips at all, water runs down your neck in the room.",
+        ],
+      },
+      {
+        heading: "The room changes the answer",
+        body: [
+          "This is the part that gets left out of almost every discussion of this, and it matters more than the exact amount of water.",
+          "Evaporative cooling needs somewhere for the vapour to go. A traditional dry sauna is hot and relatively low in humidity, so there is plenty of capacity in the air and the water in your hat evaporates readily. That is the condition the wetting trick is designed for, and it works well.",
+          "A steam room is the opposite. The air is already close to saturated, so very little will evaporate off your hat no matter how damp you make it. You have given up most of the benefit and kept the whole conduction penalty, which is the wrong side of the trade. In a steam room we would just wear it dry and let it take up moisture at its own pace.",
+          "A dry sauna where someone is throwing a lot of water on the stones sits between the two. Right after a good pour the room is briefly very humid and the wetting advantage dips, then it returns as the room dries out again. Not worth managing actively, but it explains why the effect feels stronger on some days than others.",
+        ],
+      },
+      {
+        heading: "Your sweat wets it anyway",
+        body: [
+          "Here is the observation that puts the whole debate in proportion. Ten minutes into a real session, your hat is damp whether or not you wetted it, because your scalp has been sweating into it the entire time.",
+          "So the decision is not really wet hat versus dry hat. It is about the first five or ten minutes, which happen to be the minutes when the room feels hottest to you and when most people decide whether they are enjoying themselves. Starting damp front-loads the cooling into the part of the session where you need it most. That is a smaller claim than the internet usually makes for it, and it is the honest one.",
+          "It also explains the banya habit of re-wetting between rounds rather than once at the start. If you are doing several rounds with cool-downs in between, running the hat under cool water each time resets both the temperature and the evaporation, and takes about four seconds. That is the version of this worth adopting.",
+        ],
+        figure: SIDE_FIT,
+      },
+      {
+        heading: "What we actually do",
+        body: [
+          "Marc wets his, every time, and does it again between rounds. At a civil 85°C with a slow exit, the damp start is most of what makes the first few minutes pleasant rather than something to be endured.",
+          "Tom often starts dry, mostly because he goes hotter and does fewer, shorter rounds, and at 95°C he would rather have the full thickness of dry felt working for him from the first second. Both of us think the other one is slightly wrong about this, which is roughly where the honest answer sits.",
+          "We should be straight about the limits of that. We have not put a thermocouple under the felt and measured scalp temperature against time, so we are not going to pretend we have numbers. What is above is the mechanism, which is sound, plus a lot of repeated sessions by two people who pay attention. The one thing we are confident about, because it is unmistakable, is that a soaked hat is worse than either.",
+        ],
+      },
+      {
+        heading: "When to skip wetting entirely",
+        body: [
+          "Cases where we would not bother, or would actively avoid it.",
+        ],
+        list: [
+          "A steam room or any very humid room, where evaporation has nowhere to go.",
+          "A short session, ten minutes or less, where the hat was never going to get properly hot anyway.",
+          "No access to clean cool water. A shared plunge pool or a communal bucket is not where you want to be soaking something you then put on your head.",
+          "You are going straight home and straight into a bag. A hat that goes damp into a sealed bag is the one that starts to smell.",
+          "A cold start in a room still coming up to temperature, where you will be sitting in moderate heat for a while regardless.",
+        ],
+      },
+      {
+        heading: "Doing it without wrecking the hat",
+        body: [
+          "Wetting a wool felt hat is not hard on it, as long as you avoid the two things that genuinely damage felt: heat plus agitation, and being stored damp.",
+          "Cool water only. Hot water combined with any kind of rubbing or wringing is how felting happens, and more felting means a smaller, stiffer, harder hat. Squeeze the water out in your hand rather than twisting it, reshape it with your fingers while it is damp, and let it dry in air afterwards rather than near a heater.",
+          "The important one is what happens after the session, not before it. A hat you wetted started wetter, so give it a bit more drying time and somewhere airy to do it. The full routine, including what to do if it has started to smell, is on the [care guide](/care).",
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: "Should I wet my sauna hat every time?",
+        a: "In a normal dry sauna, lightly damp is a good default and we would do it most sessions. Skip it in a steam room, where the humid air stops the evaporation that makes it worth doing, and skip it for very short sessions where the hat was never going to get hot.",
+      },
+      {
+        q: "Can I soak my sauna hat in cold water?",
+        a: "You can, but don't. A soaked hat is worse than a dry one. Wool felt insulates through the air trapped between its fibres, and flooding those pockets with water replaces an insulator with a conductor. Wet it, then squeeze it until it stops dripping completely.",
+      },
+      {
+        q: "Does a wet sauna hat work better than a dry one?",
+        a: "A lightly damp one does, in a dry sauna. Evaporation off the outer surface keeps that surface below the room's air temperature, and the water's thermal mass slows how fast the whole hat heats up. A saturated one does not, for the conduction reason above.",
+      },
+      {
+        q: "Should I use hot or cold water?",
+        a: "Cool. Some of the benefit is simply having something cool on your head, and cool water is gentler on wool. Hot water plus any rubbing or wringing is how you accidentally felt your hat smaller and stiffer.",
+      },
+      {
+        q: "Can I wet the hat again during a session?",
+        a: "Yes, and between rounds is exactly when to do it. Re-wetting at each cool-down resets both the temperature and the evaporation, which is the habit in steam bathhouses where the hat is standard kit. It takes a few seconds.",
+      },
+      {
+        q: "Does wetting it damage the wool?",
+        a: "No. Water alone is harmless, which is just as well, since your own sweat soaks the hat every session regardless. What damages felt is hot water combined with agitation, drying it fast against direct heat, and storing it damp in a sealed bag.",
+      },
+      {
+        q: "Should I wet my hat in a steam room?",
+        a: "There is little point. The air in a steam room is already close to saturated, so almost nothing evaporates off the felt, and you keep the conduction penalty without the cooling benefit. Wear it dry and let it take up moisture on its own.",
+      },
+    ],
+  },
+
+  {
     slug: "where-do-sauna-hats-come-from",
     nav: "Where they come from",
     title: "Where Do Sauna Hats Come From? Banya, Not Finland | Smelt",
@@ -564,7 +703,7 @@ export const GUIDES: Guide[] = [
         heading: "Does any of this change how you use one?",
         body: [
           "A bit, actually, which is the main reason this is worth more than a trivia answer. If the hat's real home is the banya, then banya habits are the ones worth copying.",
-          "Wet the hat. Dampening it with cool water before you go in is standard practice in a steam bathhouse, and it both feels better and insulates slightly better. Wear it low, properly over the ears, rather than perched on the crown, because ears are the part that genuinely suffers. Treat it as kit you always bring rather than something you remember occasionally. And follow the bathhouse rhythm: hotter, shorter rounds with real cool-downs in between beat one long grim endurance sit.",
+          "Wet the hat. Dampening it with cool water before you go in is standard practice in a steam bathhouse, and it both feels better and insulates slightly better, though there is a limit worth knowing about: see [wet or dry](/articles/should-you-wet-your-sauna-hat). Wear it low, properly over the ears, rather than perched on the crown, because ears are the part that genuinely suffers. Treat it as kit you always bring rather than something you remember occasionally. And follow the bathhouse rhythm: hotter, shorter rounds with real cool-downs in between beat one long grim endurance sit.",
           "None of that is exotic. It is just what people do in rooms where the hat has been normal for generations. If you want the mechanism behind it, that's [what a sauna hat does](/articles/what-does-a-sauna-hat-do), and the practical buying version is [how to choose a sauna hat](/articles/how-to-choose-a-sauna-hat).",
         ],
         figure: ON_HEAD,
