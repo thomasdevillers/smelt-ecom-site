@@ -26,12 +26,9 @@ const mocks = vi.hoisted(() => {
       }
       if (!strings.has(keys[0]) || strings.get(keys[1]) !== args[0]) return -1;
       if (strings.has(keys[2])) return 0;
-      if (keys[5] && strings.has(keys[5])) return -2;
       strings.set(keys[2], args[1]);
       const hash = hashes.get(keys[3]) || new Map<string, unknown>();
       hash.set(args[1], args[2]); hashes.set(keys[3], hash);
-      if (keys[5]) strings.set(keys[5], JSON.parse(args[4]));
-      if (keys[6]) strings.set(keys[6], JSON.parse(args[5]));
       return 1;
     }),
   };
@@ -51,9 +48,11 @@ import {
   moderateReview,
   reservePhotoUpload,
   submitReview,
+  listReviewRecords,
 } from "./reviewStore";
 import { photoFromInvitation, reviewSummary, validateReviewSubmission, type PublicReview } from "./reviews";
 import { POST as reviewAccessPOST } from "@/app/api/reviews/access/route";
+import { POST as reviewPOST } from "@/app/api/reviews/route";
 
 const order = {
   reference: "order-1", email: "customer@example.com", name: "Tumi Customer",
@@ -80,6 +79,8 @@ async function invitation() {
   return { ...created, visible };
 }
 
+const photoUrl = (uploadKey: string) => `https://store.public.blob.vercel-storage.com/reviews/pending/${uploadKey}/photo.webp`;
+
 describe("review invitations and verified submission", () => {
   it("opens the existing review form for a completed order email", async () => {
     const created = await createReviewInvitationForEmail(" Customer@Example.com ", "127.0.0.1");
@@ -92,8 +93,8 @@ describe("review invitations and verified submission", () => {
     mocks.hashes.get("orders:completed")?.clear();
     await expect(createReviewInvitationForEmail("customer@example.com", "127.0.0.1")).rejects.toThrow("completed Smelt order");
     mocks.hashes.set("orders:completed", new Map([["order-1", "done"]]));
-    const { token } = await invitation();
-    await submitReview(token, { rating: 5, body: "Already reviewed.", displayName: "Tumi", photoUrls: [], consent: true });
+    const { token, visible } = await invitation();
+    await submitReview(token, { rating: 5, body: "Already reviewed.", displayName: "Tumi", photoUrls: [photoUrl(visible.uploadKey!)], consent: true });
     await expect(createReviewInvitationForEmail("customer@example.com", "127.0.0.1")).rejects.toThrow("already been submitted");
     mocks.db.eval.mockResolvedValueOnce(0);
     await expect(createReviewInvitationForEmail("another@example.com", "127.0.0.1")).rejects.toThrow("Too many attempts");
@@ -125,17 +126,45 @@ describe("review invitations and verified submission", () => {
   });
 
   it("rechecks Paystack and atomically prevents token reuse", async () => {
-    const { token } = await invitation();
-    await expect(submitReview(token, { rating: 5, body: "Love the fit.", displayName: "Tumi", anonymous: false, photoUrls: [], consent: true })).resolves.toMatchObject({ status: "pending", voucher: { amount: 50, code: expect.stringMatching(/^SMELT-/) } });
+    const { token, visible } = await invitation();
+    await expect(submitReview(token, { rating: 5, body: "Love the fit.", displayName: "Tumi", anonymous: false, photoUrls: [photoUrl(visible.uploadKey!)], consent: true })).resolves.toEqual({ id: expect.any(String), status: "pending" });
     expect(mocks.paidOrder).toHaveBeenCalledTimes(2);
     await expect(submitReview(token, { rating: 5, body: "Again", displayName: "Tumi", consent: true })).rejects.toThrow("already been used");
     expect((await getPublicInvitation(token)).used).toBe(true);
   });
 
   it("does not accept the verified label when Paystack no longer confirms the order", async () => {
-    const { token } = await invitation();
+    const { token, visible } = await invitation();
     mocks.paidOrder.mockRejectedValueOnce(new Error("payment reversed"));
-    await expect(submitReview(token, { rating: 4, body: "Good hat", displayName: "Tumi", photoUrls: [], consent: true })).rejects.toThrow("payment reversed");
+    await expect(submitReview(token, { rating: 4, body: "Good hat", displayName: "Tumi", photoUrls: [photoUrl(visible.uploadKey!)], consent: true })).rejects.toThrow("payment reversed");
+  });
+
+  it("requires hat photos without consuming the invitation", async () => {
+    const { token } = await invitation();
+    await expect(submitReview(token, { rating: 1, body: "Not for me.", displayName: "Tumi", photoUrls: [], consent: true })).rejects.toThrow("at least one photo");
+    expect((await getPublicInvitation(token)).used).toBe(false);
+    expect(await listReviewRecords()).toEqual([]);
+  });
+
+  it.each([1, 3, 5])("records a manual refund review for a %i-star rating without issuing or queuing a voucher", async rating => {
+    const { token, visible } = await invitation();
+    const result = await submitReview(token, { rating, body: "My honest experience.", displayName: "Tumi", photoUrls: [photoUrl(visible.uploadKey!)], consent: true });
+    expect(result).not.toHaveProperty("voucher");
+    expect((await listReviewRecords())[0]).toMatchObject({ rating, rewardType: "manual_refund", status: "pending", incentivized: true });
+    expect([...mocks.strings.keys()]).not.toEqual(expect.arrayContaining([expect.stringContaining("smelt:vouchers:")]));
+    expect(mocks.db.eval.mock.calls.at(-1)?.[1]).toHaveLength(5);
+  });
+
+  it("rejects photo-free API submissions and accepts a review with photos without returning a voucher", async () => {
+    const { token, visible } = await invitation();
+    const request = (photoUrls: string[]) => new Request("https://saunahat.co.za/api/reviews", {
+      method: "POST", headers: { origin: "https://saunahat.co.za", "content-type": "application/json" },
+      body: JSON.stringify({ token, rating: 1, body: "My honest experience.", displayName: "Tumi", photoUrls, consent: true }),
+    });
+    expect((await reviewPOST(request([]))).status).toBe(400);
+    const response = await reviewPOST(request([photoUrl(visible.uploadKey!)]));
+    expect(response.status).toBe(201);
+    expect(await response.json()).toEqual({ id: expect.any(String), status: "pending" });
   });
 });
 
@@ -227,6 +256,11 @@ describe("review validation and aggregate calculations", () => {
     expect(() => validateReviewSubmission({ rating: 0, body: "Great", displayName: "Tumi", consent: true })).toThrow("rating");
     expect(() => validateReviewSubmission({ rating: 5, body: "Great", displayName: "Tumi", consent: false })).toThrow("confirm");
     expect(() => validateReviewSubmission({ rating: 5, body: "Great", displayName: "Tumi", consent: true, photoUrls: ["1", "2", "3", "4"] })).toThrow("no more than 3");
+  });
+
+  it("requires at least one photo, including for anonymous reviews", () => {
+    expect(() => validateReviewSubmission({ rating: 1, body: "My experience", anonymous: true, photoUrls: [" "], consent: true })).toThrow("at least one photo");
+    expect(validateReviewSubmission({ rating: 1, body: "My experience", anonymous: true, photoUrls: ["photo"], consent: true }).rating).toBe(1);
   });
 
   it("calculates an honest one-decimal average and rating distribution", () => {

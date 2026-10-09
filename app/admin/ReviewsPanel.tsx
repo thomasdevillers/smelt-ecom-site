@@ -65,6 +65,7 @@ export default function ReviewsPanel({ onExpired }: { onExpired: () => void }) {
         <div className={styles.reviewMeta}><span>{"★".repeat(review.rating)}{"☆".repeat(5-review.rating)}</span><b>Verified purchase</b><small>{formatDate(review.submittedAt)}</small></div>
         <blockquote>{review.body}</blockquote>
         <div className={styles.reviewIdentity}><strong>{review.anonymous ? "Anonymous" : review.displayName}</strong><span>{review.customerEmail}</span><code>{review.orderReference}</code></div>
+        {review.rewardType === "manual_refund" && <p className={styles.help}>Manual refund · R50 per hat in this order. Check the order quantity and process the refund to the original payment method. Every rating qualifies; publication is not required.</p>}
         {review.photos.length > 0 && <div className={styles.reviewAdminPhotos}>{review.photos.map((photo, index) => <figure key={photo.url}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={reviewPhotoUrl(review.id, index)} alt="Customer-submitted review" />

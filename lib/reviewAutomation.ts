@@ -15,7 +15,7 @@ const requestKey = (reference: string) => `${prefix()}:request:${digest(referenc
 const rewardReceiptKey = (reviewId: string) => `${prefix()}:reward:${reviewId}`;
 
 type Message = { from: string; to: string; subject: string; html: string; text: string };
-type Receipt = { status: "pending"; startedAt: number; message: Message } | { status: "accepted"; id: string; acceptedAt: string } | { status: "skipped" | "manual"; reason: string; at: string };
+type Receipt = { status: "pending"; startedAt: number; message: Message; offer?: "manual_refund" } | { status: "accepted"; id: string; acceptedAt: string } | { status: "skipped" | "manual"; reason: string; at: string; previous?: unknown };
 
 function configuration() {
   const apiKey = process.env.RESEND_API_KEY;
@@ -72,6 +72,12 @@ export async function processReviewRequests(now = Date.now()) {
       try {
         const existing = await db.get<Receipt>(requestKey(reference));
         if (existing?.status === "pending") {
+          // Frozen requests from the old offer may have reached the provider.
+          // Preserve the receipt for reconciliation instead of resending voucher copy.
+          if (existing.offer !== "manual_refund") {
+            await db.set(requestKey(reference), { status: "manual", reason: "review_offer_changed", at: new Date(now).toISOString(), previous: existing } satisfies Receipt);
+            counts.skipped++; continue;
+          }
           if (attempts >= 10) break;
           attempts++;
           const retried = await deliver(requestKey(reference), `review-request/${digest(reference)}`, existing);
@@ -92,7 +98,7 @@ export async function processReviewRequests(now = Date.now()) {
         const invitation = await createReviewInvitation(reference);
         const reviewUrl = new URL(`/review/${invitation.token}`, process.env.SITE_URL || "https://saunahat.co.za").toString();
         const message = { from: configuration().from, to: invitation.email, ...reviewRequestEmail({ name: invitation.suggestedName, reviewUrl }) };
-        const receipt = await deliver(requestKey(reference), `review-request/${digest(reference)}`, { status: "pending", startedAt: now, message });
+        const receipt = await deliver(requestKey(reference), `review-request/${digest(reference)}`, { status: "pending", startedAt: now, message, offer: "manual_refund" });
         if (receipt.status === "accepted") counts.sent++;
       } catch (error) {
         counts.errors++;

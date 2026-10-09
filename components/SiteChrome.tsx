@@ -24,6 +24,17 @@ export default function SiteChrome({ children, structuredData }: { children: Rea
     <CartDrawer />
   </CartProvider>;
   return <>
+        <Script id="google-ads-tag" strategy="afterInteractive">
+          {`window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'AW-18503032708');
+window.dispatchEvent(new Event('google-ads-ready'));`}
+        </Script>
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=AW-18503032708"
+          strategy="afterInteractive"
+        />
         {/* The fbq stub queues events immediately; the heavy fbevents.js (two
             ~400ms main-thread tasks) is only fetched on the first interaction,
             then flushes the queue. Keeps it out of page load entirely. */}

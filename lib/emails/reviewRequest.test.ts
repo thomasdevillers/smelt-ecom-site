@@ -7,8 +7,11 @@ describe("review emails", () => {
     const email = reviewRequestEmail({ name: "Tumi <Customer>", reviewUrl: "https://saunahat.co.za/review/private-token" });
     expect(email.subject).toContain("R50");
     expect(email.html).toContain("Hi Tumi,");
-    expect(email.html).toContain("good, bad, or somewhere in between");
-    expect(email.text).toContain("Every rating qualifies");
+    expect(email.text).toContain("Every rating counts");
+    expect(email.text).toContain("add photos of your hats");
+    expect(email.text).toContain("R50 for every hat");
+    expect(email.text).toContain("original payment method within a couple of days");
+    expect(email.text).not.toMatch(/voucher|next order|optional|90 days/i);
     expect(email.text).toContain("https://saunahat.co.za/review/private-token");
   });
 

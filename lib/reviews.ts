@@ -27,6 +27,7 @@ export interface ReviewRecord {
   photos: ReviewPhoto[];
   verifiedPurchase: true;
   incentivized?: boolean;
+  rewardType?: "manual_refund";
   status: ReviewStatus;
   submittedAt: string;
   publishedAt: string | null;
@@ -84,6 +85,8 @@ export function validateReviewSubmission(input: unknown): ReviewSubmission {
     throw new Error(`Add no more than ${REVIEW_MAX_PHOTOS} different photos.`);
   if (value.consent !== true)
     throw new Error("Please confirm that we may publish your review and photos.");
+  if (photoUrls.length === 0)
+    throw new Error("Add at least one photo of your hats to submit your review and qualify for the refund.");
 
   return { rating, body, displayName, anonymous, photoUrls, consent: true };
 }

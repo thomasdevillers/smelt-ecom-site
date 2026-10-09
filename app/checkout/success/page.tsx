@@ -11,6 +11,7 @@ import { formatMoney, parseShippingMethod, SHIPPING_OPTIONS, type ShippingMethod
 import { META_CURRENCY, metaContentId } from "@/lib/meta";
 import { trackMetaEvent } from "@/lib/metaPixel";
 import { trackVercelPurchase } from "@/lib/vercelAnalytics";
+import { trackGoogleAdsPurchase } from "@/lib/googleAds";
 import { EMAIL_VOUCHER_STORAGE_KEY } from "@/lib/cartRecoveryShared";
 import styles from "../checkout.module.css";
 
@@ -47,6 +48,7 @@ export default function CheckoutSuccessPage() {
         if (res.ok && data.paid) {
           try { sessionStorage.removeItem(EMAIL_VOUCHER_STORAGE_KEY); } catch { /* Payment is already verified. */ }
           trackVercelPurchase(data);
+          trackGoogleAdsPurchase(data);
           const purchaseStorageKey = `smelt-meta-purchase-${data.reference}`;
           if (!sessionStorage.getItem(purchaseStorageKey)) {
             const items = (data.items ?? []) as PaidItem[];
