@@ -37,6 +37,7 @@ export interface OrdersPage {
   total: number;
   activeTotal: number;
   completedTotal: number;
+  preorderToFulfil: { cream: number; green: number };
 }
 
 export type AnalyticsDays = 7 | 28 | 90;

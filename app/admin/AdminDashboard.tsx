@@ -211,6 +211,16 @@ export default function AdminDashboard() {
           <button type="button" aria-pressed={section === "restock"} onClick={() => setSection("restock")}>Restock requests</button>
         </nav>
         {section === "orders" ? <>
+        <section className={styles.preorderSummary} aria-labelledby="preorder-summary-heading" aria-busy={loading}>
+          <div className={styles.preorderSummaryIntro}>
+            <h2 id="preorder-summary-heading">Pre-orders to fulfil</h2>
+            <p>{search ? "Matching search · " : "All orders · "}Paid pre-order hats, excluding orders marked complete.</p>
+          </div>
+          <dl className={styles.preorderCounts}>
+            <div><dt><span className={`${styles.swatch} ${styles.cream}`} aria-hidden="true" />Cream</dt><dd>{data?.preorderToFulfil.cream ?? "—"}</dd></div>
+            <div><dt><span className={styles.swatch} aria-hidden="true" />Green</dt><dd>{data?.preorderToFulfil.green ?? "—"}</dd></div>
+          </dl>
+        </section>
         <nav className={styles.sections} aria-label="Order sections">
           <button type="button" aria-pressed={view === "active"} onClick={() => { setView("active"); setPage(1); setNotice(""); }}>Active orders {data && <span>{data.activeTotal}</span>}</button>
           <button type="button" aria-pressed={view === "preorders"} onClick={() => { setView("preorders"); setPage(1); setNotice(""); }}>Paid pre-orders · oldest first</button>

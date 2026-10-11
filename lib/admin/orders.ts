@@ -134,7 +134,7 @@ export async function listOrders(
         if (!Number.isSafeInteger(data?.id)) throw new AdminError("Could not find this customer.", 404);
         query.set("customer", String(data.id));
       } catch (error) {
-        if (error instanceof AdminError && error.status === 404) return { orders: [], page: 1, pageCount: 0, total: 0, activeTotal: 0, completedTotal: 0 };
+        if (error instanceof AdminError && error.status === 404) return { orders: [], page: 1, pageCount: 0, total: 0, activeTotal: 0, completedTotal: 0, preorderToFulfil: { cream: 0, green: 0 } };
         throw error;
       }
     }
@@ -156,6 +156,13 @@ export async function listOrders(
   for (const order of orders) order.completedAt = completed[order.reference] || null;
   const completedTotal = orders.filter(order => order.completedAt).length;
   const activeTotal = orders.length - completedTotal;
+  // Count outstanding pre-order units across every page, using current allocations.
+  const preorderToFulfil = { cream: 0, green: 0 };
+  for (const order of orders) {
+    if (order.completedAt || !order.preorder) continue;
+    preorderToFulfil.cream += order.preorder.quantities.cream;
+    preorderToFulfil.green += order.preorder.quantities.green;
+  }
   const filtered = orders.filter(order => view === "completed" ? !!order.completedAt : !order.completedAt && (view !== "preorders" || !!order.preorder));
   if (view === "preorders") filtered.sort((a, b) => (a.paidAt || "").localeCompare(b.paidAt || "") || a.reference.localeCompare(b.reference));
   if (view === "completed") filtered.sort((a, b) => completedSort === "oldest"
@@ -163,7 +170,7 @@ export async function listOrders(
     : b.completedAt!.localeCompare(a.completedAt!));
   const pageCount = Math.ceil(filtered.length / 25);
   const currentPage = Math.min(page, Math.max(1, pageCount));
-  const result: OrdersPage = { orders: filtered.slice((currentPage - 1) * 25, currentPage * 25), page: currentPage, pageCount, total: filtered.length, activeTotal, completedTotal };
+  const result: OrdersPage = { orders: filtered.slice((currentPage - 1) * 25, currentPage * 25), page: currentPage, pageCount, total: filtered.length, activeTotal, completedTotal, preorderToFulfil };
   for (const batch of new Set(result.orders.flatMap(order => order.preorder ? [order.preorder.batch] : []))) {
     if (!await batchReceived(batch)) for (const order of result.orders) if (order.preorder?.batch === batch) {
       order.canShip = false;
