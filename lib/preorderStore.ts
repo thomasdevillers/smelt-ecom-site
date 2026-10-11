@@ -94,7 +94,7 @@ export async function reservePurchase(cart: CartState, reference: string, consen
   const accepted = d?.accepted === true && d.batch === PREORDER_BATCH && PREORDER_MODE;
   const safe = (n: unknown) => typeof n === 'number' && Number.isSafeInteger(n) && n >= 0 && n <= 99 ? n : 0;
   const r = await adminStore().eval<(string | number)[], number[]>(RESERVE_PURCHASE, [stockKey(), quotaKey(), `${prefix()}:orders`, `${prefix()}:received:${PREORDER_BATCH}`], [reference, cart.green, cart.cream, accepted ? safe(d?.quantities?.green) : 0, accepted ? safe(d?.quantities?.cream) : 0, new Date().toISOString(), PREORDER_MODE ? '1' : '0']);
-  return { reserved: r[0] === 1, ...(r[1] + r[2] > 0 ? { preorder: { batch: PREORDER_BATCH, arrival: PREORDER_ARRIVAL, quantities: { green: r[1], cream: r[2] } } } : {}) };
+  return { reserved: r[0] === 1, ...(r[1] + r[2] > 0 ? { preorder: { batch: PREORDER_BATCH, arrival: PREORDER_ARRIVAL, timing: 'dispatch' as const, quantities: { green: r[1], cream: r[2] } } } : {}) };
 }
 export const COMMIT_PURCHASE = `${REALLOCATE_PAID}
 local raw = redis.call('HGET', KEYS[1], ARGV[1])

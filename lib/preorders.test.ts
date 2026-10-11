@@ -1,19 +1,34 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { preorderQuantities, parsePreorder, PREORDER_BATCH, PREORDER_ARRIVAL } from './preorders';
+import { preorderQuantities, parsePreorder, preorderTiming, PREORDER_BATCH, PREORDER_ARRIVAL } from './preorders';
 import { orderConfirmationEmail } from './emails/orderConfirmation';
+import { ownerOrderEmail } from './emails/ownerOrder';
 import { localStockTest, stockScope } from './stockEnvironment';
 afterEach(() => vi.unstubAllEnvs());
 describe('pre-order customer promise', () => {
   it('only requests consent for quantities that cannot ship from current stock', () => {
     expect(preorderQuantities({ green: 3, cream: 1 }, { green: 2, cream: 0 })).toEqual({ green: 1, cream: 1 });
   });
-  it('shows the ready date in confirmation and removes immediate dispatch claims', () => {
-    const email = orderConfirmationEmail({ reference: 'preorder', total: 'R900', items: [{ colour: 'green', name: 'Forest Green', qty: 2 }], preorder: { batch: PREORDER_BATCH, arrival: PREORDER_ARRIVAL, quantities: { green: 2, cream: 0 } } });
+  it('shows the shipping date in customer and owner confirmations', () => {
+    const preorder = { batch: PREORDER_BATCH, arrival: PREORDER_ARRIVAL, timing: 'dispatch' as const, quantities: { green: 2, cream: 0 } };
+    const input = { reference: 'preorder', total: 'R900', items: [{ colour: 'green', name: 'Forest Green', qty: 2 }], preorder };
+    const email = orderConfirmationEmail(input);
+    const owner = ownerOrderEmail({ ...input, email: 'customer@example.com', customerName: 'Test', cart: { green: 2, cream: 0 }, address: null, shippingMethod: 'aramex', test: true });
+    expect(parsePreorder(preorder)).toEqual(preorder);
     expect(email.subject).toContain('pre-order');
-    expect(email.text).toContain('Expected 15 October 2026.');
+    for (const content of [email.text, email.html, owner.text, owner.html]) {
+      expect(content).toContain('Your pre-order ships on 30 October 2026.');
+      expect(content).toContain('Courier transit starts after dispatch.');
+      expect(content).not.toContain('15 October');
+      expect(content).not.toContain('Delivery follows arrival');
+    }
     expect(email.text).toContain('entire order');
     expect(email.text).toContain('full refund');
     expect(email.text).not.toContain('Your hat is in stock');
+  });
+  it('preserves the original arrival promise for existing orders', () => {
+    const preorder = parsePreorder({ batch: PREORDER_BATCH, arrival: '15 October 2026', quantities: { green: 1, cream: 0 } })!;
+    expect(preorderTiming(preorder)).toContain('Expected 15 October 2026. Delivery follows arrival.');
+    expect(orderConfirmationEmail({ reference: 'existing', total: 'R450', items: [], preorder }).text).not.toContain('30 October');
   });
   it('rejects malformed pre-order descriptions', () => {
     expect(parsePreorder({ batch: PREORDER_BATCH, arrival: PREORDER_ARRIVAL, quantities: { green: -1, cream: 0 } })).toBeUndefined();

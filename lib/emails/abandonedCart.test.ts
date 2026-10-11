@@ -8,6 +8,10 @@ describe("abandonedCartEmail", () => {
   });
   it("has a pre-order subject", () => {
     expect(e.subject).toMatch(/pre-order/i);
+    for (const content of [e.html, e.text]) {
+      expect(content).toContain("Pre-orders ship on 30 October.");
+      expect(content).not.toContain("15 October");
+    }
   });
   it("greets by name, links to cart, and offers an opt-out", () => {
     expect(e.html).toContain("Sam");

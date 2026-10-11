@@ -1,3 +1,5 @@
+import { PREORDER_COPY, PREORDER_MODE } from "../lib/salesMode";
+
 export const POLICIES = {
   eyebrow: "Fair & clear",
   title: "Store policies built on trust (and wool).",
@@ -6,7 +8,7 @@ export const POLICIES = {
   shipping: {
     title: "Shipping & Delivery",
     dispatch:
-      "In-stock orders are packed and dispatched within 1 to 3 business days. Pre-orders dispatch within 1 to 3 business days after the incoming shipment arrives, using the estimate shown at checkout. Orders containing a pre-order ship together. We will email you if the estimate changes. To cancel a pre-order before dispatch for a full refund, contact hello@saunahat.co.za with your order reference.",
+      `In-stock orders are packed and dispatched within 1 to 3 business days. ${PREORDER_MODE ? PREORDER_COPY : "Pre-orders follow the timing confirmed at checkout."} Courier transit starts after dispatch. Orders containing a pre-order ship together. Existing orders retain the timing in their order confirmation. We will email you if timing changes. To cancel a pre-order before dispatch for a full refund, contact hello@saunahat.co.za with your order reference.`,
     courier: "We use Aramex for all nationwide deliveries.",
     timelines: [
       { area: "Cape Town & Surrounds", time: "1–2 business days" },

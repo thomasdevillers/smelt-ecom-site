@@ -42,7 +42,7 @@ export function hatKnowledge(availability: Availability | null) {
         feeForOneHat: formatMoney(shippingFee(BASE_PRICE, id as "aramex" | "founders")),
         feeForTwoHats: formatMoney(shippingFee(lineTotal(2), id as "aramex" | "founders")),
       })),
-      ...(PREORDER_MODE ? { currentTiming: PREORDER_COPY, rule: "Pre-order arrival is an estimate. Delivery follows arrival; next-business-day delivery is not a promise for pre-orders." } : {}),
+      ...(PREORDER_MODE ? { currentTiming: PREORDER_COPY, rule: "The current pre-order date is the shipping date for new orders, not the delivery date. Courier transit starts after dispatch. Existing orders retain their confirmed timing. Do not promise next-business-day delivery for pre-orders." } : {}),
     },
     availability: availability ? {
       checkedAt: new Date().toISOString(),

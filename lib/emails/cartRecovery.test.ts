@@ -21,8 +21,9 @@ describe("cart recovery emails", () => {
     const email = cartRecoveryEmail({ ...input, step });
     expect(email.subject).toMatch(/pre-order/i);
     for (const content of [email.html, email.text]) {
-      expect(content).toContain("not stock ready for immediate dispatch");
-      expect(content).toContain("Expected 15 October. Delivery follows arrival.");
+      expect(content).toContain("incoming batch");
+      expect(content).not.toContain("15 October");
+      expect(content).toContain("Pre-orders ship on 30 October.");
       expect(content).toContain("R450 per hat");
       expect(content).toContain("regular price R550");
       expect(content).toContain("Payment is taken in full");
@@ -43,7 +44,7 @@ describe("cart recovery emails", () => {
     salesMode.preorder = false;
     const email = cartRecoveryEmail({ ...input, step });
     expect(email.subject).not.toContain("pre-order");
-    expect(email.text).not.toContain("15 October");
+    expect(email.text).not.toContain("30 October");
     expect(email.text).not.toContain("R450");
     expect(email.text).toContain("Return to my checkout");
     expect(email.text).toContain("Current stock is confirmed again before payment.");
