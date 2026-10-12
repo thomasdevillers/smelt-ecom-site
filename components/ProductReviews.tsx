@@ -67,7 +67,7 @@ export default function ProductReviews() {
     </div>
     <div className={styles.grid}>
       {data.reviews.map(review => <article className={styles.card} key={review.id}>
-        <div className={styles.cardTop}><Stars rating={review.rating} /><span>{review.incentivized ? "Verified purchase · Review thank-you" : "Verified purchase ✓"}</span></div>
+        <div className={styles.cardTop}><Stars rating={review.rating} /><span>Verified purchase</span></div>
         <p className={styles.body}>&ldquo;{review.body}&rdquo;</p>
         {review.photos.length > 0 && <div className={styles.photos}>
           {review.photos.map(photo => <button type="button" key={photo.url} onClick={() => setActivePhoto(photo.url)} aria-label={`Open photo from ${review.displayName}`}>
