@@ -40,4 +40,4 @@ site does not require a database.
 ## v1 notes
 - Checkout takes real payments through Paystack.
 - Cart persists to localStorage (`smelt-cart-v1`).
-- Bundle discounts are computed **per colour** (5% off at qty 2, 10% off at qty 3).
+- Bundle discounts are computed *per colour* (5% off at qty 2, 10% off at qty 3).
