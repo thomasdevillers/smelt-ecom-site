@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getConversionAnalytics } from "./analytics";
 import { captureTouch, mergeAttribution } from "../attribution";
+import { GUIDES } from "@/content/guides";
 
 const touchTime = Date.parse("2026-09-12T10:00:00Z");
 const attribution = mergeAttribution(null, captureTouch(new URL("https://saunahat.co.za/product?utm_source=facebook&utm_medium=paid_social"), "", touchTime), touchTime);
@@ -23,6 +24,15 @@ describe("conversion analytics", () => {
         { reference: "other-business", status: "success", amount: 200000, currency: "ZAR", paid_at: "2026-09-14T10:00:00Z", metadata: {} },
       ] });
       const filter = url.searchParams.get("filter");
+      if (filter?.startsWith("requestPath in")) {
+        const previous = url.searchParams.get("since")?.startsWith("2026-09-04");
+        return url.searchParams.get("by") === "day"
+          ? json({ data: [{ timestamp: previous ? "2026-09-05T00:00:00.000Z" : "2026-09-12T00:00:00.000Z", pageviews: previous ? 8 : 30, visitors: previous ? 4 : 12 }] })
+          : json({ data: [
+            { requestPath: `/articles/${GUIDES[0].slug}`, pageviews: previous ? 8 : 20, visitors: previous ? 4 : 10 },
+            ...previous ? [] : [{ requestPath: `/articles/${GUIDES[1].slug}`, pageviews: 10, visitors: 7 }],
+          ] });
+      }
       const values = filter?.includes("ViewContent") ? [8, 15]
         : filter?.includes("AddToCart") ? [4, 6]
         : filter?.includes("InitiateCheckout") ? [2, 3]
@@ -52,11 +62,50 @@ describe("conversion analytics", () => {
     expect(result.previous.channels).toEqual([{ channel: "unrecorded", orders: 1, revenue: 45000 }]);
     const calls = vi.mocked(fetch).mock.calls.map(([input]) => String(input));
     const vercelCalls = calls.filter(url => url.includes("api.vercel.com"));
-    expect(vercelCalls).toHaveLength(14);
+    expect(vercelCalls).toHaveLength(18);
     expect(vercelCalls.find(url => url.includes("/visits/"))).toContain("requestPath+ne+%27%2Fadmin%27");
     expect(vercelCalls.every(value => new URL(value).searchParams.get("limit") === "100")).toBe(true);
-    expect(new Set(vercelCalls.map(value => new URL(value).searchParams.get("since"))).size).toBe(2);
+    expect(new Set(vercelCalls.filter(value => !new URL(value).searchParams.get("filter")?.startsWith("requestPath in")).map(value => new URL(value).searchParams.get("since"))).size).toBe(2);
     expect(calls.find(url => url.includes("api.paystack.co"))).toContain("status=success");
+  });
+
+  it("reports article views and the combined audience without summing per-article readers", async () => {
+    const result = await getConversionAnalytics(7, new Date("2026-09-17T10:00:00Z"));
+    expect(result.articlesError).toBeNull();
+    expect(result.articles).toMatchObject({ current: { views: 30, visitors: 12 }, previous: { views: 8, visitors: 4 } });
+    expect(result.articles!.current.pages).toHaveLength(GUIDES.length);
+    expect(result.articles!.current.pages[0]).toMatchObject({ title: GUIDES[0].h1, views: 20, visitors: 10 });
+    expect(result.articles!.current.pages[1]).toMatchObject({ title: GUIDES[1].h1, views: 10, visitors: 7 });
+    expect(result.articles!.current.pages.find(page => page.path === `/articles/${GUIDES[2].slug}`)).toMatchObject({ views: 0, visitors: 0 });
+    const calls = vi.mocked(fetch).mock.calls.map(([input]) => new URL(String(input))).filter(url => url.searchParams.get("filter")?.startsWith("requestPath in"));
+    expect(calls).toHaveLength(4);
+    for (const url of calls) {
+      expect(url.searchParams.get("filter")).not.toContain("'/articles'");
+      for (const guide of GUIDES) expect(url.searchParams.get("filter")).toContain(`'/articles/${guide.slug}'`);
+    }
+    expect(calls.find(url => url.searchParams.get("since") === "2026-09-11T00:00:00.000Z")?.searchParams.get("until")).toBe("2026-09-17T23:59:59.999Z");
+    expect(calls.find(url => url.searchParams.get("since") === "2026-09-04T00:00:00.000Z")?.searchParams.get("until")).toBe("2026-09-10T23:59:59.999Z");
+  });
+
+  it.each([json({ error: "unavailable" }, 503), json({ data: { pageviews: "30", visitors: 12 } }), json({ data: null })])("keeps sales available when article stats fail or are malformed", async response => {
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation((...args) => new URL(String(args[0])).searchParams.get("filter")?.startsWith("requestPath in") ? Promise.resolve(response as Response) : original(...args));
+    const result = await getConversionAnalytics(7, new Date("2026-09-17T10:00:00Z"));
+    expect(result.current.orders).toBe(2);
+    expect(result.articles).toBeNull();
+    expect(result.articlesError).toBeTruthy();
+  });
+
+  it("returns genuine zeros for an empty period", async () => {
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation((...args) => {
+      const url = new URL(String(args[0]));
+      if (url.searchParams.get("filter")?.startsWith("requestPath in")) return Promise.resolve(json({ data: [] }) as Response);
+      return original(...args);
+    });
+    const result = await getConversionAnalytics(7, new Date("2026-09-17T10:00:00Z"));
+    expect(result.articles?.current).toMatchObject({ views: 0, visitors: 0 });
+    expect(result.articles?.current.pages.every(page => page.views === 0 && page.visitors === 0)).toBe(true);
   });
 
   it("fails with a useful setup message before making provider requests", async () => {

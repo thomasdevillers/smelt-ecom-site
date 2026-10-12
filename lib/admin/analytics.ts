@@ -1,7 +1,8 @@
 import { AdminError } from "./store";
-import type { AnalyticsDays, AnalyticsPeriod, ConversionAnalytics } from "./types";
+import type { AnalyticsDays, AnalyticsPeriod, ArticlePeriod, ConversionAnalytics } from "./types";
 import { normalizeOrder } from "./orders";
 import { attributionChannel, type AttributionChannel } from "../attribution";
+import { GUIDES } from "@/content/guides";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const JOHANNESBURG_OFFSET_MS = 2 * 60 * 60 * 1000;
@@ -33,12 +34,10 @@ function config() {
   return { token, projectId, teamId };
 }
 
-async function vercelDaily(dataset: "visits" | "events", since: string, until: string, eventName?: FunnelEvent) {
+async function vercelData(dataset: "visits" | "events", params: Record<string, string>): Promise<unknown> {
   const { token, projectId, teamId } = config();
-  const query = new URLSearchParams({ projectId, since, until, by: "day", limit: "100" });
+  const query = new URLSearchParams({ projectId, ...params });
   if (teamId) query.set("teamId", teamId);
-  if (eventName) query.set("filter", `eventName eq '${eventName}'`);
-  else query.set("filter", "requestPath ne '/admin'");
   const response = await fetch(`https://api.vercel.com/v1/query/web-analytics/${dataset}/aggregate?${query}`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
@@ -46,13 +45,63 @@ async function vercelDaily(dataset: "visits" | "events", since: string, until: s
   });
   let body: unknown;
   try { body = await response.json(); } catch { body = null; }
-  const data = body && typeof body === "object" && Array.isArray((body as { data?: unknown }).data)
-    ? (body as { data: DailyMetric[] }).data : null;
-  if (!response.ok || !data) {
+  if (!response.ok || !body || typeof body !== "object" || !("data" in body)) {
     if (response.status === 401 || response.status === 403) throw new AdminError("Vercel rejected the analytics credentials. Check the access token and team ID.", 503);
     throw new AdminError("Could not load traffic data from Vercel. Please try again.", 502);
   }
-  return data;
+  return body.data;
+}
+
+async function vercelDaily(dataset: "visits" | "events", since: string, until: string, eventName?: FunnelEvent) {
+  const data = await vercelData(dataset, {
+    since, until, by: "day", limit: "100",
+    filter: eventName ? `eventName eq '${eventName}'` : "requestPath ne '/admin'",
+  });
+  if (!Array.isArray(data)) throw new AdminError("Could not load traffic data from Vercel. Please try again.", 502);
+  return data as DailyMetric[];
+}
+
+async function articleTraffic(start: string, end: string): Promise<ArticlePeriod> {
+  const pages = GUIDES.map(guide => ({ path: `/articles/${guide.slug}`, title: guide.h1, views: 0, visitors: 0 }));
+  if (!pages.length) return { views: 0, visitors: 0, pages };
+  // Exact published paths exclude the article index and unknown/404 URLs.
+  const filter = `requestPath in (${pages.map(page => `'${page.path.replaceAll("'", "''")}'`).join(",")})`;
+  // Vercel aggregates daily traffic in UTC. Use the same complete date bounds
+  // for both queries; the count endpoint rounds its end date differently.
+  const range = { since: `${start}T00:00:00.000Z`, until: `${end}T23:59:59.999Z`, filter, limit: "100" };
+  const [totals, rows] = await Promise.all([
+    vercelData("visits", { ...range, by: "day" }),
+    vercelData("visits", { ...range, by: "requestPath" }),
+  ]);
+  const metrics = (value: unknown) => {
+    const row = value && typeof value === "object" ? value as Record<string, unknown> : {};
+    if (typeof row.pageviews !== "number" || !Number.isSafeInteger(row.pageviews) || row.pageviews < 0
+      || typeof row.visitors !== "number" || !Number.isSafeInteger(row.visitors) || row.visitors < 0) {
+      throw new AdminError("Article readership data could not be read. Please try again.", 502);
+    }
+    return { views: row.pageviews, visitors: row.visitors };
+  };
+  if (!Array.isArray(rows) || !Array.isArray(totals)) throw new AdminError("Article readership data could not be read. Please try again.", 502);
+  const byPath = new Map(pages.map(page => [page.path, page]));
+  for (const value of rows) {
+    if (!value || typeof value !== "object" || typeof value.requestPath !== "string") {
+      throw new AdminError("Article readership data could not be read. Please try again.", 502);
+    }
+    const page = byPath.get(value.requestPath);
+    if (page) Object.assign(page, metrics(value));
+  }
+  // Query the combined audience: adding per-article readers would count people
+  // who opened multiple articles more than once on the same day.
+  const total = { views: 0, visitors: 0 };
+  for (const row of totals) {
+    if (!row || typeof row.timestamp !== "string") throw new AdminError("Article readership data could not be read. Please try again.", 502);
+    const day = row.timestamp.slice(0, 10);
+    if (day < start || day > end) continue;
+    const value = metrics(row);
+    total.views += value.views;
+    total.visitors += value.visitors;
+  }
+  return { ...total, pages: pages.sort((a, b) => b.views - a.views || a.title.localeCompare(b.title)) };
 }
 
 async function trafficForRange(start: string, end: string) {
@@ -136,10 +185,15 @@ export async function getConversionAnalytics(days: AnalyticsDays, now = new Date
     current: { start: dateKey(currentStart), end: dateKey(today) },
     previous: { start: dateKey(previousStart), end: dateKey(previousEnd) },
   };
-  const [currentTraffic, previousTraffic, transactions] = await Promise.all([
+  const [currentTraffic, previousTraffic, transactions, articleReport] = await Promise.all([
     trafficForRange(ranges.current.start, ranges.current.end),
     trafficForRange(ranges.previous.start, ranges.previous.end),
     paidTransactions(previousStart, now),
+    Promise.all([
+      articleTraffic(ranges.current.start, ranges.current.end),
+      articleTraffic(ranges.previous.start, ranges.previous.end),
+    ]).then(([current, previous]) => ({ articles: { current, previous }, articlesError: null }))
+      .catch((error: unknown) => ({ articles: null, articlesError: error instanceof AdminError ? error.message : "Could not load article readership. Please try again." })),
   ]);
   const build = ({ start, end }: { start: string; end: string }, traffic: Awaited<ReturnType<typeof trafficForRange>>): AnalyticsPeriod => ({
     start, end,
@@ -158,5 +212,6 @@ export async function getConversionAnalytics(days: AnalyticsDays, now = new Date
     mode: process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_") ? "live" : "test",
     current: build(ranges.current, currentTraffic),
     previous: build(ranges.previous, previousTraffic),
+    ...articleReport,
   };
 }

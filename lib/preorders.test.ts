@@ -16,7 +16,7 @@ describe('pre-order customer promise', () => {
     expect(parsePreorder(preorder)).toEqual(preorder);
     expect(email.subject).toContain('pre-order');
     for (const content of [email.text, email.html, owner.text, owner.html]) {
-      expect(content).toContain('Your pre-order ships on 30 October 2026.');
+      expect(content).toContain('Your pre-order ships on 20 October 2026.');
       expect(content).toContain('Courier transit starts after dispatch.');
       expect(content).not.toContain('15 October');
       expect(content).not.toContain('Delivery follows arrival');
@@ -28,7 +28,7 @@ describe('pre-order customer promise', () => {
   it('preserves the original arrival promise for existing orders', () => {
     const preorder = parsePreorder({ batch: PREORDER_BATCH, arrival: '15 October 2026', quantities: { green: 1, cream: 0 } })!;
     expect(preorderTiming(preorder)).toContain('Expected 15 October 2026. Delivery follows arrival.');
-    expect(orderConfirmationEmail({ reference: 'existing', total: 'R450', items: [], preorder }).text).not.toContain('30 October');
+    expect(orderConfirmationEmail({ reference: 'existing', total: 'R450', items: [], preorder }).text).not.toContain('20 October');
   });
   it('rejects malformed pre-order descriptions', () => {
     expect(parsePreorder({ batch: PREORDER_BATCH, arrival: PREORDER_ARRIVAL, quantities: { green: -1, cream: 0 } })).toBeUndefined();

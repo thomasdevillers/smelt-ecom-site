@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import type { AnalyticsDays, AnalyticsPeriod, ConversionAnalytics } from "@/lib/admin/types";
 import styles from "./admin.module.css";
 import { CHANNEL_LABELS } from "@/lib/attribution";
@@ -113,6 +114,25 @@ export default function AnalyticsPanel({ onExpired }: { onExpired: () => void })
         <Metric label="Payment-open rate" value={formatPercent(current.paymentOpenRate)} note="Payment openers / checkout visitors" trend={change(current.paymentOpenRate, previous.paymentOpenRate, true)} />
         <Metric label="Payment completion" value={formatPercent(current.paymentCompletion)} note="Orders / payment openers" trend={change(current.paymentCompletion, previous.paymentCompletion, true)} />
       </div>
+      <section className={styles.channelSection} aria-labelledby="articles-title">
+        <div className={styles.sectionIntro}><span>ARTICLE READERSHIP</span><h2 id="articles-title">Who’s reading.</h2><p>Views and daily unique readers of published articles, for the selected period. Visits to the article index are excluded.</p></div>
+        {data.articles ? <>
+          <div className={styles.articleMetricGrid}>
+            <Metric label="Article views" value={formatNumber(data.articles.current.views)} note="Includes repeat views" trend={change(data.articles.current.views, data.articles.previous.views)} />
+            <Metric label="Article readers" value={formatNumber(data.articles.current.visitors)} note="Daily unique across all articles" trend={change(data.articles.current.visitors, data.articles.previous.visitors)} />
+          </div>
+          <div className={styles.channelTableWrap}><table className={`${styles.channelTable} ${styles.articleTable}`}>
+            <caption className={styles.channelCaption}>Article views and readers · {shortDate(data.current.start)} — {shortDate(data.current.end)}</caption>
+            <thead><tr><th scope="col">Article</th><th scope="col">Views</th><th scope="col">Daily unique readers</th><th scope="col">Views vs prior period</th></tr></thead>
+            <tbody>{data.articles.current.pages.map(article => {
+              const prior = data.articles!.previous.pages.find(page => page.path === article.path);
+              return <tr key={article.path}><th scope="row"><Link href={article.path} prefetch={false} target="_blank" rel="noopener noreferrer">{article.title}<span className={styles.srOnly}> (opens in a new tab)</span></Link></th><td>{formatNumber(article.views)}</td><td>{formatNumber(article.visitors)}</td><td>{change(article.views, prior?.views ?? 0).label}</td></tr>;
+            })}</tbody>
+          </table></div>
+          {data.articles.current.views === 0 && <p className={styles.note}>No article views recorded in this period.</p>}
+          <p className={styles.note}>Article traffic uses Vercel’s UTC days. A reader returning on another day counts again. Readers who open several articles on the same day count once in the overall audience, but once for each article they view. Views measure page opens, not completed reads.</p>
+        </> : <div className={styles.analyticsError} role="alert"><strong>Article readership unavailable</strong><p>{data.articlesError || "Could not load article readership. Refresh the report to try again."}</p></div>}
+      </section>
       <section className={styles.funnelSection} aria-labelledby="funnel-title">
         <div className={styles.sectionIntro}><span>PATH TO PURCHASE</span><h2 id="funnel-title">Where the warmth escapes.</h2><p>Unique daily visitors at each browser-tracked stage, ending with verified Paystack orders.</p></div>
         <div className={styles.funnel}>

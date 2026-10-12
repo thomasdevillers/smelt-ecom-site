@@ -5,9 +5,9 @@ import { paidCheckoutTotal } from './checkoutShared';
 afterEach(() => { vi.doUnmock('./salesMode'); vi.resetModules(); });
 describe('October pre-order campaign', () => {
   it('counts down to the shipping day in SAST and stays at zero afterwards', () => {
-    expect(countdownParts(Date.parse('2026-10-28T20:57:13Z'))).toEqual([1, 1, 2, 47]);
-    expect(countdownParts(Date.parse('2026-10-29T22:00:00Z'))).toEqual([0, 0, 0, 0]);
-    expect(countdownParts(Date.parse('2026-10-31T10:00:00Z'))).toEqual([0, 0, 0, 0]);
+    expect(countdownParts(Date.parse('2026-10-18T20:57:13Z'))).toEqual([1, 1, 2, 47]);
+    expect(countdownParts(Date.parse('2026-10-19T22:00:00Z'))).toEqual([0, 0, 0, 0]);
+    expect(countdownParts(Date.parse('2026-10-21T10:00:00Z'))).toEqual([0, 0, 0, 0]);
   });
   it('restores regular pricing only through the manual switch', async () => {
     vi.doMock('./salesMode', () => ({ PREORDER_MODE: false, PREORDER_PRICE: 450, REGULAR_PRICE: 550 }));

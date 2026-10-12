@@ -1,6 +1,6 @@
 # October 2026 pre-orders
 
-New pre-orders ship on 30 October 2026. The 15 October batch is sold out; existing paid orders retain their confirmed timing. Courier transit starts after dispatch. The shared date and display-only countdown live in `lib/salesMode.ts`. See `docs/preorder-switch.md` for the current campaign and the shared inventory ledger limitations when receiving separate October shipments.
+New pre-orders ship on 20 October 2026. The 15 October batch is sold out; existing paid orders retain their confirmed timing. Courier transit starts after dispatch. The shared date and display-only countdown live in `lib/salesMode.ts`. See `docs/preorder-switch.md` for the current campaign and the shared inventory ledger limitations when receiving separate October shipments.
 
 ## Local testing
 

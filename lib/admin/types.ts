@@ -42,6 +42,19 @@ export interface OrdersPage {
 
 export type AnalyticsDays = 7 | 28 | 90;
 
+export interface ArticleMetric {
+  path: string;
+  title: string;
+  views: number;
+  visitors: number;
+}
+
+export interface ArticlePeriod {
+  views: number;
+  visitors: number;
+  pages: ArticleMetric[];
+}
+
 export interface AnalyticsPeriod {
   start: string;
   end: string;
@@ -63,4 +76,6 @@ export interface ConversionAnalytics {
   mode: "live" | "test";
   current: AnalyticsPeriod;
   previous: AnalyticsPeriod;
+  articles: { current: ArticlePeriod; previous: ArticlePeriod } | null;
+  articlesError: string | null;
 }
