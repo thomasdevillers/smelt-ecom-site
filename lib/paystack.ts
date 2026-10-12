@@ -1,6 +1,7 @@
-// Server-only Paystack helper. Uses the Standard (redirect) flow:
-// we initialize a transaction with the SECRET key and hand the browser an
-// authorization_url to redirect to. No public key is needed on the client.
+// Server-only Paystack helper. We initialize a transaction with the SECRET key
+// and hand the browser an access_code, which the checkout page opens in the
+// Paystack Inline popup (resumeTransaction). The authorization_url is kept as a
+// redirect fallback if the popup can't load. No public key is needed on the client.
 //
 // Set PAYSTACK_SECRET_KEY in .env.local to accept live payments.
 
@@ -20,6 +21,7 @@ function secretKey(): string {
 
 export interface InitResult {
   authorizationUrl: string;
+  accessCode: string;
   reference: string;
 }
 
@@ -61,6 +63,7 @@ export async function initializeTransaction(params: {
   }
   return {
     authorizationUrl: json.data.authorization_url,
+    accessCode: json.data.access_code,
     reference: json.data.reference,
   };
 }

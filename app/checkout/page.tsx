@@ -3,6 +3,8 @@ import { useAvailability } from "@/lib/useAvailability";
 import { hasPreorder, preorderQuantities } from "@/lib/preorders";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import type PaystackInline from "@paystack/inline-js";
 import { useCart } from "@/lib/cart";
 import { COLOURS, PRODUCT } from "@/lib/product";
 import { bundleDiscount, formatMoney, lineTotal, shippingFee, grandTotal, SHIPPING_OPTIONS, type ShippingMethod } from "@/lib/pricing";
@@ -19,8 +21,15 @@ import { getCheckoutAttribution } from "@/lib/attributionClient";
 
 type Status = "idle" | "submitting" | "error";
 type AppliedVoucher = { code: string; amount: number; expiresAt: string; email: string };
+type PendingPayment = { orderKey: string; accessCode?: string; authorizationUrl: string; startedAt: number };
+// Stay well inside the server's one-hour stock reservation before reusing a transaction.
+const PAYMENT_REUSE_MS = 30 * 60 * 1000;
+const isReusablePayment = (payment: PendingPayment | null, orderKey: string): payment is PendingPayment =>
+  payment?.orderKey === orderKey && Date.now() - payment.startedAt < PAYMENT_REUSE_MS;
+const startedPayment = (payment: Omit<PendingPayment, "startedAt">): PendingPayment => ({ ...payment, startedAt: Date.now() });
 export default function CheckoutPage() {
   const { cart, subtotal, dispatch } = useCart();
+  const router = useRouter();
   const discount = bundleDiscount(cart.green + cart.cream);
   const { stock, error: stockError, refresh } = useAvailability();
   const quantities = stock ? preorderQuantities(cart, stock) : { green: 0, cream: 0 };
@@ -72,6 +81,7 @@ export default function CheckoutPage() {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
   const [followupStage, setFollowupStage] = useState<"details" | "payment_opened" | "payment_closed">("details");
+  const pendingPayment = useRef<PendingPayment | null>(null);
   useCheckoutFollowup({ email, name, cart, activity: address, stage: error ? "checkout_error" : followupStage, marketingConsent: true });
   const trackCheckoutStage = (event: "PaymentOpened" | "CheckoutError") => {
     trackVercelEvent(event, vercelCartData(cart));
@@ -118,6 +128,30 @@ export default function CheckoutPage() {
     });
   }, [cart, subtotal, shippingMethod]);
 
+  // Open Paystack's checkout as a popup over this page. If the Inline script
+  // can't load (ad blockers, flaky network) fall back to the hosted page.
+  async function openPayment(payment: PendingPayment) {
+    const redirect = () => window.location.assign(payment.authorizationUrl);
+    if (!payment.accessCode) return redirect();
+    let PaystackPop: typeof PaystackInline;
+    try {
+      PaystackPop = (await import("@paystack/inline-js")).default;
+    } catch {
+      return redirect();
+    }
+    new PaystackPop().resumeTransaction(payment.accessCode, {
+      onSuccess: (transaction) => {
+        pendingPayment.current = null;
+        router.push(`/checkout/success?reference=${encodeURIComponent(transaction.reference)}`);
+      },
+      onCancel: () => {
+        setFollowupStage("payment_closed");
+        setStatus("idle");
+      },
+      onError: redirect,
+    });
+  }
+
   async function handlePay(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -156,32 +190,40 @@ export default function CheckoutPage() {
       line1: address.formattedAddress || address.line1,
     };
 
+    const order = {
+      email,
+      name,
+      address: paystackAddress,
+      cart,
+      shippingMethod,
+      preorderConsent: needsPreorder ? { accepted: true, batch: stock?.batch, quantities } : undefined,
+      voucherCode: activeVoucher?.code,
+    };
+    const orderKey = JSON.stringify(order);
+
     try {
-      const response = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          name,
-          address: paystackAddress,
-          cart,
-          shippingMethod,
-          preorderConsent: needsPreorder ? { accepted: true, batch: stock?.batch, quantities } : undefined,
-          voucherCode: activeVoucher?.code,
-          metaClient: getMetaClientContext(),
-          attribution: getCheckoutAttribution(),
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok || !data.authorizationUrl) {
-        trackCheckoutStage("CheckoutError");
-        setError(data.error || "Could not start secure payment. Please try again.");
-        setStatus("error");
-        void refresh();
-        return;
+      // Reopening the popup for an unchanged order resumes the same Paystack
+      // transaction, so a closed popup doesn't hold a second stock reservation.
+      let payment = isReusablePayment(pendingPayment.current, orderKey) ? pendingPayment.current : null;
+      if (!payment) {
+        const response = await fetch("/api/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...order, metaClient: getMetaClientContext(), attribution: getCheckoutAttribution() }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.authorizationUrl) {
+          trackCheckoutStage("CheckoutError");
+          setError(data.error || "Could not start secure payment. Please try again.");
+          setStatus("error");
+          void refresh();
+          return;
+        }
+        payment = startedPayment({ orderKey, accessCode: data.accessCode, authorizationUrl: data.authorizationUrl });
+        pendingPayment.current = payment;
       }
       trackCheckoutStage("PaymentOpened");
-      window.location.assign(data.authorizationUrl);
+      await openPayment(payment);
     } catch {
       trackCheckoutStage("CheckoutError");
       setError("Could not open secure payment. Please try again.");

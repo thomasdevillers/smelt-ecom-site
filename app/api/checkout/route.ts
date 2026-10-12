@@ -94,7 +94,7 @@ export async function POST(request: Request) {
     .map((c) => ({ colour: c, name: PRODUCT.variants[c].name, qty: cart[c] }));
 
   try {
-    const { authorizationUrl, reference } = await initializeTransaction({
+    const { authorizationUrl, accessCode, reference } = await initializeTransaction({
       email,
       amount,
       callbackUrl: `${origin}/checkout/success`,
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
         attribution: activeAttribution(body.attribution),
       },
     });
-    return Response.json({ configured: true, authorizationUrl, reference });
+    return Response.json({ configured: true, authorizationUrl, accessCode, reference });
   } catch (err) {
     if (err instanceof PaystackInitializationRejected) {
       try { await releaseRejectedPurchase(reservationId); }

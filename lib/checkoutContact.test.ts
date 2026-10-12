@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 vi.mock("@/lib/paystack", () => ({
   isPaystackConfigured: () => true,
   PaystackInitializationRejected: class extends Error {},
-  initializeTransaction: vi.fn().mockResolvedValue({ authorizationUrl: "https://checkout.paystack.com/test", reference: "test" }),
+  initializeTransaction: vi.fn().mockResolvedValue({ authorizationUrl: "https://checkout.paystack.com/test", accessCode: "test-access", reference: "test" }),
 }));
 vi.mock("@/lib/inventory", () => ({
   createInventoryReservationId: () => "smelt-00000000-0000-4000-8000-000000000000",
