@@ -36,6 +36,9 @@ export const PREPARE_CONFIRMATION = `
 redis.call('SET', KEYS[1], ARGV[1], 'NX')
 return redis.call('GET', KEYS[1])`;
 const RETRY_WINDOW = 23 * 60 * 60 * 1000;
+// Missing email receipts are not evidence of a new payment. Historical orders
+// may predate a notification type; backfilling them requires manual reconciliation.
+const FIRST_NOTIFICATION_WINDOW = 24 * 60 * 60 * 1000;
 
 /** Call only after authenticated payment success and amount reconciliation. */
 async function sendOrderEmail(order: ConfirmedOrder, audience: "customer" | "owner"): Promise<void> {
@@ -60,6 +63,21 @@ async function sendOrderEmail(order: ConfirmedOrder, audience: "customer" | "own
   const key = `smelt:${family}:v1:${hash}`;
   let receipt = await db.get<Receipt>(key);
   if (receipt?.status === "accepted") return;
+  if (!receipt) {
+    const paidAt = typeof order.paidAt === "string" ? Date.parse(order.paidAt) : NaN;
+    const paymentAge = Date.now() - paidAt;
+    if (!Number.isFinite(paidAt) || paymentAge < 0) {
+      throw new Error("order_confirmation_invalid_paid_at");
+    }
+    if (paymentAge >= FIRST_NOTIFICATION_WINDOW) {
+      console.warn("Historical order email skipped; manual reconciliation required", {
+        audience, reference, paidAt: order.paidAt,
+      });
+      return;
+    }
+  }
+  // Existing pending attempts still use their frozen payload and original retry
+  // window, even when the payment has since aged beyond the first-send window.
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.ORDER_FROM_EMAIL;
   if (!apiKey || !from || from.includes("@resend.dev")) throw new Error("order_confirmation_missing_resend_configuration");

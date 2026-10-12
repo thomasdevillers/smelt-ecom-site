@@ -1,5 +1,5 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
-import { createHmac } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 const mocks = vi.hoisted(() => ({
   db: { get: vi.fn(), set: vi.fn(), eval: vi.fn() }, send: vi.fn(), verify: vi.fn(), after: vi.fn(), commitInventory: vi.fn(), commitVoucher: vi.fn(),
 }));
@@ -23,11 +23,13 @@ import { POST as verifyPost, GET as verifyGet } from "../app/api/checkout/verify
 const store = new Map<string, unknown>();
 const order: ConfirmedOrder = {
   reference: "paid-confirmation-test", email: "buyer@example.com", currency: "ZAR",
+  paidAt: "2026-09-26T05:00:00.000Z",
   cart: { green: 1, cream: 0 }, amount: checkoutTotal({ green: 1, cream: 0 }) * 100,
   address: { line1: "1 Test Street", city: "Cape Town", province: "Western Cape", postalCode: "8001" },
 };
 beforeEach(() => {
   vi.resetAllMocks(); store.clear();
+  vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-09-26T05:05:00.000Z"));
   for (const [key, value] of Object.entries({
     UPSTASH_REDIS_REST_URL: "https://example.upstash.io", UPSTASH_REDIS_REST_TOKEN: "fake",
     RESEND_API_KEY: "fake", ORDER_FROM_EMAIL: "Smelt <orders@example.com>",
@@ -35,6 +37,7 @@ beforeEach(() => {
   })) vi.stubEnv(key, value);
   vi.spyOn(console, "error").mockImplementation(() => {});
   vi.spyOn(console, "log").mockImplementation(() => {});
+  vi.spyOn(console, "warn").mockImplementation(() => {});
   mocks.db.get.mockImplementation(async (key) => store.get(key) ?? null);
   mocks.db.set.mockImplementation(async (key, value) => { store.set(key, value); return "OK"; });
   mocks.db.eval.mockImplementation(async (_script, [key], [value]) => {
@@ -49,11 +52,11 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 
-function webhookRequest(amount = order.amount, signatureValid = true, shippingMethod?: unknown, metadata: Record<string, unknown> = {}) {
+function webhookRequest(amount = order.amount, signatureValid = true, shippingMethod?: unknown, metadata: Record<string, unknown> = {}, payment: ConfirmedOrder = order) {
   const body = JSON.stringify({ event: "charge.success", data: {
-    ...order, amount, status: "success", customer: { email: order.email },
-    paid_at: "2026-09-26T05:00:00.000Z",
-    metadata: { cart: order.cart, shippingAddress: order.address, shippingMethod, customerName: "Test Buyer", ...metadata },
+    ...payment, amount, status: "success", customer: { email: payment.email },
+    paid_at: payment.paidAt,
+    metadata: { cart: payment.cart, shippingAddress: payment.address, shippingMethod, customerName: "Test Buyer", ...metadata },
   } });
   const signature = createHmac("sha512", "fake-paystack").update(body).digest("hex");
   return new Request("https://example.com/api/paystack/webhook", { method: "POST", body,
@@ -364,5 +367,80 @@ describe("owner notifications", () => {
     expect(message.subject).toContain("pre-order");
     expect(message.text).toContain("1 green, 0 cream");
     expect(message.text).toContain("Expected 22 October 2026");
+  });
+});
+
+describe("historical payment notification protection", () => {
+  const hour = 60 * 60 * 1000;
+  const receiptKey = (reference: string, family: string) =>
+    `smelt:${family}:v1:${createHash("sha256").update(reference).digest("hex")}`;
+
+  it.each(["GET", "POST", "webhook"])("does not backfill an owner alert for an already-confirmed old order through %s", async route => {
+    vi.mocked(Date.now).mockReturnValue(Date.parse("2026-10-12T06:43:00Z"));
+    const historicalOrder = { ...order, reference: "T209526682706087", amount: 135000,
+      cart: { green: 3, cream: 0 }, paidAt: "2026-09-17T19:01:14.000Z" };
+    // Customer confirmations existed before owner alerts were introduced.
+    store.set(receiptKey(historicalOrder.reference, "order-confirmation"), { status: "accepted", id: "september-confirmation" });
+    mocks.verify.mockResolvedValue({ ...historicalOrder, status: "success", customerEmail: historicalOrder.email,
+      metadata: { cart: historicalOrder.cart } });
+    const response = route === "webhook"
+      ? await webhook(webhookRequest(historicalOrder.amount, true, undefined, {}, historicalOrder))
+      : route === "GET"
+        ? await verifyGet(new Request(`https://example.com/api/checkout/verify?reference=${historicalOrder.reference}`))
+        : await verifyPost(new Request("https://example.com/api/checkout/verify", { method: "POST", body: JSON.stringify({ reference: historicalOrder.reference }) }));
+    expect(response.status).toBe(200);
+    if (route === "GET") expect(await response.json()).toMatchObject({ paid: true, reference: historicalOrder.reference });
+    await flush();
+    expect(mocks.send.mock.calls).toHaveLength(0);
+    expect(mocks.db.eval).not.toHaveBeenCalled();
+    expect(mocks.db.set).not.toHaveBeenCalled();
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("manual reconciliation"), expect.objectContaining({ audience: "owner" }));
+  });
+
+  it.each([sendOrderConfirmation, sendOwnerOrderNotification])("does not create a first email at or beyond the 24-hour boundary", async send => {
+    for (const age of [24 * hour, 30 * 24 * hour]) {
+      await send({ ...order, paidAt: new Date(Date.now() - age).toISOString() });
+    }
+    expect(mocks.send.mock.calls).toHaveLength(0);
+    expect(mocks.db.eval).not.toHaveBeenCalled();
+  });
+
+  it.each([sendOrderConfirmation, sendOwnerOrderNotification])("allows a first notification just before the 24-hour boundary", async send => {
+    await send({ ...order, paidAt: new Date(Date.now() - 24 * hour + 1).toISOString() });
+    expect(mocks.send).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([undefined, null, "", "invalid", "2026-09-27T05:00:00Z"])("does not guess payment recency from an invalid paidAt: %s", async paidAt => {
+    await expect(sendOwnerOrderNotification({ ...order, paidAt })).rejects.toThrow("order_confirmation_invalid_paid_at");
+    expect(mocks.send).not.toHaveBeenCalled();
+    expect(mocks.db.eval).not.toHaveBeenCalled();
+  });
+
+  it("keeps accepted notifications deduplicated even without a payment timestamp", async () => {
+    store.set(receiptKey(order.reference, "owner-order"), { status: "accepted", id: "already-sent" });
+    await expect(sendOwnerOrderNotification({ ...order, paidAt: null })).resolves.toBeUndefined();
+    expect(mocks.send).not.toHaveBeenCalled();
+  });
+
+  it.each([sendOrderConfirmation, sendOwnerOrderNotification])("retries an existing attempt after the payment ages past 24 hours without changing its payload", async send => {
+    const paidAt = new Date(Date.now() - 23 * hour).toISOString();
+    mocks.send.mockRejectedValueOnce(new Error("network timeout"));
+    await expect(send({ ...order, paidAt })).rejects.toThrow("network timeout");
+    const firstAttempt = mocks.send.mock.calls[0];
+    const retryAt = Date.now() + 2 * hour;
+    vi.mocked(Date.now).mockReturnValue(retryAt);
+    await send({ ...order, paidAt, customerName: "Changed name" });
+    expect(mocks.send).toHaveBeenCalledTimes(2);
+    expect(mocks.send.mock.calls[1]).toEqual(firstAttempt);
+    await send({ ...order, paidAt });
+    expect(mocks.send).toHaveBeenCalledTimes(2);
+  });
+
+  it("still stops an ambiguous owner retry after the existing 23-hour retry window", async () => {
+    mocks.send.mockRejectedValueOnce(new Error("network timeout"));
+    await expect(sendOwnerOrderNotification(order)).rejects.toThrow("network timeout");
+    vi.mocked(Date.now).mockReturnValue(Date.now() + 23 * hour);
+    await expect(sendOwnerOrderNotification(order)).rejects.toThrow("manual_review_required");
+    expect(mocks.send).toHaveBeenCalledTimes(1);
   });
 });
