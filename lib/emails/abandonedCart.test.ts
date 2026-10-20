@@ -9,7 +9,7 @@ describe("abandonedCartEmail", () => {
   it("has a pre-order subject", () => {
     expect(e.subject).toMatch(/pre-order/i);
     for (const content of [e.html, e.text]) {
-      expect(content).toContain("Pre-orders ship on 20 October.");
+      expect(content).toContain("Pre-orders ship on 26 October.");
       expect(content).not.toContain("15 October");
     }
   });

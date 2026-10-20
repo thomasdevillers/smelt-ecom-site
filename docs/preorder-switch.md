@@ -3,7 +3,7 @@
 The manual switch lives in `lib/salesMode.ts`: `PREORDER_MODE = true`.
 
 - Single hats are R450 now; R550 when the switch is set to false. Three-hat packs are R1 250 and four-hat packs R1 600, with free express delivery in any colour mix. These fixed pack prices remain active after the switch; review them explicitly if the post-restock offer changes. Larger carts use four-hat packs, then a three-hat pack where possible, and remaining hats at the single price.
-- New pre-orders ship on 20 October 2026. The 15 October batch is sold out. The countdown ends at the start of 20 October in SAST; it does not promise a dispatch time of day.
+- New pre-orders ship on 26 October 2026. The 15 October batch is sold out. The countdown ends at the start of 26 October in SAST; it does not promise a dispatch time of day.
 - Countdown expiry is display-only. It never changes prices or closes checkout.
 - 100 incoming hats per colour, less existing paid reservations and payment holds.
 - Existing delivery options, fees, free-delivery threshold, discounts, email offers, and checkout contact phone remain in use.
@@ -12,7 +12,7 @@ The manual switch lives in `lib/salesMode.ts`: `PREORDER_MODE = true`.
 
 ## Separate October shipments
 
-The date update does not split the existing inventory ledger into multiple batches or replenish its quota. The receipt action below still covers all outstanding allocations in the shared batch and closes new pre-orders. Do not use it to receive only the sold-out 15 October shipment while 20 October orders remain outstanding. Separate batch allocation and receipt handling needs an inventory migration before those shipments can be received independently.
+The date update does not split the existing inventory ledger into multiple batches or replenish its quota. The receipt action below still covers all outstanding allocations in the shared batch and closes new pre-orders. Do not use it to receive only the sold-out 15 October shipment while 26 October orders remain outstanding. Separate batch allocation and receipt handling needs an inventory migration before those shipments can be received independently.
 
 ## When the batch physically arrives
 
@@ -26,7 +26,7 @@ Receive the batch before switching the storefront. Between these steps the campa
 
 ## Preserve order history
 
-`PREORDER_BATCH = '2026-10-22'` in `lib/preorders.ts` is an existing internal storage identifier, not the displayed arrival date. Keep it unchanged for this batch: changing it would create a fresh quota and detach existing restock requests and receipt status. New purchases store 20 October 2026 with `timing: dispatch`, so confirmation pages and customer/owner emails describe shipping rather than arrival. Existing payment metadata retains the original customer promise.
+`PREORDER_BATCH = '2026-10-22'` in `lib/preorders.ts` is an existing internal storage identifier, not the displayed arrival date. Keep it unchanged for this batch: changing it would create a fresh quota and detach existing restock requests and receipt status. New purchases store 26 October 2026 with `timing: dispatch`, so confirmation pages and customer/owner emails describe shipping rather than arrival. Existing payment metadata retains the original customer promise.
 
 The stock allocation, normal shopping UI, restock signup and admin receipt flow are retained. No database reset is needed to restore normal sales. Do not reset remaining quota: the 100-per-colour limit includes existing reservations. Capacity environment variables are seed values only, not a way to overwrite a live quota.
 
