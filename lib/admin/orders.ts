@@ -125,31 +125,22 @@ export async function listOrders(
 ): Promise<OrdersPage> {
   const query = new URLSearchParams({ status: "success", perPage: "100", page: "1" });
   let orders: AdminOrder[] = [];
-  if (search && !search.includes("@")) {
-    orders = [await getPaidOrder(search)];
-  } else {
-    if (search) {
-      try {
-        const { data } = await paystack(`/customer/${encodeURIComponent(search.toLowerCase())}`);
-        if (!Number.isSafeInteger(data?.id)) throw new AdminError("Could not find this customer.", 404);
-        query.set("customer", String(data.id));
-      } catch (error) {
-        if (error instanceof AdminError && error.status === 404) return { orders: [], page: 1, pageCount: 0, total: 0, activeTotal: 0, completedTotal: 0, preorderToFulfil: { cream: 0, green: 0 } };
-        throw error;
-      }
-    }
-    // Filter BEFORE dashboard pagination, so completed orders never leave gaps or hide older active orders.
-    let providerPage = 1;
-    while (true) {
-      query.set("page", String(providerPage));
-      const body = await paystack(`/transaction?${query}`);
-      if (!Array.isArray(body.data) || !Number.isSafeInteger(body.meta?.total) || !Number.isSafeInteger(body.meta?.pageCount))
-        throw new AdminError("Order data could not be read. Please try again.", 502);
-      orders.push(...body.data.map(normalizeOrder));
-      if (providerPage >= body.meta.pageCount) break;
-      providerPage++;
-    }
+  // Search the same paid-order dataset as the dashboard. Provider verification
+  // accepts exact references only and reports ordinary search misses as errors.
+  const term = search.trim().toLowerCase();
+  let providerPage = 1;
+  while (true) {
+    query.set("page", String(providerPage));
+    const body = await paystack(`/transaction?${query}`);
+    if (!Array.isArray(body.data) || !Number.isSafeInteger(body.meta?.total) || !Number.isSafeInteger(body.meta?.pageCount))
+      throw new AdminError("Order data could not be read. Please try again.", 502);
+    orders.push(...body.data.map(normalizeOrder));
+    if (providerPage >= body.meta.pageCount) break;
+    providerPage++;
   }
+  // Filter before allocation totals, completion filters, and dashboard pagination.
+  if (term) orders = orders.filter(order =>
+    [order.name, order.email, order.reference].some(value => value.toLowerCase().includes(term)));
   await Promise.all(orders.map(async order => { order.preorder = await resolvePurchasePreorder(order.reference, order.preorder); }));
   const db = adminStore();
   const completed = await db.hgetall<Record<string, string>>(completionKey()) || {};

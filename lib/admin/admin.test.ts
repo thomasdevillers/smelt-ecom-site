@@ -61,6 +61,44 @@ describe("order records", () => {
     expect(mocks.fetch.mock.calls[1][0]).toContain("status=success");
   });
 });
+describe("dashboard order search", () => {
+  beforeEach(() => {
+    mocks.fetch.mockImplementation(async (input: string) => {
+      const url = new URL(input);
+      // A search term must never be sent to the exact-match verification endpoint.
+      if (url.pathname !== "/transaction") return { ok: false, status: 400, json: async () => ({ status: false, message: "Transaction reference not found." }) };
+      const page = Number(url.searchParams.get("page"));
+      return { ok: true, status: 200, json: async () => ({ status: true,
+        data: page === 1 ? [{ ...transaction, reference: "unrelated", customer: { email: "other@example.com" }, metadata: { ...transaction.metadata, customerName: "Someone Else" } }]
+          : Array.from({ length: 30 }, (_, i) => ({ ...transaction, reference: `search-order-${i}` })),
+        meta: { total: 31, pageCount: 2 },
+      }) };
+    });
+  });
+  it.each(["  TEST CUSTOMER  ", "CUSTOMER@", "customer@example.com", "SEARCH-ORDER-"])("matches names, emails and references across provider pages: %s", async search => {
+    const result = await listOrders(2, search);
+    expect(result).toMatchObject({ total: 30, page: 2, pageCount: 2, activeTotal: 30, completedTotal: 0 });
+    expect(result.orders.map(order => order.reference)).toEqual(Array.from({ length: 5 }, (_, i) => `search-order-${i + 25}`));
+    expect(mocks.fetch).toHaveBeenCalledTimes(2);
+  });
+  it("returns an empty successful API response for an unmatched search", async () => {
+    mocks.cookies.get.mockReturnValue({ value: "a".repeat(64) });
+    mocks.get.mockResolvedValue({ credential: digest("a-long-test-password-for-admin") });
+    const response = await ordersGET(new Request("https://saunahat.co.za/api/admin/orders?search=missing-reference"));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ orders: [], total: 0, page: 1, pageCount: 0 });
+  });
+  it("preserves completion filters and counts within search results", async () => {
+    mocks.hgetall.mockResolvedValue({ "search-order-1": "2026-10-11T12:00:00.000Z" });
+    const result = await listOrders(1, "test customer", "completed");
+    expect(result).toMatchObject({ total: 1, activeTotal: 29, completedTotal: 1 });
+    expect(result.orders.map(order => order.reference)).toEqual(["search-order-1"]);
+  });
+  it("still reports real provider failures instead of showing no matches", async () => {
+    mocks.fetch.mockResolvedValue({ ok: false, status: 503, json: async () => ({ status: false }) });
+    await expect(listOrders(1, "customer")).rejects.toThrow("Could not load orders from Paystack");
+  });
+});
 describe("shipping lifecycle", () => {
   it("sends to the verified payment email and saves acceptance permanently", async () => {
     const result = await sendShipping("order-1", "25249853610844");
@@ -218,14 +256,14 @@ describe("pre-order fulfilment totals", () => {
     }
   });
   it("returns zero counts for an unknown customer", async () => {
-    mocks.fetch.mockResolvedValue({ ok: false, status: 404, json: async () => ({ status: false }) });
+    mocks.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ status: true, data: [transaction], meta: { total: 1, pageCount: 1 } }) });
     expect(await listOrders(1, "unknown@example.com")).toMatchObject({
       total: 0, preorderToFulfil: { cream: 0, green: 0 },
     });
   });
   it("counts only the remaining allocation for an order-reference search", async () => {
     const order = { ...transaction, reference: "smeltp-partial", metadata: { ...transaction.metadata, preorder } };
-    mocks.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ status: true, data: order }) });
+    mocks.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ status: true, data: [order], meta: { total: 1, pageCount: 1 } }) });
     mocks.hget.mockResolvedValue({ status: "paid", preorderGreen: 0, preorderCream: 1 });
     expect(await listOrders(1, order.reference)).toMatchObject({ preorderToFulfil: { cream: 1, green: 0 } });
     mocks.hgetall.mockResolvedValue({ [order.reference]: "2026-10-11T12:00:00.000Z" });
