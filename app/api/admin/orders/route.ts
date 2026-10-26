@@ -21,7 +21,7 @@ export async function PATCH(request: Request) {
     requireSameOrigin(request);
     await requireAdmin();
     const body = await readAdminBody(request);
-    if (typeof body.reference !== "string" || typeof body.completed !== "boolean" || (body.confirmPriorShipment !== undefined && typeof body.confirmPriorShipment !== "boolean")) throw new AdminError("An order reference and completion status are required.");
-    return adminJson({ completedAt: await setOrderCompleted(body.reference, body.completed, body.confirmPriorShipment === true) });
+    if (typeof body.reference !== "string" || typeof body.completed !== "boolean") throw new AdminError("An order reference and completion status are required.");
+    return adminJson({ completedAt: await setOrderCompleted(body.reference, body.completed) });
   } catch (error) { return adminFailure(error); }
 }

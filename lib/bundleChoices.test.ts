@@ -13,7 +13,7 @@ describe("bundle colour choices", () => {
   });
 
   it("checks each colour including quantities already in the bag", () => {
-    const stock: Availability = { green: 2, cream: 1, preorder: { green: 0, cream: 2 }, batch: PREORDER_BATCH, timing: "Pre-orders ship on 26 October.", localTest: false };
+    const stock: Availability = { green: 2, cream: 1, preorder: { green: 0, cream: 2 }, batch: PREORDER_BATCH, timing: "Pre-orders ship on 22 October.", localTest: false };
     const cart = { green: 1, cream: 0 };
     expect(canAddSelection({ green: 1, cream: 3 }, cart, stock)).toBe(true);
     expect(canAddSelection({ green: 2, cream: 2 }, cart, stock)).toBe(false);

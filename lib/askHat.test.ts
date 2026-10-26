@@ -54,7 +54,7 @@ describe("hat questions and reference facts", () => {
     expect(knowledge.pricing.pricePerHat).toBe(formatMoney(BASE_PRICE));
     expect(knowledge.pricing.twoHats).toBe(formatMoney(lineTotal(2)));
     expect(knowledge.pricing.twoHatExpressDelivery).toBe("R0");
-    expect(knowledge.shipping.currentTiming).toBe(PREORDER_COPY);
+    expect(knowledge.shipping.currentTiming).not.toBe(PREORDER_COPY);
     expect(knowledge.availability).toMatchObject({ green: { inStock: 0, preorderPlaces: 42 } });
     expect(JSON.stringify(hatKnowledge(null))).toContain("Could not verify current availability");
   });

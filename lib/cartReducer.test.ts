@@ -36,19 +36,19 @@ describe("cartReducer", () => {
   it("applies the four-hat price across colours", () => {
     let s = cartReducer(emptyCart, { type: "add", colour: "green", qty: 3 });
     s = cartReducer(s, { type: "add", colour: "cream", qty: 1 });
-    expect(cartSubtotal(s)).toBe(1600);
+    expect(cartSubtotal(s)).toBe(2000);
     expect(cartCount(s)).toBe(4);
   });
   it("adds the selected colour mix together and recalculates when hats are removed", () => {
     let s = cartReducer(emptyCart, { type: "addBundle", quantities: { green: 2, cream: 2 } });
     expect(s).toEqual({ green: 2, cream: 2 });
-    expect(cartSubtotal(s)).toBe(1600);
+    expect(cartSubtotal(s)).toBe(2000);
     s = cartReducer(s, { type: "set", colour: "cream", qty: 1 });
-    expect(cartSubtotal(s)).toBe(1250);
+    expect(cartSubtotal(s)).toBe(1550);
     s = cartReducer(s, { type: "remove", colour: "cream" });
-    expect(cartSubtotal(s)).toBe(900);
+    expect(cartSubtotal(s)).toBe(1100);
     s = cartReducer(s, { type: "set", colour: "green", qty: 1 });
-    expect(cartSubtotal(s)).toBe(450);
+    expect(cartSubtotal(s)).toBe(550);
   });
 
 });

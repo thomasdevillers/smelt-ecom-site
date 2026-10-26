@@ -1,5 +1,5 @@
 import { cartSubtotal, type CartState } from "./cartReducer";
-import { bundleSubtotal, grandTotal, parseShippingMethod, PRICING_VERSION } from "./pricing";
+import { bundleSubtotal, grandTotal, parseShippingMethod, PRICING_VERSION, LEGACY_PRICING_VERSION } from "./pricing";
 
 // Never trust a total sent from the browser. We only accept the cart quantities
 // and recompute the amount server-side with the same pricing logic the UI uses.
@@ -33,11 +33,11 @@ export function paidUnitPrice(value: unknown): number {
 
 export function paidCheckoutTotal(cart: CartState, shippingMethod: unknown, discount = 0, price?: unknown, pricingVersion?: unknown): number {
   const method = parseShippingMethod(shippingMethod);
-  if (pricingVersion !== undefined && pricingVersion !== PRICING_VERSION) return Number.NaN;
+  if (pricingVersion !== undefined && pricingVersion !== PRICING_VERSION && pricingVersion !== LEGACY_PRICING_VERSION) return Number.NaN;
   const unit = paidUnitPrice(price);
   if (!Number.isFinite(unit)) return Number.NaN;
   const qty = cart.green + cart.cream;
-  const subtotal = pricingVersion === PRICING_VERSION ? bundleSubtotal(qty, unit) : qty * unit;
+  const subtotal = typeof pricingVersion === "string" ? bundleSubtotal(qty, unit, pricingVersion) : qty * unit;
   if (!method || !Number.isFinite(subtotal) || subtotal <= 0) return Number.NaN;
   const total = grandTotal(subtotal, method);
   return Number.isSafeInteger(discount) && discount >= 0 && discount < total ? total - discount : Number.NaN;

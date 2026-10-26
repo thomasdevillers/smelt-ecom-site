@@ -55,15 +55,13 @@ function ReviewInvite({ reference, customerName, phone, onExpired }: { reference
     {message && <p className={styles.note} role="status">{message}</p>}
   </div>;
 }
-function OrderRow({ order, onReceipt, onExpired, onMoved }: { order: AdminOrder; onReceipt: (receipt: ShippingReceipt) => void; onExpired: () => void; onMoved: () => void }) {
+export function OrderRow({ order, onReceipt, onExpired, onMoved }: { order: AdminOrder; onReceipt: (receipt: ShippingReceipt) => void; onExpired: () => void; onMoved: () => void }) {
   const [waybill, setWaybill] = useState(order.receipt?.trackingNumber || "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const receipt = order.receipt;
   const accepted = receipt?.status === "accepted";
   const hasHistory = order.history.length > 0;
-  const hasAcceptedHistory = order.history.some(previous => previous.status === "accepted");
-  const [reviewedHistory, setReviewedHistory] = useState(false);
   const [scanning, setScanning] = useState(false);
   async function run(refresh: boolean) {
     if (busy) return;
@@ -76,11 +74,11 @@ function OrderRow({ order, onReceipt, onExpired, onMoved }: { order: AdminOrder;
       setError(e instanceof Error ? e.message : "Could not send. Refresh the status before retrying.");
     } finally { setBusy(false); }
   }
-  async function moveOrder(completed: boolean, confirmPriorShipment = false) {
+  async function moveOrder(completed: boolean) {
     if (busy) return;
     setBusy(true); setError("");
     try {
-      await api("orders", { method: "PATCH", body: JSON.stringify({ reference: order.reference, completed, confirmPriorShipment }) });
+      await api("orders", { method: "PATCH", body: JSON.stringify({ reference: order.reference, completed }) });
       onMoved();
     } catch (e) {
       if (e instanceof RequestError && e.status === 401) onExpired();
@@ -107,12 +105,11 @@ function OrderRow({ order, onReceipt, onExpired, onMoved }: { order: AdminOrder;
       <strong>{money(order)}</strong><span className={styles.paid}>Paid</span>
     </div>
     <div className={styles.fulfilment}>
-      <div className={`${styles.badge} ${accepted || hasAcceptedHistory ? styles.accepted : ""}`} aria-live="polite">{order.completedAt ? "Completed" : accepted ? status(receipt) : hasAcceptedHistory ? "Previous email accepted" : order.canShip || receipt ? status(receipt) : "Needs review"}</div>
+      <div className={`${styles.badge} ${accepted ? styles.accepted : ""}`} aria-live="polite">{order.completedAt ? "Completed" : accepted ? status(receipt) : order.canShip || receipt ? status(receipt) : "Needs review"}</div>
       {hasHistory && <details className={styles.history}><summary>{order.history.length} previous shipping {order.history.length === 1 ? "email" : "emails"} to this customer</summary>
-        <p>These emails are not linked to this order. Check the waybills before sending or marking this order complete.</p>
+        <p>These emails belong to previous shipments. This order needs its own waybill and shipping email.</p>
         {order.history.map(r => <p key={r.id || r.trackingNumber}><strong>{r.trackingNumber}</strong> · {date(r.acceptedAt || null)} · {r.status === "accepted" ? "Email accepted" : "Unconfirmed"}</p>)}
       </details>}
-      {!order.completedAt && !accepted && hasHistory && <label className={styles.check}><input type="checkbox" checked={reviewedHistory} onChange={e => setReviewedHistory(e.target.checked)} />I’ve checked the previous shipping {order.history.length === 1 ? "email" : "emails"}{hasAcceptedHistory ? " and confirm this order is complete." : "."}</label>}
       {order.completedAt ? <div className={styles.completionActions}>
         <p className={styles.note}>Completed {date(order.completedAt)}</p>
         <button className={styles.secondary} type="button" disabled={busy} onClick={() => void moveOrder(false)}>{busy ? "Moving…" : "Reopen order"}</button>
@@ -120,9 +117,6 @@ function OrderRow({ order, onReceipt, onExpired, onMoved }: { order: AdminOrder;
       </div> : accepted ? <div className={styles.completionActions}>
         <button type="button" disabled={busy} onClick={() => void moveOrder(true)}>{busy ? "Updating…" : "Mark complete ✓"}</button>
         <button className={styles.secondary} type="button" disabled={busy} onClick={() => void run(true)}>Check email status</button>
-      </div> : hasAcceptedHistory ? <div className={styles.completionActions}>
-        <p className={styles.note}>This uses the accepted previous shipping email as fulfilment evidence. It will not send another email.</p>
-        <button type="button" disabled={busy || !reviewedHistory} onClick={() => void moveOrder(true, true)}>{busy ? "Updating…" : "Mark complete — no email ✓"}</button>
       </div> : order.canShip || receipt ? <form onSubmit={e => { e.preventDefault(); void run(false); }}>
         <label htmlFor={`waybill-${order.reference}`}>Aramex waybill number</label>
         <div className={styles.sendRow}>
@@ -132,7 +126,7 @@ function OrderRow({ order, onReceipt, onExpired, onMoved }: { order: AdminOrder;
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 8.5V7a2 2 0 0 1 2-2h1.6a1 1 0 0 0 .8-.4l.7-1a1 1 0 0 1 .8-.4h4.2a1 1 0 0 1 .8.4l.7 1a1 1 0 0 0 .8.4H19a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1.5" /><circle cx="12" cy="12.5" r="3.5" /></svg>
             </button>}
           </div>
-          <button type="submit" disabled={busy || !waybill.trim() || (hasHistory && !reviewedHistory)}>{busy ? "Sending…" : receipt ? "Retry safely" : "Send email ↗"}</button>
+          <button type="submit" disabled={busy || !waybill.trim()}>{busy ? "Sending…" : receipt ? "Retry safely" : "Send email ↗"}</button>
         </div>
         {scanning && <WaybillScanner onScan={value => { setWaybill(value); setScanning(false); setError(""); }} onClose={() => setScanning(false)} />}
       </form> : <p className={styles.note}>{order.reviewReason}</p>}

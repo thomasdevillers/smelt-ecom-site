@@ -79,7 +79,7 @@ export default function ProductClient() {
     if (stock[c] + stock.preorder[c] < cart[c] + qty) return PREORDER_MODE ? "Fully reserved" : "Not enough stock";
     if (PREORDER_MODE) return "Pre-order";
     const ready = Math.min(qty, Math.max(0, stock[c] - cart[c]));
-    return ready === qty ? "In stock" : ready > 0 ? `${ready} in stock · ${qty - ready} on pre-order` : "Pre-order";
+    return ready === qty ? `${stock[c]} left` : ready > 0 ? `${ready} in stock · ${qty - ready} on pre-order` : "Pre-order";
   };
   const unavailableLabel = PREORDER_MODE ? "Pre-orders fully reserved" : !isBundle && stock?.[colour] === 0
     ? "Out of stock"

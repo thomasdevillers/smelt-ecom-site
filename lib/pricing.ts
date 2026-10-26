@@ -23,19 +23,22 @@ export function parseShippingMethod(value: unknown): ShippingMethod | null {
 }
 export const FREE_SHIP_THRESHOLD = 500;
 // Record this version in payment metadata. Keep its rules stable for paid orders.
-export const PRICING_VERSION = "hat-bundles-v1";
-export const THREE_HAT_PRICE = 1250;
-export const FOUR_HAT_PRICE = 1600;
+export const LEGACY_PRICING_VERSION = "hat-bundles-v1";
+export const PRICING_VERSION = "hat-bundles-v2";
+export const THREE_HAT_PRICE = BASE_PRICE * 3 - 100;
+export const FOUR_HAT_PRICE = BASE_PRICE * 4 - 200;
 
 /** Apply packs across the whole order, regardless of the colour mix. */
-export function bundleSubtotal(qty: number, price = BASE_PRICE): number {
+export function bundleSubtotal(qty: number, price = BASE_PRICE, version: string = PRICING_VERSION): number {
+  const threePrice = version === LEGACY_PRICING_VERSION ? 1250 : price * 3 - 100;
+  const fourPrice = version === LEGACY_PRICING_VERSION ? 1600 : price * 4 - 200;
   const packs = Math.floor(qty / 4);
   const remainder = qty % 4;
-  return packs * FOUR_HAT_PRICE + (remainder === 3 ? THREE_HAT_PRICE : remainder * price);
+  return packs * fourPrice + (remainder === 3 ? threePrice : remainder * price);
 }
 
-export function bundleDiscount(qty: number, price = BASE_PRICE): number {
-  return qty * price - bundleSubtotal(qty, price);
+export function bundleDiscount(qty: number, price = BASE_PRICE, version: string = PRICING_VERSION): number {
+  return qty * price - bundleSubtotal(qty, price, version);
 }
 
 /** Advertised saving includes one standard delivery fee at full item price. */

@@ -8,7 +8,7 @@ import { sanitizeAddress } from "./address";
 import { paidCheckoutTotal, paidUnitPrice, sanitizeCart } from "./checkoutShared";
 import { PRODUCT } from "./product";
 import type { CartState } from "./cartReducer";
-import { bundleDiscount, PRICING_VERSION, formatMoney, parseShippingMethod } from "./pricing";
+import { bundleDiscount, PRICING_VERSION, LEGACY_PRICING_VERSION, formatMoney, parseShippingMethod } from "./pricing";
 import { parseVoucherMetadata } from "./vouchers";
 import { parseAttribution } from "./attribution";
 
@@ -89,7 +89,7 @@ async function sendOrderEmail(order: ConfirmedOrder, audience: "customer" | "own
       .map((colour) => ({ colour, name: PRODUCT.variants[colour].name, qty: cart[colour] }));
     const details = {
       reference, total: formatMoney(order.amount / 100), items, preorder: await resolvePurchasePreorder(reference, order.preorder), discount: voucher?.amount,
-      bundleDiscount: order.pricingVersion === PRICING_VERSION ? bundleDiscount(cart.green + cart.cream, paidUnitPrice(order.unitPrice)) : 0,
+      bundleDiscount: (order.pricingVersion === PRICING_VERSION || order.pricingVersion === LEGACY_PRICING_VERSION) ? bundleDiscount(cart.green + cart.cream, paidUnitPrice(order.unitPrice), order.pricingVersion) : 0,
       shippingMethod: parseShippingMethod(order.shippingMethod)!,
       address: order.address ? sanitizeAddress(order.address) : null,
     };

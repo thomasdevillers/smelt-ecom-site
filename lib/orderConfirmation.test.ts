@@ -1,3 +1,4 @@
+vi.mock("./salesMode", async original => ({ ...await original<typeof import("./salesMode")>(), PREORDER_MODE: true }));
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import { createHash, createHmac } from "node:crypto";
 const mocks = vi.hoisted(() => ({

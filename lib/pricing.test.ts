@@ -17,24 +17,24 @@ import {
 
 describe("pricing", () => {
   it("has the updated base price and shipping constants", () => {
-    expect(BASE_PRICE).toBe(450);
+    expect(BASE_PRICE).toBe(550);
     expect(SHIPPING_FEE).toBe(90);
     expect(FREE_SHIP_THRESHOLD).toBe(500);
   });
 
-  it.each([1, 2, 3, 4, 10])("charges R450 per hat at quantity %i", (qty) => {
-    expect(unitPrice()).toBe(450);
-    expect(lineTotal(qty)).toBe(450 * qty);
+  it.each([1, 2, 3, 4, 10])("charges R550 per hat at quantity %i", (qty) => {
+    expect(unitPrice()).toBe(550);
+    expect(lineTotal(qty)).toBe(550 * qty);
   });
 
-  it.each([[3, 1250, 100, 190], [4, 1600, 200, 290]])("prices a %i-hat pack and separates item savings from delivery", (qty, total, discount, saving) => {
+  it.each([[3, 1550, 100, 190], [4, 2000, 200, 290]])("prices a %i-hat pack and separates item savings from delivery", (qty, total, discount, saving) => {
     expect(bundleSubtotal(qty)).toBe(total);
     expect(bundleDiscount(qty)).toBe(discount);
     expect(bundleDeliveredSaving(qty)).toBe(saving);
     expect(grandTotal(total)).toBe(total);
   });
 
-  it.each([[0, 0], [1, 450], [2, 900], [5, 2050], [6, 2500], [7, 2850], [8, 3200], [11, 4450]])("combines packs and single hats at quantity %i", (qty, total) => {
+  it.each([[0, 0], [1, 550], [2, 1100], [5, 2550], [6, 3100], [7, 3550], [8, 4000], [11, 5550]])("combines packs and single hats at quantity %i", (qty, total) => {
     expect(bundleSubtotal(qty)).toBe(total);
   });
 

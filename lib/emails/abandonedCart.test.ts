@@ -4,12 +4,12 @@ import { abandonedCartEmail } from "./abandonedCart";
 describe("abandonedCartEmail", () => {
   const e = abandonedCartEmail({
     name: "Sam", items: [{ colour: "green", name: "Forest Green", qty: 1 }],
-    total: "R540", cartUrl: "https://saunahat.co.za/cart",
+    total: "R550", cartUrl: "https://saunahat.co.za/cart",
   });
-  it("has a pre-order subject", () => {
-    expect(e.subject).toMatch(/pre-order/i);
+  it("uses normal sales copy after restocking", () => {
+    expect(e.subject).not.toMatch(/pre-order/i);
     for (const content of [e.html, e.text]) {
-      expect(content).toContain("Pre-orders ship on 26 October.");
+      expect(content).not.toContain("Pre-orders ship");
       expect(content).not.toContain("15 October");
     }
   });

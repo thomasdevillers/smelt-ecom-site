@@ -191,20 +191,15 @@ describe("order completion", () => {
     expect(mocks.hsetnx).toHaveBeenCalledWith(completionKey(), "order-1", expect.any(String));
     expect(mocks.send).not.toHaveBeenCalled();
   });
-  it("completes without sending when the operator confirms accepted customer history", async () => {
-    mocks.get.mockResolvedValue({ status: "pending" });
-    mocks.hgetall.mockResolvedValue({ legacy: { ...pending(), status: "accepted", reference: undefined, id: "previous-email" } });
-    mocks.hget.mockResolvedValue("2026-09-17T12:00:00.000Z");
-    await expect(setOrderCompleted("order-1", true)).rejects.toThrow("confirm an accepted previous shipment");
-    expect(await setOrderCompleted("order-1", true, true)).toBe("2026-09-17T12:00:00.000Z");
-    expect(mocks.hsetnx).toHaveBeenCalledWith(completionKey(), "order-1", expect.any(String));
-    expect(mocks.send).not.toHaveBeenCalled();
-  });
-  it("rejects history completion when the previous email was not accepted", async () => {
-    mocks.get.mockResolvedValue({ status: "pending" });
-    mocks.hgetall.mockResolvedValue({ legacy: pending() });
-    await expect(setOrderCompleted("order-1", true, true)).rejects.toThrow("No accepted previous shipping email");
+  it.each([undefined, "older-order"])("rejects old customer history as completion evidence (reference: %s)", async reference => {
+    mocks.cookies.get.mockReturnValue({ value: "a".repeat(64) });
+    mocks.get.mockImplementation(async (key: string) => key.startsWith("smelt:admin:session:")
+      ? { credential: digest("a-long-test-password-for-admin") } : null);
+    mocks.hgetall.mockResolvedValue({ legacy: { ...pending(), status: "accepted", reference, id: "previous-email" } });
+    const response = await ordersPATCH(request({ reference: "order-1", completed: true, confirmPriorShipment: true }));
+    expect(response.status).toBe(409);
     expect(mocks.hsetnx).not.toHaveBeenCalled();
+    expect(mocks.send).not.toHaveBeenCalled();
   });
   it("reopens an order without deleting its shipping receipt or sending email", async () => {
     expect(await setOrderCompleted("order-1", false)).toBeNull();

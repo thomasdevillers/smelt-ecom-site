@@ -69,7 +69,7 @@ it("reserves a personal review voucher and sends only the discounted amount to P
   expect(response.status).toBe(200);
   expect(reserveVoucher).toHaveBeenCalledWith("SMELT-ABCDEFGHIJKL", "buyer@example.com", "smeltp-00000000-0000-4000-8000-000000000000");
   expect(initializeTransaction).toHaveBeenCalledWith(expect.objectContaining({
-    amount: 490,
+    amount: 500,
     metadata: expect.objectContaining({ voucher: { id: "a".repeat(64), amount: 50 } }),
   }));
 });
@@ -82,7 +82,7 @@ it("rejects cross-origin attempts before holding stock", async () => {
 });
 
 it.each([3, 4])("initializes the %i-hat bundle server-side for every colour mix", async qty => {
-  const total = qty === 3 ? 1250 : 1600;
+  const total = qty === 3 ? 1550 : 2000;
   for (let green = 0; green <= qty; green++) {
     const cart = { green, cream: qty - green };
     const response = await POST(request({ phone: "0837875826" }, { cart, amount: 1, pricingVersion: "forged" }));
@@ -90,12 +90,12 @@ it.each([3, 4])("initializes the %i-hat bundle server-side for every colour mix"
     expect(reservePurchase).toHaveBeenLastCalledWith(cart, expect.any(String), undefined);
     expect(initializeTransaction).toHaveBeenLastCalledWith(expect.objectContaining({
       amount: total,
-      metadata: expect.objectContaining({ cart, unitPrice: 450, pricingVersion: PRICING_VERSION }),
+      metadata: expect.objectContaining({ cart, unitPrice: 550, pricingVersion: PRICING_VERSION }),
     }));
   }
 });
 it("applies the server-validated voucher after the mixed bundle discount", async () => {
   const response = await POST(request({ phone: "0837875826" }, { cart: { green: 2, cream: 2 }, voucherCode: "SMELT-ABCDEFGHIJKL" }));
   expect(response.status).toBe(200);
-  expect(initializeTransaction).toHaveBeenLastCalledWith(expect.objectContaining({ amount: 1550 }));
+  expect(initializeTransaction).toHaveBeenLastCalledWith(expect.objectContaining({ amount: 1950 }));
 });

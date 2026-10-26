@@ -98,8 +98,8 @@ export async function findPaidOrdersByEmail(email: string): Promise<AdminOrder[]
   return orders.sort((a, b) => (b.paidAt || "").localeCompare(a.paidAt || ""));
 }
 export const completionKey = () => `smelt:orders:completed:v1:${process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_") ? "live" : "test"}`;
-export async function setOrderCompleted(reference: string, completed: boolean, confirmPriorShipment = false) {
-  const order = await getPaidOrder(reference);
+export async function setOrderCompleted(reference: string, completed: boolean) {
+  await getPaidOrder(reference);
   const db = adminStore();
   if (!completed) {
     await db.hdel(completionKey(), reference);
@@ -107,10 +107,7 @@ export async function setOrderCompleted(reference: string, completed: boolean, c
   }
   const receipt = await db.get<ShippingReceipt>(orderReceiptKey(reference));
   if (receipt?.status !== "accepted") {
-    if (!confirmPriorShipment) throw new AdminError("Send the shipping email or confirm an accepted previous shipment before marking this order complete.", 409);
-    const history = await db.hgetall<Record<string, ShippingReceipt>>(historyKey(order.email)) || {};
-    const acceptedHistory = Object.values(history).some(previous => previous.status === "accepted" && previous.reference !== reference);
-    if (!acceptedHistory) throw new AdminError("No accepted previous shipping email was found for this customer.", 409);
+    throw new AdminError("Send the shipping email for this order before marking it complete.", 409);
   }
   // Repeated clicks retain the original completion timestamp. No email is sent here.
   const timestamp = new Date().toISOString();
