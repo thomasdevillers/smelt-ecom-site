@@ -18,9 +18,9 @@ import styles from "./cart.module.css";
 export default function CartPage() {
   const { cart, dispatch, subtotal } = useCart();
   const lines = COLOURS.filter((c) => cart[c] > 0);
-  const freeShip = qualifiesForFreeShipping(subtotal);
-  const delivery = shippingFee(subtotal);
-  const total = grandTotal(subtotal);
+  const freeShip = qualifiesForFreeShipping(cart.green + cart.cream);
+  const delivery = shippingFee(cart.green + cart.cream);
+  const total = grandTotal(subtotal, cart.green + cart.cream);
   const discount = bundleDiscount(cart.green + cart.cream);
 
   return (

@@ -19,8 +19,8 @@ describe("checkoutTotal", () => {
     expect(checkoutTotal({ green: 0, cream: 0 })).toBe(0);
   });
 
-  it("includes free express shipping for a regular-price hat", () => {
-    expect(checkoutTotal({ green: 1, cream: 0 })).toBe(550);
+  it("charges R90 express shipping for a single regular-price hat", () => {
+    expect(checkoutTotal({ green: 1, cream: 0 })).toBe(640);
   });
 
   it("does not add shipping once the cart qualifies for free shipping", () => {
@@ -34,13 +34,13 @@ describe("checkoutTotal", () => {
   });
 
   it("uses sanitized quantities when recomputing an untrusted cart", () => {
-    expect(checkoutTotal(sanitizeCart({ green: "1", cream: -10 }))).toBe(550);
+    expect(checkoutTotal(sanitizeCart({ green: "1", cream: -10 }))).toBe(640);
   });
 
   it("subtracts only a safe server-validated voucher amount", () => {
-    expect(discountedCheckoutTotal({ green: 1, cream: 0 }, "aramex", 50)).toBe(500);
+    expect(discountedCheckoutTotal({ green: 1, cream: 0 }, "aramex", 50)).toBe(590);
     expect(discountedCheckoutTotal({ green: 1, cream: 0 }, "aramex", -50)).toBeNaN();
-    expect(discountedCheckoutTotal({ green: 1, cream: 0 }, "aramex", 550)).toBeNaN();
+    expect(discountedCheckoutTotal({ green: 1, cream: 0 }, "aramex", 640)).toBeNaN();
   });
   it.each([3, 4])("charges the %i-hat bundle for every possible colour mix", qty => {
     const total = qty === 3 ? 1550 : 2000;
@@ -58,6 +58,18 @@ describe("checkoutTotal", () => {
       expect(paidCheckoutTotal({ green: 2, cream: 1 }, "aramex", 0, unit, "hat-bundles-v1")).toBe(1250);
       expect(paidCheckoutTotal({ green: 2, cream: 2 }, "aramex", 50, unit, "hat-bundles-v1")).toBe(1550);
     }
+  });
+
+  it("preserves historical shipping while reconciling v3 payments by quantity", () => {
+    const cart = { green: 1, cream: 0 };
+    for (const version of [undefined, "hat-bundles-v1", "hat-bundles-v2"]) {
+      expect(paidCheckoutTotal(cart, "aramex", 0, 550, version)).toBe(550);
+      expect(paidCheckoutTotal(cart, "aramex", 50, 450, version)).toBe(490);
+    }
+    expect(paidCheckoutTotal(cart, "aramex", 0, 550, PRICING_VERSION)).toBe(640);
+    expect(paidCheckoutTotal(cart, "aramex", 50, 550, PRICING_VERSION)).toBe(590);
+    expect(paidCheckoutTotal(cart, "founders", 0, 550, PRICING_VERSION)).toBe(5550);
+    expect(paidCheckoutTotal({ green: 2, cream: 1 }, "aramex", 0, 550, "hat-bundles-v2")).toBe(1550);
   });
 
   it("preserves full-price older payments and rejects unknown pricing versions", () => {

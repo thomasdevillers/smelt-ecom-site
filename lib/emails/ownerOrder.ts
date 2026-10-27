@@ -11,7 +11,7 @@ import { attributionChannel, type OrderAttribution } from '../attribution';
 export function ownerOrderEmail(d: {
   reference: string; email: string; customerName: string; paidAt?: string | null;
   total: string; cart: CartState; items: OrderItem[]; address: ShippingAddress | null;
-  unitPrice?: number; shippingMethod: ShippingMethod; discount?: number; bundleDiscount?: number; preorder?: unknown; test: boolean;
+  unitPrice?: number; shippingMethod: ShippingMethod; deliveryFee?: number; discount?: number; bundleDiscount?: number; preorder?: unknown; test: boolean;
   attribution?: OrderAttribution | null;
 }) {
   const preorder = parsePreorder(d.preorder);
@@ -34,7 +34,7 @@ export function ownerOrderEmail(d: {
       orderItemsTable(d.items),
       moneyRow('Items subtotal', formatMoney(subtotal)),
       ...(d.bundleDiscount ? [moneyRow('Bundle discount', `−${formatMoney(d.bundleDiscount)}`)] : []),
-      moneyRow('Delivery', formatMoney(shippingFee(subtotal - (d.bundleDiscount ?? 0), d.shippingMethod))),
+      moneyRow('Delivery', formatMoney(d.deliveryFee ?? shippingFee(d.cart.green + d.cart.cream, d.shippingMethod))),
       ...(d.discount ? [moneyRow('Voucher discount', `−${formatMoney(d.discount)}`)] : []),
       moneyRow('Total paid (ZAR)', d.total),
       row('Delivery method', SHIPPING_OPTIONS[d.shippingMethod].label),

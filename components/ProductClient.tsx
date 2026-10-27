@@ -65,7 +65,7 @@ export default function ProductClient() {
     setQuantity(next);
     setBundleGreen(Math.ceil(next / 2));
   };
-  const singleDelivery = shippingFee(BASE_PRICE);
+  const singleDelivery = shippingFee(1);
   const bundleStatus = (green: number) => {
     if (!stock) return "Checking stock…";
     const mix = { green, cream: quantity - green };

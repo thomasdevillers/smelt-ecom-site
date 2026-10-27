@@ -178,6 +178,26 @@ describe("confirmation delivery", () => {
 });
 
 describe("payment route integration", () => {
+  it.each(["POST", "GET", "webhook"].flatMap(route => [
+    { route, version: PRICING_VERSION, amount: 64000 },
+    { route, version: "hat-bundles-v2", amount: 55000 },
+  ]))("reconciles one R550 hat through $route under $version", async ({ route, version, amount }) => {
+    const cart = { green: 1, cream: 0 };
+    const metadata = { cart, unitPrice: 550, pricingVersion: version, shippingMethod: "aramex" };
+    mocks.verify.mockResolvedValue({ ...order, amount, status: "success", customerEmail: order.email, metadata });
+    const response = route === "webhook"
+      ? await webhook(webhookRequest(amount, true, "aramex", metadata))
+      : route === "GET"
+        ? await verifyGet(new Request(`https://example.com/api/checkout/verify?reference=${order.reference}`))
+        : await verifyPost(new Request("https://example.com/api/checkout/verify", { method: "POST", body: JSON.stringify({ reference: order.reference }) }));
+    expect(response.status).toBe(200);
+    await flush();
+    expect(mocks.send).toHaveBeenCalledTimes(2);
+    const owner = mocks.send.mock.calls.find(([message]) => message.to !== order.email)![0];
+    expect(owner.text).toContain(version === PRICING_VERSION ? "R640" : "R550");
+    expect(owner.text).toContain(version === PRICING_VERSION ? "R90" : "R0");
+  });
+
   it.each([
     ["POST", 3], ["GET", 3], ["webhook", 3],
     ["POST", 4], ["GET", 4], ["webhook", 4],

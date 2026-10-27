@@ -123,7 +123,7 @@ export default function CheckoutPage() {
       contents,
       content_type: "product",
       currency: META_CURRENCY,
-      value: grandTotal(subtotal, shippingMethod),
+      value: grandTotal(subtotal, cart.green + cart.cream, shippingMethod),
       num_items: contents.reduce((total, item) => total + item.quantity, 0),
     });
   }, [cart, subtotal, shippingMethod]);
@@ -235,7 +235,7 @@ export default function CheckoutPage() {
   const activeVoucher = appliedVoucher && appliedVoucher.email === email.trim().toLowerCase() && appliedVoucher.code === normalizedVoucherCode
     ? appliedVoucher
     : null;
-  const totalAmount = grandTotal(subtotal, shippingMethod) - (activeVoucher?.amount ?? 0);
+  const totalAmount = grandTotal(subtotal, cart.green + cart.cream, shippingMethod) - (activeVoucher?.amount ?? 0);
 
   useEffect(() => {
     if (!normalizedVoucherCode || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return;
@@ -286,7 +286,7 @@ export default function CheckoutPage() {
         <span className={styles.shippingHeading}>
           <strong>{SHIPPING_OPTIONS[method].label}</strong>
           <span className={styles.shippingPrice}>
-            {shippingFee(subtotal, method) === 0 ? "FREE" : formatMoney(shippingFee(subtotal, method))}
+            {shippingFee(cart.green + cart.cream, method) === 0 ? "FREE" : formatMoney(shippingFee(cart.green + cart.cream, method))}
           </span>
         </span>
         <span className={styles.shippingDescription}>{needsPreorder ? `${stock?.timing} Courier transit starts after dispatch.` : SHIPPING_OPTIONS[method].description}</span>
@@ -322,9 +322,9 @@ export default function CheckoutPage() {
             <div className={styles.row}>
               <span>{SHIPPING_OPTIONS[shippingMethod].label}</span>
               <span>
-                {shippingFee(subtotal, shippingMethod) === 0
+                {shippingFee(cart.green + cart.cream, shippingMethod) === 0
                   ? "FREE"
-                  : formatMoney(shippingFee(subtotal, shippingMethod))}
+                  : formatMoney(shippingFee(cart.green + cart.cream, shippingMethod))}
               </span>
             </div>
             {activeVoucher && <div className={`${styles.row} ${styles.discount}`}>

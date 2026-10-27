@@ -21,10 +21,11 @@ export function parseShippingMethod(value: unknown): ShippingMethod | null {
   if (value === undefined) return "aramex";
   return value === "aramex" || value === "founders" ? value : null;
 }
-export const FREE_SHIP_THRESHOLD = 500;
+export const FREE_SHIP_MIN_HATS = 2;
 // Record this version in payment metadata. Keep its rules stable for paid orders.
 export const LEGACY_PRICING_VERSION = "hat-bundles-v1";
-export const PRICING_VERSION = "hat-bundles-v2";
+export const PREVIOUS_PRICING_VERSION = "hat-bundles-v2";
+export const PRICING_VERSION = "hat-bundles-v3";
 export const THREE_HAT_PRICE = BASE_PRICE * 3 - 100;
 export const FOUR_HAT_PRICE = BASE_PRICE * 4 - 200;
 
@@ -61,15 +62,15 @@ export function formatMoney(n: number): string {
   return "R" + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 }
 
-export function qualifiesForFreeShipping(subtotal: number): boolean {
-  return subtotal >= FREE_SHIP_THRESHOLD;
+export function qualifiesForFreeShipping(qty: number): boolean {
+  return qty >= FREE_SHIP_MIN_HATS;
 }
 
-export function shippingFee(subtotal: number, method: ShippingMethod = "aramex"): number {
+export function shippingFee(qty: number, method: ShippingMethod = "aramex"): number {
   if (method === "founders") return FOUNDERS_DELIVERY_FEE;
-  return qualifiesForFreeShipping(subtotal) ? 0 : SHIPPING_FEE;
+  return qualifiesForFreeShipping(qty) ? 0 : SHIPPING_FEE;
 }
 
-export function grandTotal(subtotal: number, method: ShippingMethod = "aramex"): number {
-  return subtotal + shippingFee(subtotal, method);
+export function grandTotal(subtotal: number, qty: number, method: ShippingMethod = "aramex"): number {
+  return subtotal + shippingFee(qty, method);
 }

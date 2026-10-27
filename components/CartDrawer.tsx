@@ -18,10 +18,10 @@ import styles from "./CartDrawer.module.css";
 export default function CartDrawer() {
   const { cart, dispatch, subtotal, isOpen, closeCart, count } = useCart();
   const lines = COLOURS.filter((c) => cart[c] > 0);
-  const freeShip = qualifiesForFreeShipping(subtotal);
+  const freeShip = qualifiesForFreeShipping(cart.green + cart.cream);
   const shipProgress = freeShip ? 100 : 50;
-  const delivery = shippingFee(subtotal);
-  const total = grandTotal(subtotal);
+  const delivery = shippingFee(cart.green + cart.cream);
+  const total = grandTotal(subtotal, cart.green + cart.cream);
   const discount = bundleDiscount(cart.green + cart.cream);
 
   return (

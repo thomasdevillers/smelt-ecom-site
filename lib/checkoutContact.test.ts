@@ -69,7 +69,7 @@ it("reserves a personal review voucher and sends only the discounted amount to P
   expect(response.status).toBe(200);
   expect(reserveVoucher).toHaveBeenCalledWith("SMELT-ABCDEFGHIJKL", "buyer@example.com", "smeltp-00000000-0000-4000-8000-000000000000");
   expect(initializeTransaction).toHaveBeenCalledWith(expect.objectContaining({
-    amount: 500,
+    amount: 590,
     metadata: expect.objectContaining({ voucher: { id: "a".repeat(64), amount: 50 } }),
   }));
 });
@@ -79,6 +79,15 @@ it("rejects cross-origin attempts before holding stock", async () => {
   }));
   expect(response.status).toBe(403);
   expect(reservePurchase).not.toHaveBeenCalled();
+});
+
+it.each([{ green: 1, cream: 0 }, { green: 0, cream: 1 }, { green: 2, cream: 0 }, { green: 1, cream: 1 }, { green: 0, cream: 2 }])("charges shipping by total hat count for %o", async cart => {
+  const response = await POST(request({ phone: "0837875826" }, { cart, amount: 1, pricingVersion: "hat-bundles-v2" }));
+  expect(response.status).toBe(200);
+  expect(initializeTransaction).toHaveBeenLastCalledWith(expect.objectContaining({
+    amount: cart.green + cart.cream === 1 ? 640 : 1100,
+    metadata: expect.objectContaining({ pricingVersion: PRICING_VERSION }),
+  }));
 });
 
 it.each([3, 4])("initializes the %i-hat bundle server-side for every colour mix", async qty => {
