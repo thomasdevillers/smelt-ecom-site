@@ -10,6 +10,6 @@ export function reviewWhatsAppUrl(input: { phone: string; customerName: string; 
   const phone = normalizeWhatsAppPhone(input.phone);
   if (!phone) return null;
   const firstName = input.customerName.trim().split(/\s+/)[0] || "there";
-  const message = `Hi ${firstName}, thank you for choosing Smelt. We’d love your honest take on your order. Leave one review with photos of your hats and we’ll refund R50 for every hat you bought. Every rating counts. We’ll return the refund to your original payment method within a couple of days. Your personal review link is below:\n\n${input.reviewUrl}\n\nWarm regards, Tom & Marc`;
+  const message = `Hey ${firstName}, hope you’ve been enjoying your Smelt! 🙂\n\nIf you have a minute, we’d really appreciate an honest review with photos of your hats. We’ll refund you R50 per hat you bought in that order as a thank you, whatever rating you give.\n\nHere’s your personal review link:\n${input.reviewUrl}\n\nWe’ll send the refund back to your original payment method within a couple of days of your review.\n\nThanks so much! Tom & Marc`;
   return `https://wa.me/${phone}?${new URLSearchParams({ text: message })}`;
 }

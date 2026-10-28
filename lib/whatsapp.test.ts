@@ -13,10 +13,11 @@ describe("review WhatsApp links", () => {
     const result = reviewWhatsAppUrl({ phone: "0837875826", customerName: "Tumi Customer", reviewUrl });
     const url = new URL(result!);
     expect(url.origin + url.pathname).toBe("https://wa.me/27837875826");
-    expect(url.searchParams.get("text")).toContain("Hi Tumi");
+    expect(url.searchParams.get("text")).toContain("Hey Tumi");
     expect(url.searchParams.get("text")).toContain(reviewUrl);
     expect(url.searchParams.get("text")).toContain("photos of your hats");
-    expect(url.searchParams.get("text")).toContain("refund R50 for every hat");
+    expect(url.searchParams.get("text")).toContain("refund you R50 per hat you bought in that order");
+    expect(url.searchParams.get("text")).toContain("whatever rating you give");
     expect(url.searchParams.get("text")).not.toMatch(/next order|optional photos/);
   });
 

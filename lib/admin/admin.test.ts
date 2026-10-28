@@ -3,7 +3,7 @@ const mocks = vi.hoisted(() => ({ hgetall: vi.fn(), hsetnx: vi.fn(), hget: vi.fn
 vi.mock("@upstash/redis", () => ({ Redis: class { hgetall = mocks.hgetall; hsetnx = mocks.hsetnx; hget = mocks.hget; hdel = mocks.hdel; eval = mocks.eval; get = mocks.get; set = mocks.set; del = mocks.del; pipeline = () => mocks.pipeline; } }));
 vi.mock("resend", () => ({ Resend: class { emails = { send: mocks.send, get: mocks.emailGet }; } }));
 vi.mock("next/headers", () => ({ cookies: async () => mocks.cookies }));
-import { normalizeOrder, getPaidOrder, listOrders, setOrderCompleted, completionKey, findPaidOrdersByEmail } from "./orders";
+import { normalizeOrder, getPaidOrder, listOrders, setOrderCompleted, completionKey, findPaidOrdersByEmail, markReviewMessageSent, reviewMessageSentKey } from "./orders";
 import { sendShipping, shippingStatus } from "./shipping";
 import { publicReceipt } from "./receipts";
 import { hasAdminSession, login, logout } from "./auth";
@@ -11,7 +11,7 @@ import { digest } from "./store";
 import { GET as ordersGET, PATCH as ordersPATCH } from "@/app/api/admin/orders/route";
 import { GET as analyticsGET } from "@/app/api/admin/analytics/route";
 import { POST as shippingPOST } from "@/app/api/admin/shipping/route";
-import { GET as reviewsGET, POST as reviewsPOST } from "@/app/api/admin/reviews/route";
+import { GET as reviewsGET, POST as reviewsPOST, PATCH as reviewsPATCH } from "@/app/api/admin/reviews/route";
 import type { ShippingReceipt } from "./types";
 const transaction = { reference: "order-1", status: "success", amount: 54000, currency: "ZAR", customer: { email: "customer@example.com" }, metadata: { cart: { green: 1 }, shippingAddress: { line1: "1 Test St", city: "Cape Town" }, customerName: "Test Customer" } };
 const pending = (): ShippingReceipt & { message: object } => ({ status: "pending", trackingNumber: "25249853610844", email: "customer@example.com", reference: "order-1", startedAt: Date.now(), source: "dashboard", message: { from: "Smelt <orders@example.com>", to: "customer@example.com", subject: "Original subject", html: "Original HTML", text: "Original text" } });
@@ -155,12 +155,14 @@ describe("admin access", () => {
     expect((await ordersGET(new Request("https://saunahat.co.za/api/admin/orders"))).status).toBe(401);
     expect((await analyticsGET(new Request("https://saunahat.co.za/api/admin/analytics"))).status).toBe(401);
     expect((await reviewsGET(new Request("https://saunahat.co.za/api/admin/reviews"))).status).toBe(401);
+    expect((await reviewsPATCH(request({ action: "markMessageSent", reference: "order-1" }))).status).toBe(401);
     expect((await shippingPOST(request({ reference: "order-1", trackingNumber: "25249853610844" }))).status).toBe(401);
     expect(mocks.fetch).not.toHaveBeenCalled(); expect(mocks.send).not.toHaveBeenCalled();
   });
   it("rejects cross-origin mutations before authentication or email calls", async () => {
     expect((await shippingPOST(request({}, "https://evil.example"))).status).toBe(403);
     expect((await reviewsPOST(request({}, "https://evil.example"))).status).toBe(403);
+    expect((await reviewsPATCH(request({ action: "markMessageSent", reference: "order-1" }, "https://evil.example"))).status).toBe(403);
     expect(mocks.get).not.toHaveBeenCalled(); expect(mocks.send).not.toHaveBeenCalled();
   });
   it("rate limits login and issues only opaque HttpOnly sessions", async () => {
@@ -177,6 +179,47 @@ describe("admin access", () => {
     vi.stubEnv("ADMIN_PASSWORD", "another-long-test-password");
     expect(await hasAdminSession()).toBe(false);
     await logout(); expect(mocks.del).toHaveBeenCalledOnce(); expect(mocks.cookies.delete).toHaveBeenCalledWith("smelt_admin");
+  });
+});
+
+describe("manual review-message tracking", () => {
+  it("retains the original send date on retries and returns it when orders reload", async () => {
+    const saved = new Map<string, string>();
+    const completedAt = "2026-10-01T10:00:00.000Z";
+    mocks.hget.mockImplementation(async (key, reference) => key === completionKey() ? completedAt : saved.get(reference) ?? null);
+    mocks.hsetnx.mockImplementation(async (_key, reference, value) => {
+      if (saved.has(reference)) return 0;
+      saved.set(reference, value); return 1;
+    });
+    const sentAt = await markReviewMessageSent("order-1");
+    expect(Number.isFinite(Date.parse(sentAt))).toBe(true);
+    expect(await markReviewMessageSent("order-1")).toBe(sentAt);
+    expect(mocks.hsetnx).toHaveBeenCalledWith(reviewMessageSentKey(), "order-1", expect.any(String));
+    mocks.hgetall.mockImplementation(async key => key === completionKey() ? { "order-1": completedAt, "order-2": completedAt } : Object.fromEntries(saved));
+    mocks.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ status: true, data: [transaction, { ...transaction, reference: "order-2" }], meta: { total: 2, pageCount: 1 } }) });
+    const result = await listOrders(1, "", "completed");
+    expect(result.orders.find(order => order.reference === "order-1")?.reviewMessageSentAt).toBe(sentAt);
+    expect(result.orders.find(order => order.reference === "order-2")?.reviewMessageSentAt).toBeNull();
+    expect(mocks.send).not.toHaveBeenCalled();
+  });
+  it("requires a completed paid order before saving a send date", async () => {
+    mocks.hget.mockResolvedValue(null);
+    await expect(markReviewMessageSent("order-1")).rejects.toThrow("Mark this order complete");
+    expect(mocks.hsetnx).not.toHaveBeenCalled();
+    mocks.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ status: true, data: { ...transaction, status: "failed" } }) });
+    await expect(markReviewMessageSent("order-1")).rejects.toThrow("successful payment");
+  });
+  it("requires an existing review link and records the manual confirmation through the admin API", async () => {
+    mocks.cookies.get.mockReturnValue({ value: "a".repeat(64) });
+    mocks.get.mockImplementation(async key => key.startsWith("smelt:admin:session:") ? { credential: digest("a-long-test-password-for-admin") } : null);
+    expect((await reviewsPATCH(request({ action: "markMessageSent", reference: "order-1" }))).status).toBe(409);
+    expect(mocks.hsetnx).not.toHaveBeenCalled();
+    mocks.get.mockImplementation(async key => key.startsWith("smelt:admin:session:") ? { credential: digest("a-long-test-password-for-admin") } : key.endsWith(":invite") ? "invite-digest" : null);
+    mocks.hget.mockResolvedValue("2026-10-28T10:00:00.000Z");
+    const response = await reviewsPATCH(request({ action: "markMessageSent", reference: "order-1" }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ reviewMessageSentAt: "2026-10-28T10:00:00.000Z" });
+    expect(mocks.send).not.toHaveBeenCalled();
   });
 });
 

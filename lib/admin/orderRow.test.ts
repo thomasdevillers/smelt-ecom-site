@@ -15,7 +15,7 @@ const order = () => ({
   history: [previous],
 });
 const render = (value: ReturnType<typeof order>) => renderToStaticMarkup(createElement(OrderRow, {
-  order: value, onReceipt: () => {}, onExpired: () => {}, onMoved: () => {},
+  order: value, onReceipt: () => {}, onExpired: () => {}, onMoved: () => {}, onReviewMessageSent: () => {},
 }));
 
 describe("repeat-customer order fulfilment", () => {
@@ -33,5 +33,17 @@ describe("repeat-customer order fulfilment", () => {
     const html = render({ ...order(), receipt: { ...previous, reference: "new-order", id: "new-email" } });
     expect(html).toContain("Mark complete ✓");
     expect(html).not.toContain("Send email ↗");
+  });
+  it("shows the saved review message date after reload and hides the send confirmation", () => {
+    const html = render({ ...order(), completedAt: "2026-10-01T10:00:00.000Z", reviewMessageSentAt: "2026-10-28T10:00:00.000Z" });
+    expect(html).toContain("Review message sent");
+    expect(html).toMatch(/datetime="2026-10-28T10:00:00.000Z"/i);
+    expect(html).toContain("28 Oct 2026");
+    expect(html).not.toContain("Mark review message sent");
+  });
+  it("offers a separate manual confirmation for completed orders without a sent date", () => {
+    const html = render({ ...order(), completedAt: "2026-10-01T10:00:00.000Z" });
+    expect(html).toContain("Mark review message sent");
+    expect(html).toContain("Mark this after you send the message in WhatsApp.");
   });
 });

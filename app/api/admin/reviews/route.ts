@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/admin/auth";
 import { AdminError, adminFailure, adminJson, readAdminBody, requireSameOrigin } from "@/lib/admin/store";
-import { createReviewInvitation, listReviewRecords, moderateReview, removeReviewPhoto } from "@/lib/reviewStore";
+import { createReviewInvitation, hasCurrentReviewInvitation, listReviewRecords, moderateReview, removeReviewPhoto } from "@/lib/reviewStore";
+import { markReviewMessageSent } from "@/lib/admin/orders";
 import type { ReviewStatus } from "@/lib/reviews";
 
 export const runtime = "nodejs";
@@ -42,6 +43,11 @@ export async function PATCH(request: Request) {
     requireSameOrigin(request);
     await requireAdmin();
     const body = await readAdminBody(request);
+    if (body.action === "markMessageSent") {
+      if (typeof body.reference !== "string" || !/^[a-zA-Z0-9_.=\-]{1,200}$/.test(body.reference)) throw new AdminError("A valid order reference is required.");
+      if (!await hasCurrentReviewInvitation(body.reference)) throw new AdminError("Create a review link for this order before marking the message as sent.", 409);
+      return adminJson({ reviewMessageSentAt: await markReviewMessageSent(body.reference) });
+    }
     if (typeof body.id !== "string") throw new AdminError("A review is required.");
     if (body.action === "removePhoto" && typeof body.url === "string") return adminJson({ review: await removeReviewPhoto(body.id, body.url) });
     if (body.status !== "published" && body.status !== "rejected") throw new AdminError("Choose approve or reject.");

@@ -56,7 +56,10 @@ The manual CLI now also checks shared receipts when Redis is configured. Always 
 
 ## Storage and recovery
 
+For completed orders, **Create review link** and **WhatsApp customer** prepare a personal message offering R50 back per hat purchased in that order, for an honest review with photos. Send it in WhatsApp, then click **Mark review message sent** on the order. This saves **Review message sent** with the date in South African time. Creating, copying or opening a link does not mark it as sent. The first confirmed date survives refreshes, repeat confirmations and replacement links; this is your manual record, not a WhatsApp delivery receipt.
+
 - `smelt:orders:completed:v1:live` / `test`: persistent completion timestamps by payment reference, separated by payment mode.
+- `smelt:orders:review-message-sent:v1:live` / `test`: persistent first manually confirmed review-message timestamps by payment reference.
 - `smelt:admin:session:v1:*`: expiring login sessions.
 - `smelt:admin:login:*`: 15-minute login rate limits.
 - `smelt:shipping:order:v1:*`: one notification per payment reference.

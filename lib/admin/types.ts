@@ -29,6 +29,7 @@ export interface AdminOrder {
   receipt: ShippingReceipt | null;
   history: ShippingReceipt[];
   completedAt: string | null;
+  reviewMessageSentAt: string | null;
 }
 export interface OrdersPage {
   orders: AdminOrder[];

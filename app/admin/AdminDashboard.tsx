@@ -30,10 +30,20 @@ function status(receipt: ShippingReceipt | null) {
   const labels: Record<string, string> = { delivered: "Email delivered", opened: "Email opened", clicked: "Email clicked", bounced: "Email bounced", complained: "Marked as spam", failed: "Email failed", delivery_delayed: "Delivery delayed", suppressed: "Email suppressed", sent: "Email sent" };
   return labels[receipt.lastEvent || ""] || "Email accepted";
 }
-function ReviewInvite({ reference, customerName, phone, onExpired }: { reference: string; customerName: string; phone?: string; onExpired: () => void }) {
+function ReviewInvite({ reference, customerName, phone, sentAt, onSent, onExpired }: { reference: string; customerName: string; phone?: string; sentAt: string | null; onSent: (sentAt: string) => void; onExpired: () => void }) {
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState("");
   const [message, setMessage] = useState("");
+  async function markSent() {
+    setBusy(true); setMessage("");
+    try {
+      const result = await api<{ reviewMessageSentAt: string }>("reviews", { method: "PATCH", body: JSON.stringify({ reference, action: "markMessageSent" }) });
+      onSent(result.reviewMessageSentAt);
+    } catch (caught) {
+      if (caught instanceof RequestError && caught.status === 401) onExpired();
+      setMessage(caught instanceof Error ? caught.message : "Could not save the sent date. Please try again.");
+    } finally { setBusy(false); }
+  }
   async function create() {
     setBusy(true); setMessage("");
     try {
@@ -52,10 +62,14 @@ function ReviewInvite({ reference, customerName, phone, onExpired }: { reference
     {url && <div><input aria-label="Review invitation link" readOnly value={url} onFocus={event => event.currentTarget.select()} /><button type="button" onClick={() => void navigator.clipboard.writeText(url).then(() => setMessage("Link copied."), () => setMessage("Select and copy the link manually."))}>Copy</button></div>}
     {whatsappUrl && <a className={styles.whatsappLink} href={whatsappUrl} target="_blank" rel="noreferrer" aria-label={`WhatsApp ${customerName || "customer"} with their review link`}>WhatsApp customer ↗</a>}
     {url && !whatsappUrl && <p className={styles.note}>No valid customer phone number is available for WhatsApp.</p>}
+    {!sentAt && <>
+      <button type="button" className={styles.secondary} disabled={busy} onClick={() => void markSent()}>{busy ? "Saving…" : "Mark review message sent"}</button>
+      <p className={styles.note}>Mark this after you send the message in WhatsApp.</p>
+    </>}
     {message && <p className={styles.note} role="status">{message}</p>}
   </div>;
 }
-export function OrderRow({ order, onReceipt, onExpired, onMoved }: { order: AdminOrder; onReceipt: (receipt: ShippingReceipt) => void; onExpired: () => void; onMoved: () => void }) {
+export function OrderRow({ order, onReceipt, onExpired, onMoved, onReviewMessageSent }: { order: AdminOrder; onReceipt: (receipt: ShippingReceipt) => void; onExpired: () => void; onMoved: () => void; onReviewMessageSent: (sentAt: string) => void }) {
   const [waybill, setWaybill] = useState(order.receipt?.trackingNumber || "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -106,6 +120,7 @@ export function OrderRow({ order, onReceipt, onExpired, onMoved }: { order: Admi
     </div>
     <div className={styles.fulfilment}>
       <div className={`${styles.badge} ${accepted ? styles.accepted : ""}`} aria-live="polite">{order.completedAt ? "Completed" : accepted ? status(receipt) : order.canShip || receipt ? status(receipt) : "Needs review"}</div>
+      {order.reviewMessageSentAt && <p className={styles.note} role="status"><strong>Review message sent</strong> · <time dateTime={order.reviewMessageSentAt}>{date(order.reviewMessageSentAt)}</time></p>}
       {hasHistory && <details className={styles.history}><summary>{order.history.length} previous shipping {order.history.length === 1 ? "email" : "emails"} to this customer</summary>
         <p>These emails belong to previous shipments. This order needs its own waybill and shipping email.</p>
         {order.history.map(r => <p key={r.id || r.trackingNumber}><strong>{r.trackingNumber}</strong> · {date(r.acceptedAt || null)} · {r.status === "accepted" ? "Email accepted" : "Unconfirmed"}</p>)}
@@ -113,7 +128,7 @@ export function OrderRow({ order, onReceipt, onExpired, onMoved }: { order: Admi
       {order.completedAt ? <div className={styles.completionActions}>
         <p className={styles.note}>Completed {date(order.completedAt)}</p>
         <button className={styles.secondary} type="button" disabled={busy} onClick={() => void moveOrder(false)}>{busy ? "Moving…" : "Reopen order"}</button>
-        <ReviewInvite reference={order.reference} customerName={order.name} phone={address.phone} onExpired={onExpired} />
+        <ReviewInvite reference={order.reference} customerName={order.name} phone={address.phone} sentAt={order.reviewMessageSentAt} onSent={onReviewMessageSent} onExpired={onExpired} />
       </div> : accepted ? <div className={styles.completionActions}>
         <button type="button" disabled={busy} onClick={() => void moveOrder(true)}>{busy ? "Updating…" : "Mark complete ✓"}</button>
         <button className={styles.secondary} type="button" disabled={busy} onClick={() => void run(true)}>Check email status</button>
@@ -226,7 +241,7 @@ export default function AdminDashboard() {
         {error && <p className={styles.error} role="alert">{error}</p>}
         {loading && <div className={styles.loading} role="status">Loading orders…</div>}
         {data && <><div className={styles.columnHead}><span>CUSTOMER / ORDER</span><span>IN THE BAG</span><span>TRACKING & EMAIL</span></div>
-          <div className={styles.orders}>{data.orders.map(order => <OrderRow key={order.reference} order={order} onExpired={expire} onMoved={() => { setNotice(view !== "completed" ? "Order moved to Completed orders." : "Order moved back to Active orders."); if (data.orders.length === 1 && data.page > 1) setPage(data.page - 1); else void load(); }} onReceipt={receipt => setData(current => current ? { ...current, orders: current.orders.map(o => o.reference === order.reference ? { ...o, receipt } : o) } : null)} />)}</div>
+          <div className={styles.orders}>{data.orders.map(order => <OrderRow key={order.reference} order={order} onExpired={expire} onMoved={() => { setNotice(view !== "completed" ? "Order moved to Completed orders." : "Order moved back to Active orders."); if (data.orders.length === 1 && data.page > 1) setPage(data.page - 1); else void load(); }} onReceipt={receipt => setData(current => current ? { ...current, orders: current.orders.map(o => o.reference === order.reference ? { ...o, receipt } : o) } : null)} onReviewMessageSent={reviewMessageSentAt => setData(current => current ? { ...current, orders: current.orders.map(o => o.reference === order.reference ? { ...o, reviewMessageSentAt } : o) } : null)} />)}</div>
           {!data.orders.length && <div className={styles.empty}><h2>{search ? "No matching orders" : view === "completed" ? "No completed orders yet" : "All caught up"}</h2><p>{search ? "Search using all or part of a customer name, email address or payment reference." : view === "completed" ? "Orders appear here after you mark them complete." : "New paid orders will appear here."}</p></div>}
           <nav className={styles.pagination} aria-label="Order pages"><span>{data.total ? `Page ${data.page} of ${Math.max(1, data.pageCount)}` : "0 orders"}</span><div><button className={styles.secondary} disabled={loading || data.page <= 1} onClick={() => setPage(data.page - 1)}>← Previous</button><button className={styles.secondary} disabled={loading || data.page >= data.pageCount} onClick={() => setPage(data.page + 1)}>Next →</button></div></nav></>}
         </> : section === "analytics" ? <AnalyticsPanel onExpired={expire} /> : section === "restock" ? <RestockPanel onExpired={expire} /> : <ReviewsPanel onExpired={expire} />}

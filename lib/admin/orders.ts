@@ -43,7 +43,7 @@ export function normalizeOrder(input: unknown): AdminOrder {
     preorder: parsePreorder(m.preorder),
     attribution: parseAttribution(m.attribution),
     items, address: sanitizeAddress(m.shippingAddress), shippingMethod: method,
-    canShip: !reviewReason, reviewReason, receipt: null, history: [], completedAt: null,
+    canShip: !reviewReason, reviewReason, receipt: null, history: [], completedAt: null, reviewMessageSentAt: null,
   };
 }
 async function paystack(path: string) {
@@ -98,6 +98,18 @@ export async function findPaidOrdersByEmail(email: string): Promise<AdminOrder[]
   return orders.sort((a, b) => (b.paidAt || "").localeCompare(a.paidAt || ""));
 }
 export const completionKey = () => `smelt:orders:completed:v1:${process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_") ? "live" : "test"}`;
+export const reviewMessageSentKey = () => `smelt:orders:review-message-sent:v1:${process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_") ? "live" : "test"}`;
+export async function markReviewMessageSent(reference: string) {
+  await getPaidOrder(reference);
+  const db = adminStore();
+  if (!await db.hget<string>(completionKey(), reference))
+    throw new AdminError("Mark this order complete before recording a review message.", 409);
+  // A manual confirmation records the first send; retries must not change its date.
+  await db.hsetnx(reviewMessageSentKey(), reference, new Date().toISOString());
+  const sentAt = await db.hget<string>(reviewMessageSentKey(), reference);
+  if (!sentAt) throw new AdminError("Could not save the review message date. Please try again.", 503);
+  return sentAt;
+}
 export async function setOrderCompleted(reference: string, completed: boolean) {
   await getPaidOrder(reference);
   const db = adminStore();
@@ -140,8 +152,14 @@ export async function listOrders(
     [order.name, order.email, order.reference].some(value => value.toLowerCase().includes(term)));
   await Promise.all(orders.map(async order => { order.preorder = await resolvePurchasePreorder(order.reference, order.preorder); }));
   const db = adminStore();
-  const completed = await db.hgetall<Record<string, string>>(completionKey()) || {};
-  for (const order of orders) order.completedAt = completed[order.reference] || null;
+  const [completed, reviewMessages] = await Promise.all([
+    db.hgetall<Record<string, string>>(completionKey()),
+    db.hgetall<Record<string, string>>(reviewMessageSentKey()),
+  ]);
+  for (const order of orders) {
+    order.completedAt = completed?.[order.reference] || null;
+    order.reviewMessageSentAt = reviewMessages?.[order.reference] || null;
+  }
   const completedTotal = orders.filter(order => order.completedAt).length;
   const activeTotal = orders.length - completedTotal;
   // Count outstanding pre-order units across every page, using current allocations.
