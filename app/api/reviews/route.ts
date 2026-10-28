@@ -30,7 +30,11 @@ export async function POST(request: Request) {
     if (!request.headers.get("content-type")?.startsWith("application/json")) throw new AdminError("Expected JSON.", 415);
     const raw = await request.text();
     if (raw.length > 12_000) throw new AdminError("Review is too large.", 413);
-    const body = JSON.parse(raw) as Record<string, unknown>;
+    let parsed: unknown;
+    try { parsed = JSON.parse(raw); }
+    catch { throw new AdminError("Invalid review request."); }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new AdminError("Invalid review request.");
+    const body = parsed as Record<string, unknown>;
     if (typeof body.token !== "string") throw new AdminError("A review link is required.");
     const result = await submitReview(body.token, body);
     return response(result, 201);

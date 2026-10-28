@@ -94,7 +94,10 @@ export default function ReviewForm({ token }: { token: string }) {
         if (!url) {
           const ready = await preparePhoto(file);
           const uploadPhoto = invitation.photoUploadMode === "presigned" ? uploadPresigned : upload;
-          const blob = await uploadPhoto(`reviews/pending/${invitation.uploadKey}/${ready.name}`, ready, {
+          // A previous upload may have succeeded even if its response was lost.
+          // Use a fresh path on retry instead of trying to overwrite that blob.
+          const extension = ready.type === "image/jpeg" ? "jpg" : "webp";
+          const blob = await uploadPhoto(`reviews/pending/${invitation.uploadKey}/${crypto.randomUUID()}.${extension}`, ready, {
             access: "public",
             handleUploadUrl: "/api/reviews/upload",
             clientPayload: JSON.stringify({ token }),

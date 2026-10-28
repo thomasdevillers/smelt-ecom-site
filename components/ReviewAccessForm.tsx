@@ -37,7 +37,7 @@ export default function ReviewAccessForm() {
       <p>Enter the email address used at checkout. We’ll confirm your completed order before opening the review form. Leave one honest order review with photos of your hats and get R50 back for every hat you bought. Every rating counts.</p>
     </div>
     <form className={styles.form} onSubmit={submit}>
-      <label>Order email<input required autoComplete="email" inputMode="email" pattern="[^\\s@]+@[^\\s@]+\\.[^\\s@]+" maxLength={254} value={email} onChange={event => setEmail(event.target.value)} placeholder="you@example.com" /></label>
+      <label>Order email<input type="email" required autoComplete="email" inputMode="email" maxLength={254} value={email} onChange={event => setEmail(event.target.value)} placeholder="you@example.com" /></label>
       {error && <p className={styles.error} role="alert">{error}</p>}
       <button className={styles.submit} disabled={busy}>{busy ? "Checking your order…" : "Continue to review →"}</button>
       <p className={styles.privacy}>We only use your email to find your order. It will never appear with your review.</p>

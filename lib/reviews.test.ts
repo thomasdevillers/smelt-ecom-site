@@ -21,22 +21,23 @@ const mocks = vi.hoisted(() => {
       if (script.includes("SISMEMBER")) {
         const paths = uploadPaths.get(keys[0]) ?? new Set<string>();
         if (paths.has(args[0])) return 1;
-        if (paths.size >= 3) return 0;
+        if (paths.size >= 12) return 0;
         paths.add(args[0]); uploadPaths.set(keys[0], paths); return 1;
       }
       if (!strings.has(keys[0]) || strings.get(keys[1]) !== args[0]) return -1;
-      if (strings.has(keys[2])) return 0;
+      if (strings.has(keys[2]) || strings.has(keys[5])) return 0;
       strings.set(keys[2], args[1]);
+      strings.set(keys[5], args[1]);
       const hash = hashes.get(keys[3]) || new Map<string, unknown>();
       hash.set(args[1], args[2]); hashes.set(keys[3], hash);
       return 1;
     }),
   };
-  return { strings, hashes, counts, uploadPaths, db, paidOrder: vi.fn(), paidOrdersByEmail: vi.fn(), blobDelete: vi.fn() };
+  return { strings, hashes, counts, uploadPaths, db, paidOrder: vi.fn(), paidOrdersByEmail: vi.fn(), blobDelete: vi.fn(), blobHead: vi.fn() };
 });
 
 vi.mock("@upstash/redis", () => ({ Redis: class { constructor() { return mocks.db; } } }));
-vi.mock("@vercel/blob", () => ({ del: mocks.blobDelete }));
+vi.mock("@vercel/blob", () => ({ del: mocks.blobDelete, head: mocks.blobHead }));
 vi.mock("./admin/orders", () => ({ completionKey: () => "orders:completed", getPaidOrder: mocks.paidOrder, findPaidOrdersByEmail: mocks.paidOrdersByEmail }));
 
 import {
@@ -53,6 +54,7 @@ import {
 import { photoFromInvitation, reviewSummary, validateReviewSubmission, type PublicReview } from "./reviews";
 import { POST as reviewAccessPOST } from "@/app/api/reviews/access/route";
 import { POST as reviewPOST } from "@/app/api/reviews/route";
+import { digest } from "./admin/store";
 
 const order = {
   reference: "order-1", email: "customer@example.com", name: "Tumi Customer",
@@ -68,6 +70,7 @@ beforeEach(() => {
   vi.stubEnv("BLOB_STORE_ID", "");
   vi.stubEnv("BLOB_WEBHOOK_PUBLIC_KEY", "");
   mocks.paidOrder.mockResolvedValue(order);
+  mocks.blobHead.mockImplementation(async (url: string) => ({ pathname: new URL(url).pathname.slice(1), size: 1000, contentType: url.endsWith(".jpg") ? "image/jpeg" : "image/webp" }));
   mocks.paidOrdersByEmail.mockResolvedValue([order]);
   mocks.hashes.set("orders:completed", new Map([["order-1", "2026-09-17T12:00:00.000Z"]]));
 });
@@ -133,6 +136,52 @@ describe("review invitations and verified submission", () => {
     expect((await getPublicInvitation(token)).used).toBe(true);
   });
 
+  it("does not create a replacement invitation after an order has been reviewed", async () => {
+    const { token, visible } = await invitation();
+    await submitReview(token, { rating: 5, body: "Love the fit.", displayName: "Tumi", photoUrls: [photoUrl(visible.uploadKey!)], consent: true });
+    await expect(createReviewInvitation("order-1")).rejects.toThrow("already been submitted");
+    expect(await listReviewRecords()).toHaveLength(1);
+  });
+
+  it("protects existing review records that predate order-level duplicate claims", async () => {
+    const { token, visible } = await invitation();
+    const input = { rating: 5, body: "Love the fit.", displayName: "Tumi", photoUrls: [photoUrl(visible.uploadKey!)], consent: true };
+    await submitReview(token, input);
+    mocks.strings.delete(`smelt:reviews:v1:test:claim:${digest(token)}`);
+    mocks.strings.delete(`smelt:reviews:v1:test:order:${digest("order-1")}:review`);
+    await expect(submitReview(token, input)).rejects.toThrow("already been submitted");
+    expect(await listReviewRecords()).toHaveLength(1);
+  });
+
+  it("rejects a second order claim that arrives while payment is being rechecked", async () => {
+    const { token, visible } = await invitation();
+    mocks.paidOrder.mockImplementationOnce(async () => {
+      mocks.strings.set(`smelt:reviews:v1:test:order:${digest("order-1")}:review`, "concurrent-review");
+      return order;
+    });
+    await expect(submitReview(token, { rating: 5, body: "Love the fit.", displayName: "Tumi", photoUrls: [photoUrl(visible.uploadKey!)], consent: true })).rejects.toThrow("already been used");
+    expect(await listReviewRecords()).toHaveLength(0);
+  });
+
+  it("does not accept missing or oversized photos or consume the invitation", async () => {
+    const { token, visible } = await invitation();
+    const input = { rating: 5, body: "Great hat", displayName: "Tumi", photoUrls: [photoUrl(visible.uploadKey!)], consent: true };
+    mocks.blobHead.mockRejectedValueOnce(new Error("Blob not found"));
+    await expect(submitReview(token, input)).rejects.toThrow("photo");
+    mocks.blobHead.mockResolvedValueOnce({ pathname: `reviews/pending/${visible.uploadKey}/photo.webp`, size: 6 * 1024 * 1024, contentType: "image/webp" });
+    await expect(submitReview(token, input)).rejects.toThrow("photo");
+    expect((await getPublicInvitation(token)).used).toBe(false);
+    expect(await listReviewRecords()).toHaveLength(0);
+    await expect(submitReview(token, input)).resolves.toMatchObject({ status: "pending" });
+  });
+
+  it.each(["null", "[]", "{invalid"])("returns a validation error for malformed JSON input: %s", async raw => {
+    const response = await reviewPOST(new Request("https://saunahat.co.za/api/reviews", {
+      method: "POST", headers: { origin: "https://saunahat.co.za", "content-type": "application/json" }, body: raw,
+    }));
+    expect(response.status).toBe(400);
+  });
+
   it("does not accept the verified label when Paystack no longer confirms the order", async () => {
     const { token, visible } = await invitation();
     mocks.paidOrder.mockRejectedValueOnce(new Error("payment reversed"));
@@ -152,7 +201,7 @@ describe("review invitations and verified submission", () => {
     expect(result).not.toHaveProperty("voucher");
     expect((await listReviewRecords())[0]).toMatchObject({ rating, rewardType: "manual_refund", status: "pending", incentivized: true });
     expect([...mocks.strings.keys()]).not.toEqual(expect.arrayContaining([expect.stringContaining("smelt:vouchers:")]));
-    expect(mocks.db.eval.mock.calls.at(-1)?.[1]).toHaveLength(5);
+    expect(mocks.db.eval.mock.calls.at(-1)?.[1]).toHaveLength(6);
   });
 
   it("rejects photo-free API submissions and accepts a review with photos without returning a voucher", async () => {
@@ -177,7 +226,7 @@ describe("review photos and moderation", () => {
     expect(visible).toMatchObject({ photoUploadsEnabled: true, photoUploadMode: "presigned" });
   });
 
-  it("accepts only invitation-scoped Blob photos and caps upload authorization at three", async () => {
+  it("accepts only invitation-scoped Blob photos and allows bounded upload retries", async () => {
     const { token, visible } = await invitation();
     const pathname = `reviews/pending/${visible.uploadKey}/photo.webp`;
     const url = `https://store.public.blob.vercel-storage.com/${pathname}`;
@@ -203,7 +252,9 @@ describe("review photos and moderation", () => {
     await reservePhotoUpload(token, pathname); await reservePhotoUpload(token, pathname);
     await reservePhotoUpload(token, pathname.replace("photo.webp", "second.webp"));
     await reservePhotoUpload(token, pathname.replace("photo.webp", "third.webp"));
-    await expect(reservePhotoUpload(token, pathname.replace("photo.webp", "fourth.webp"))).rejects.toThrow("three photo uploads");
+    await expect(reservePhotoUpload(token, pathname.replace("photo.webp", "fourth.webp"))).resolves.toBe(visible.uploadKey);
+    for (let i = 5; i <= 12; i++) await reservePhotoUpload(token, pathname.replace("photo.webp", `${i}.webp`));
+    await expect(reservePhotoUpload(token, pathname.replace("photo.webp", "13.webp"))).rejects.toThrow("Too many photo upload attempts");
     await expect(reservePhotoUpload(token, pathname)).resolves.toBe(visible.uploadKey);
   });
 

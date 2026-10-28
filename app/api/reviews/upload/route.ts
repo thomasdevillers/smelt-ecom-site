@@ -1,6 +1,6 @@
 import { issueSignedToken } from "@vercel/blob";
 import { handleUpload, handleUploadPresigned, type HandleUploadBody, type HandleUploadPresignedBody } from "@vercel/blob/client";
-import { AdminError, requireSameOrigin } from "@/lib/admin/store";
+import { AdminError, readAdminBody, requireSameOrigin } from "@/lib/admin/store";
 import { reservePhotoUpload } from "@/lib/reviewStore";
 import { REVIEW_MAX_PHOTO_BYTES, REVIEW_UPLOAD_PHOTO_TYPES } from "@/lib/reviews";
 
@@ -8,13 +8,25 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as HandleUploadBody | HandleUploadPresignedBody;
-    if (body.type !== "blob.generate-client-token" && body.type !== "blob.generate-presigned-url")
-      throw new AdminError("Invalid upload request.");
     requireSameOrigin(request);
+    const input = await readAdminBody(request);
+    if (input.type !== "blob.generate-client-token" && input.type !== "blob.generate-presigned-url")
+      throw new AdminError("Invalid upload request.");
+    const payload = input.payload;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new AdminError("Invalid upload request.");
+    const fields = payload as Record<string, unknown>;
+    if (typeof fields.pathname !== "string" || typeof fields.multipart !== "boolean" ||
+      !(fields.clientPayload === null || typeof fields.clientPayload === "string")) throw new AdminError("Invalid upload request.");
+    const body: HandleUploadBody | HandleUploadPresignedBody = {
+      type: input.type,
+      payload: { pathname: fields.pathname, multipart: fields.multipart, clientPayload: fields.clientPayload },
+    };
 
     const readReviewToken = (clientPayload: string | null) => {
-      try { return JSON.parse(clientPayload || "{}").token || ""; }
+      try {
+        const token: unknown = JSON.parse(clientPayload || "{}")?.token;
+        return typeof token === "string" ? token : "";
+      }
       catch { return ""; }
     };
 
@@ -57,7 +69,7 @@ export async function POST(request: Request) {
             };
           },
         });
-    return Response.json(result);
+    return Response.json(result, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     if (error instanceof AdminError) return Response.json({ error: error.message }, { status: error.status, headers: { "Cache-Control": "no-store" } });
     console.error("Review photo upload failed", error instanceof Error ? error.name : "Unknown error");

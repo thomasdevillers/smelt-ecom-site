@@ -25,14 +25,14 @@ describe("review photo delivery", () => {
     expect(mocks.getReviewPhoto).toHaveBeenCalledTimes(1);
   });
 
-  it("streams an approved private photo and prevents caching across moderation changes", async () => {
+  it("delivers an approved private photo and prevents caching across moderation changes", async () => {
     mocks.getReviewPhoto.mockResolvedValue(photo);
     const response = await request();
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("photo bytes");
     expect(response.headers.get("content-type")).toBe("image/webp");
     expect(response.headers.get("cache-control")).toBe("private, no-store");
-    expect(mocks.get).toHaveBeenCalledWith(photo.url, { access: "private" });
+    expect(mocks.get).toHaveBeenCalledWith(photo.url, expect.objectContaining({ access: "private", abortSignal: expect.any(AbortSignal) }));
     expect(mocks.hasAdminSession).not.toHaveBeenCalled();
   });
 
@@ -47,7 +47,7 @@ describe("review photo delivery", () => {
     const publicPhoto = { url: photo.url.replace(".private.", ".public.") };
     mocks.getReviewPhoto.mockResolvedValue(publicPhoto);
     expect((await request()).status).toBe(200);
-    expect(mocks.get).toHaveBeenCalledWith(publicPhoto.url, { access: "public" });
+    expect(mocks.get).toHaveBeenCalledWith(publicPhoto.url, expect.objectContaining({ access: "public" }));
   });
 
   it("serves JPEG fallback photos with the correct content type", async () => {
@@ -55,5 +55,31 @@ describe("review photo delivery", () => {
     const response = await request();
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("image/jpeg");
+  });
+
+  it("returns a retryable failure when the upstream photo stream breaks", async () => {
+    mocks.getReviewPhoto.mockResolvedValue(photo);
+    mocks.get.mockResolvedValue({ statusCode: 200, stream: new ReadableStream({ start(controller) { controller.error(new Error("read ECONNRESET")); } }) });
+    expect((await request()).status).toBe(503);
+  });
+
+  it("rejects a photo body larger than the permitted upload size", async () => {
+    mocks.getReviewPhoto.mockResolvedValue(photo);
+    mocks.get.mockResolvedValue({ statusCode: 200, stream: new Response(new Uint8Array(5 * 1024 * 1024 + 1)).body });
+    expect((await request()).status).toBe(503);
+  });
+
+  it("cancels a stalled upstream photo when its timeout expires", async () => {
+    const controller = new AbortController();
+    const timeout = vi.spyOn(AbortSignal, "timeout").mockReturnValue(controller.signal);
+    const cancel = vi.fn();
+    mocks.getReviewPhoto.mockResolvedValue(photo);
+    mocks.get.mockImplementation(async () => ({ statusCode: 200, stream: new ReadableStream({
+      pull() { controller.abort(new Error("Photo timed out")); }, cancel,
+    }, { highWaterMark: 0 }) }));
+    try {
+      expect((await request()).status).toBe(503);
+      expect(cancel).toHaveBeenCalledOnce();
+    } finally { timeout.mockRestore(); }
   });
 });

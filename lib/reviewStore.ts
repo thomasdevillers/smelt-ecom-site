@@ -1,10 +1,12 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { del } from "@vercel/blob";
+import { del, head } from "@vercel/blob";
 import { AdminError, adminStore, digest } from "./admin/store";
 import { completionKey, findPaidOrdersByEmail, getPaidOrder } from "./admin/orders";
 import { PRODUCT, type Colour } from "./product";
 import {
   REVIEW_INVITATION_DAYS,
+  REVIEW_MAX_PHOTO_BYTES,
+  REVIEW_MAX_PHOTOS,
   REVIEW_PRODUCT_ID,
   photoFromInvitation,
   publicReview,
@@ -22,6 +24,7 @@ const statusKey = (status: ReviewStatus) => `${prefix()}:status:${status}`;
 const inviteKey = (tokenDigest: string) => `${prefix()}:invite:${tokenDigest}`;
 const currentInviteKey = (reference: string) => `${prefix()}:order:${digest(reference)}:invite`;
 const claimKey = (tokenDigest: string) => `${prefix()}:claim:${tokenDigest}`;
+const orderClaimKey = (reference: string) => `${prefix()}:order:${digest(reference)}:review`;
 const uploadPathsKey = (tokenDigest: string) => `${prefix()}:upload-paths:${tokenDigest}`;
 const accessRateKey = (value: string) => `${prefix()}:access-rate:${digest(value)}`;
 
@@ -69,6 +72,8 @@ export async function createReviewInvitation(reference: string) {
   const db = adminStore();
   if (!await db.hget<string>(completionKey(), reference))
     throw new AdminError("Mark this order complete before creating a review link.", 409);
+  if (await hasReviewForOrder(reference))
+    throw new AdminError("A review has already been submitted for this order.", 409);
   const token = randomBytes(32).toString("base64url");
   const tokenDigest = digest(token);
   const createdAt = new Date();
@@ -138,12 +143,13 @@ async function invitationForToken(token: string): Promise<{ invitation: ReviewIn
   const db = adminStore();
   const invitation = parseStored(await db.get<ReviewInvitation>(inviteKey(tokenDigest)));
   if (!invitation || Date.parse(invitation.expiresAt) <= Date.now()) return null;
-  const [current, claim] = await Promise.all([
+  const [current, claim, orderClaim] = await Promise.all([
     db.get<string>(currentInviteKey(invitation.reference)),
     db.get(claimKey(tokenDigest)),
+    db.get(orderClaimKey(invitation.reference)),
   ]);
   if (current !== tokenDigest) return null;
-  return { invitation, tokenDigest, used: Boolean(claim) };
+  return { invitation, tokenDigest, used: Boolean(claim || orderClaim) };
 }
 
 export async function getPublicInvitation(token: string): Promise<PublicInvitation> {
@@ -171,11 +177,11 @@ export async function reservePhotoUpload(token: string, pathname: string) {
     throw new AdminError("Invalid photo path.");
   const allowed = await adminStore().eval(`
 if redis.call('SISMEMBER', KEYS[1], ARGV[1]) == 1 then return 1 end
-if redis.call('SCARD', KEYS[1]) >= 3 then return 0 end
+if redis.call('SCARD', KEYS[1]) >= ${REVIEW_MAX_PHOTOS * 4} then return 0 end
 redis.call('SADD', KEYS[1], ARGV[1])
 if redis.call('SCARD', KEYS[1]) == 1 then redis.call('EXPIRE', KEYS[1], 3600) end
 return 1`, [uploadPathsKey(found.tokenDigest)], [pathname]);
-  if (!allowed) throw new AdminError("This review already has three photo uploads.", 409);
+  if (!allowed) throw new AdminError("Too many photo upload attempts. Please try again in an hour.", 429);
   return found.invitation.uploadKey;
 }
 
@@ -183,7 +189,9 @@ const SUBMIT_REVIEW = `
 if redis.call('EXISTS', KEYS[1]) == 0 then return -1 end
 if redis.call('GET', KEYS[2]) ~= ARGV[1] then return -1 end
 if redis.call('EXISTS', KEYS[3]) == 1 then return 0 end
+if redis.call('EXISTS', KEYS[6]) == 1 then return 0 end
 redis.call('SET', KEYS[3], ARGV[2])
+redis.call('SET', KEYS[6], ARGV[2])
 redis.call('HSET', KEYS[4], ARGV[2], ARGV[3])
 redis.call('ZADD', KEYS[5], ARGV[4], ARGV[2])
 return 1`;
@@ -193,9 +201,20 @@ export async function submitReview(token: string, input: unknown) {
   if (!found) throw new AdminError("This review link is invalid or has expired.", 404);
   if (found.used)
     throw new AdminError("This review link has already been used.", 409);
+  // Include reviews created before the order-level claim was introduced.
+  if (await hasReviewForOrder(found.invitation.reference))
+    throw new AdminError("A review has already been submitted for this order.", 409);
   const submission = validateReviewSubmission(input);
   const photos = submission.photoUrls.map(url => photoFromInvitation(url, found.invitation.uploadKey));
   if (photos.some(photo => !photo)) throw new AdminError("One of the uploaded photos is not valid.");
+  await Promise.all(photos.map(async photo => {
+    let stored;
+    try { stored = await head(photo!.url, { abortSignal: AbortSignal.timeout(10_000) }); }
+    catch { throw new AdminError("One of your photos could not be verified. Please try submitting again.", 503); }
+    if (stored.pathname !== photo!.pathname || stored.size <= 0 || stored.size > REVIEW_MAX_PHOTO_BYTES ||
+      !["image/webp", "image/jpeg"].includes(stored.contentType))
+      throw new AdminError("One of the uploaded photos is not valid. Please choose a JPEG or WebP photo under 5 MB.");
+  }));
 
   // Recheck the provider when the review is submitted; an invitation alone is
   // not enough to retain the verified-purchase label after a payment reversal.
@@ -226,7 +245,7 @@ export async function submitReview(token: string, input: unknown) {
   const db = adminStore();
   const result = await db.eval(
     SUBMIT_REVIEW,
-    [inviteKey(found.tokenDigest), currentInviteKey(order.reference), claimKey(found.tokenDigest), recordsKey(), statusKey("pending")],
+    [inviteKey(found.tokenDigest), currentInviteKey(order.reference), claimKey(found.tokenDigest), recordsKey(), statusKey("pending"), orderClaimKey(order.reference)],
     [found.tokenDigest, id, JSON.stringify(review), String(Date.parse(submittedAt))],
   );
   if (result === 0) throw new AdminError("This review link has already been used.", 409);
