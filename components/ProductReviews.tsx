@@ -75,7 +75,7 @@ export default function ProductReviews() {
             <img src={photo.url} alt={`Smelt hat shared by ${review.displayName}`} loading="lazy" />
           </button>)}
         </div>}
-        <footer><strong>{review.displayName}</strong><span>{colourLabel(review.colours)} · {new Intl.DateTimeFormat("en-ZA", { month: "short", year: "numeric" }).format(new Date(review.publishedAt))}</span></footer>
+        <footer><strong>{review.displayName}</strong><span>{colourLabel(review.colours)}</span></footer>
       </article>)}
     </div></> : data ? <p className={ctaStyles.empty}>No reviews yet. Verified buyers can be the first to share their experience.</p> : <p className={ctaStyles.empty} role="status">Loading reviews…</p>}
 
