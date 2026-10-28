@@ -33,6 +33,7 @@ function status(receipt: ShippingReceipt | null) {
 function ReviewInvite({ reference, customerName, phone, sentAt, onSent, onExpired }: { reference: string; customerName: string; phone?: string; sentAt: string | null; onSent: (sentAt: string) => void; onExpired: () => void }) {
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState("");
+  const [photosRequired, setPhotosRequired] = useState(true);
   const [message, setMessage] = useState("");
   async function markSent() {
     setBusy(true); setMessage("");
@@ -44,11 +45,12 @@ function ReviewInvite({ reference, customerName, phone, sentAt, onSent, onExpire
       setMessage(caught instanceof Error ? caught.message : "Could not save the sent date. Please try again.");
     } finally { setBusy(false); }
   }
-  async function create() {
+  async function create(requirePhotos: boolean) {
     setBusy(true); setMessage("");
     try {
-      const result = await api<{ reviewUrl: string }>("reviews", { method: "POST", body: JSON.stringify({ reference }) });
+      const result = await api<{ reviewUrl: string; photosRequired: boolean }>("reviews", { method: "POST", body: JSON.stringify({ reference, photosRequired: requirePhotos }) });
       setUrl(result.reviewUrl);
+      setPhotosRequired(result.photosRequired);
       try { await navigator.clipboard.writeText(result.reviewUrl); setMessage("New link copied. It replaces any older review link for this order."); }
       catch { setMessage("New link created. Copy it below."); }
     } catch (caught) {
@@ -56,9 +58,11 @@ function ReviewInvite({ reference, customerName, phone, sentAt, onSent, onExpire
       setMessage(caught instanceof Error ? caught.message : "Could not create a review link.");
     } finally { setBusy(false); }
   }
-  const whatsappUrl = url && phone ? reviewWhatsAppUrl({ phone, customerName, reviewUrl: url }) : null;
+  const whatsappUrl = url && phone ? reviewWhatsAppUrl({ phone, customerName, reviewUrl: url, photosRequired }) : null;
   return <div className={styles.reviewInvite}>
-    <button type="button" className={styles.secondary} disabled={busy} onClick={() => void create()}>{busy ? "Creating…" : url ? "Replace review link" : "Create review link"}</button>
+    <button type="button" className={styles.secondary} disabled={busy} onClick={() => void create(true)}>{busy ? "Please wait…" : "Create review link (photos required)"}</button>
+    <button type="button" className={styles.secondary} disabled={busy} onClick={() => void create(false)}>{busy ? "Please wait…" : "Create review link (photos optional)"}</button>
+    {url && <p className={styles.note}>{photosRequired ? "Photos required for this link." : "Photos optional for this link. R50 back per hat, with or without photos."}</p>}
     {url && <div><input aria-label="Review invitation link" readOnly value={url} onFocus={event => event.currentTarget.select()} /><button type="button" onClick={() => void navigator.clipboard.writeText(url).then(() => setMessage("Link copied."), () => setMessage("Select and copy the link manually."))}>Copy</button></div>}
     {whatsappUrl && <a className={styles.whatsappLink} href={whatsappUrl} target="_blank" rel="noreferrer" aria-label={`WhatsApp ${customerName || "customer"} with their review link`}>WhatsApp customer ↗</a>}
     {url && !whatsappUrl && <p className={styles.note}>No valid customer phone number is available for WhatsApp.</p>}

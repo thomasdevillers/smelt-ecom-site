@@ -56,7 +56,9 @@ The manual CLI now also checks shared receipts when Redis is configured. Always 
 
 ## Storage and recovery
 
-For completed orders, **Create review link** and **WhatsApp customer** prepare a personal message offering R50 back per hat purchased in that order, for an honest review with photos. Send it in WhatsApp, then click **Mark review message sent** on the order. This saves **Review message sent** with the date in South African time. Creating, copying or opening a link does not mark it as sent. The first confirmed date survives refreshes, repeat confirmations and replacement links; this is your manual record, not a WhatsApp delivery receipt.
+For completed orders, **Create review link (photos required)** and **WhatsApp customer** prepare a personal message offering R50 back per hat purchased in that order, for an honest review with photos. Send it in WhatsApp, then click **Mark review message sent** on the order. This saves **Review message sent** with the date in South African time. Creating, copying or opening a link does not mark it as sent. The first confirmed date survives refreshes, repeat confirmations and replacement links; this is your manual record, not a WhatsApp delivery receipt.
+
+Use **Create review link (photos required)** for the standard invitation, or **Create review link (photos optional)** for a customer who prefers to leave a written review. The custom link still offers R50 back per hat, with or without photos. Its form and WhatsApp message make photos optional, and the customer can submit even when photo uploads are unavailable. Creating either type replaces any older review link for that order. Existing invitations and public email-based review access continue to require photos.
 
 - `smelt:orders:completed:v1:live` / `test`: persistent completion timestamps by payment reference, separated by payment mode.
 - `smelt:orders:review-message-sent:v1:live` / `test`: persistent first manually confirmed review-message timestamps by payment reference.

@@ -24,4 +24,13 @@ describe("review WhatsApp links", () => {
   it("does not create a link for a missing or invalid phone number", () => {
     expect(reviewWhatsAppUrl({ phone: "", customerName: "Tumi", reviewUrl: "https://example.com/review" })).toBeNull();
   });
+
+  it("makes photos optional in the custom invitation while retaining the R50-per-hat offer", () => {
+    const result = reviewWhatsAppUrl({ phone: "0837875826", customerName: "Tumi", reviewUrl: "https://example.com/review/custom-token", photosRequired: false });
+    const message = new URL(result!).searchParams.get("text");
+    expect(message).toContain("Photos are completely optional.");
+    expect(message).toContain("R50 per hat");
+    expect(message).toContain("https://example.com/review/custom-token");
+    expect(message).not.toContain("review with photos");
+  });
 });

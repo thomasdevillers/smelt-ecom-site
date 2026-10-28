@@ -8,7 +8,7 @@ import { encodeReviewPhoto } from "@/lib/reviewPhotoEncoding";
 import type { Colour } from "@/lib/product";
 import styles from "./ReviewForm.module.css";
 
-type Invitation = { valid: boolean; used: boolean; suggestedName?: string; colours?: Colour[]; uploadKey?: string; photoUploadsEnabled?: boolean; photoUploadMode?: "presigned" | "client-token"; error?: string };
+type Invitation = { valid: boolean; used: boolean; suggestedName?: string; colours?: Colour[]; uploadKey?: string; photoUploadsEnabled?: boolean; photoUploadMode?: "presigned" | "client-token"; photosRequired?: boolean; error?: string };
 
 async function reencodePhoto(file: File): Promise<File> {
   const image = document.createElement("img");
@@ -44,6 +44,7 @@ export default function ReviewForm({ token }: { token: string }) {
   const preparedPhotos = useRef(new WeakMap<File, Promise<File>>());
   const uploadedPhotos = useRef(new WeakMap<File, string>());
   const previews = useMemo(() => files.map(file => URL.createObjectURL(file)), [files]);
+  const photosRequired = invitation?.photosRequired !== false;
 
   useEffect(() => () => { previews.forEach(URL.revokeObjectURL); }, [previews]);
   useEffect(() => {
@@ -80,8 +81,8 @@ export default function ReviewForm({ token }: { token: string }) {
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!invitation?.uploadKey || busy) return;
-    if (!invitation.photoUploadsEnabled) return setError("Photo uploads are temporarily unavailable. Please try again a little later.");
-    if (files.length === 0) return setError("Add at least one photo of your hats to qualify for the refund.");
+    if ((photosRequired || files.length > 0) && !invitation.photoUploadsEnabled) return setError("Photo uploads are temporarily unavailable. Please try again a little later.");
+    if (photosRequired && files.length === 0) return setError("Add at least one photo of your hats to qualify for the refund.");
     setBusy(true); setError("");
     try {
       let completed = 0;
@@ -129,25 +130,25 @@ export default function ReviewForm({ token }: { token: string }) {
 
   if (!invitation) return <main className={styles.page}><p className={styles.loading} role="status">Opening your review form…</p></main>;
   if (!invitation.valid || invitation.used) return <main className={styles.page}><section className={styles.message}><span>SMELT / REVIEW</span><h1>{invitation.used ? "Review received." : "This link has cooled off."}</h1><p>{invitation.used ? "This invitation has already been used. Thank you for sharing your experience." : invitation.error || "The review link is invalid or has expired."}</p><Link href="/product">Back to the hat →</Link></section></main>;
-  if (done) return <main className={styles.page}><section className={styles.message}><span>WARM REGARDS</span><h1>A little feedback. A little back.</h1><p>Your review and hat photos are in. Thank you for putting your sauna sessions on record.</p><div className={styles.upload}><strong>R50 back. For every hat.</strong><span>We&rsquo;ll work out your refund and return it to your original payment method within a couple of days.</span></div><p>Every rating counts. Your refund does not depend on whether your review is published.</p><Link href="/product#reviews">Visit the product page →</Link></section></main>;
+  if (done) return <main className={styles.page}><section className={styles.message}><span>WARM REGARDS</span><h1>A little feedback. A little back.</h1><p>{files.length ? "Your review and hat photos are in." : "Your review is in."} Thank you for putting your sauna sessions on record.</p><div className={styles.upload}><strong>R50 back. For every hat.</strong><span>We&rsquo;ll work out your refund and return it to your original payment method within a couple of days.</span></div><p>Every rating counts. Your refund does not depend on whether your review is published.</p><Link href="/product#reviews">Visit the product page →</Link></section></main>;
 
   return <main className={styles.page}>
-    <div className={styles.intro}><span>SMELT / VERIFIED PURCHASE</span><h1>How did we do?</h1><p>One honest review of your order, photos of your hats, and R50 back for every hat you bought. Every rating counts.</p></div>
+    <div className={styles.intro}><span>SMELT / VERIFIED PURCHASE</span><h1>How did we do?</h1><p>{photosRequired ? "One honest review of your order, photos of your hats, and R50 back for every hat you bought." : "One honest review of your order and R50 back for every hat you bought. Photos are completely optional."} Every rating counts.</p></div>
     <form className={styles.form} onSubmit={submit}>
       <fieldset className={styles.rating}><legend>Your rating</legend><div>{[1,2,3,4,5].map(star => <button type="button" key={star} aria-label={`${star} star${star === 1 ? "" : "s"}`} aria-pressed={rating === star} onClick={() => setRating(star)} className={star <= rating ? styles.starOn : ""}>★</button>)}</div></fieldset>
       <label>Tell us about it<textarea required minLength={3} maxLength={1600} rows={7} value={body} onChange={event => setBody(event.target.value)} placeholder="Fit, feel, colour, sauna sessions — whatever mattered to you." /><small>{body.length}/1600</small></label>
       <label>Display name<input required={!anonymous} disabled={anonymous} maxLength={60} value={displayName} onChange={event => setDisplayName(event.target.value)} placeholder="First name is perfect" /></label>
       <label className={styles.check}><input type="checkbox" checked={anonymous} onChange={event => setAnonymous(event.target.checked)} />Publish my review anonymously</label>
-      {invitation.photoUploadsEnabled ? <div className={styles.upload}><label htmlFor="review-photos">Add photos of your hats <span>Required · 1 to 3 photos · JPEG, PNG or WebP · 5 MB each</span></label><input id="review-photos" type="file" accept="image/jpeg,image/png,image/webp" multiple required={files.length === 0} disabled={busy} onChange={event => chooseFiles(event.target.files)} />
+      {invitation.photoUploadsEnabled ? <div className={styles.upload}><label htmlFor="review-photos">Add photos of your hats <span>{photosRequired ? "Required · 1 to 3 photos" : "Optional · Up to 3 photos"} · JPEG, PNG or WebP · 5 MB each</span></label><input id="review-photos" type="file" accept="image/jpeg,image/png,image/webp" multiple required={photosRequired && files.length === 0} disabled={busy} onChange={event => chooseFiles(event.target.files)} />
         {previews.length > 0 && <div className={styles.previews}>{previews.map((source, index) => <div key={source}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={source} alt={`Selected review photo ${index + 1}`} />
           <button type="button" disabled={busy} onClick={() => setFiles(current => current.filter((_, i) => i !== index))} aria-label={`Remove photo ${index + 1}`}>×</button>
         </div>)}</div>}
-      </div> : <p className={styles.privacy} role="status">Photo uploads are temporarily unavailable. Hat photos are required for your review and refund, so please try again a little later.</p>}
+      </div> : <p className={styles.privacy} role="status">{photosRequired ? "Photo uploads are temporarily unavailable. Hat photos are required for your review and refund, so please try again a little later." : "Photo uploads are temporarily unavailable. You can still submit your review without photos."}</p>}
       <label className={styles.check}><input required type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} />I confirm this is my experience and allow Smelt to publish my review, display name and submitted photos. I can request removal later.</label>
       {error && <p className={styles.error} role="alert">{error}</p>}
-      <button className={styles.submit} disabled={busy || rating === 0 || !consent || files.length === 0 || !invitation.photoUploadsEnabled}>{busy ? progress || "Sending…" : "Submit review →"}</button>
+      <button className={styles.submit} disabled={busy || rating === 0 || !consent || (photosRequired && files.length === 0) || ((photosRequired || files.length > 0) && !invitation.photoUploadsEnabled)}>{busy ? progress || "Sending…" : "Submit review →"}</button>
       {busy && <p className={styles.privacy} role="status">{progress}</p>}
       <p className={styles.privacy}>Your email and order details are used to verify the purchase and are never displayed with your review.</p>
     </form>

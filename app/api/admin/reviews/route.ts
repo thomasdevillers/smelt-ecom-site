@@ -33,8 +33,9 @@ export async function POST(request: Request) {
     await requireAdmin();
     const body = await readAdminBody(request);
     if (typeof body.reference !== "string") throw new AdminError("An order reference is required.");
-    const invitation = await createReviewInvitation(body.reference);
-    return adminJson({ reviewUrl: new URL(`/review/${invitation.token}`, request.url).toString(), expiresAt: invitation.expiresAt }, 201);
+    if (body.photosRequired !== undefined && typeof body.photosRequired !== "boolean") throw new AdminError("Choose whether review photos are required.");
+    const invitation = await createReviewInvitation(body.reference, { photosRequired: body.photosRequired !== false });
+    return adminJson({ reviewUrl: new URL(`/review/${invitation.token}`, request.url).toString(), expiresAt: invitation.expiresAt, photosRequired: invitation.photosRequired }, 201);
   } catch (error) { return adminFailure(error); }
 }
 

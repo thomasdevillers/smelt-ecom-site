@@ -183,6 +183,22 @@ describe("admin access", () => {
 });
 
 describe("manual review-message tracking", () => {
+  it("stores the admin-selected photo requirement on the invitation", async () => {
+    mocks.cookies.get.mockReturnValue({ value: "a".repeat(64) });
+    mocks.get.mockImplementation(async key => key.startsWith("smelt:admin:session:") ? { credential: digest("a-long-test-password-for-admin") } : null);
+    mocks.hget.mockResolvedValue("2026-10-01T10:00:00.000Z");
+    for (const photosRequired of [false, true]) {
+      const response = await reviewsPOST(request({ reference: "order-1", photosRequired }));
+      expect(response.status).toBe(201);
+      expect(await response.json()).toMatchObject({ reviewUrl: expect.stringContaining("/review/"), photosRequired });
+      expect(mocks.set).toHaveBeenCalledWith(expect.stringContaining(":invite:"), expect.objectContaining({ reference: "order-1", photosRequired }), expect.any(Object));
+    }
+    const defaults = await reviewsPOST(request({ reference: "order-1" }));
+    expect(await defaults.json()).toMatchObject({ photosRequired: true });
+    expect((await reviewsPOST(request({ reference: "order-1", photosRequired: "false" }))).status).toBe(400);
+    expect(mocks.send).not.toHaveBeenCalled();
+  });
+
   it("retains the original send date on retries and returns it when orders reload", async () => {
     const saved = new Map<string, string>();
     const completedAt = "2026-10-01T10:00:00.000Z";

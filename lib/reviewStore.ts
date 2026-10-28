@@ -44,6 +44,7 @@ export interface ReviewInvitation {
   uploadKey: string;
   createdAt: string;
   expiresAt: string;
+  photosRequired?: boolean;
 }
 
 export interface PublicInvitation {
@@ -55,6 +56,7 @@ export interface PublicInvitation {
   uploadKey?: string;
   photoUploadsEnabled?: boolean;
   photoUploadMode?: "presigned" | "client-token";
+  photosRequired?: boolean;
 }
 
 function parseStored<T>(value: T | string | null): T | null {
@@ -67,7 +69,7 @@ function coloursFromOrder(items: Array<{ colour: string }>): Colour[] {
   return [...new Set(items.map(item => item.colour).filter((colour): colour is Colour => colour === "green" || colour === "cream"))];
 }
 
-export async function createReviewInvitation(reference: string) {
+export async function createReviewInvitation(reference: string, options: { photosRequired?: boolean } = {}) {
   const order = await getPaidOrder(reference);
   const db = adminStore();
   if (!await db.hget<string>(completionKey(), reference))
@@ -86,11 +88,12 @@ export async function createReviewInvitation(reference: string) {
     uploadKey: randomBytes(18).toString("base64url"),
     createdAt: createdAt.toISOString(),
     expiresAt: expiresAt.toISOString(),
+    photosRequired: options.photosRequired !== false,
   };
   const ttl = REVIEW_INVITATION_DAYS * 24 * 60 * 60;
   await db.set(inviteKey(tokenDigest), invitation, { ex: ttl });
   await db.set(currentInviteKey(reference), tokenDigest, { ex: ttl });
-  return { token, expiresAt: invitation.expiresAt, email: invitation.email, suggestedName: invitation.suggestedName };
+  return { token, expiresAt: invitation.expiresAt, email: invitation.email, suggestedName: invitation.suggestedName, photosRequired: invitation.photosRequired };
 }
 
 export async function hasCurrentReviewInvitation(reference: string): Promise<boolean> {
@@ -165,6 +168,8 @@ export async function getPublicInvitation(token: string): Promise<PublicInvitati
     uploadKey: found.invitation.uploadKey,
     photoUploadsEnabled: Boolean(photoUploadMode),
     photoUploadMode,
+    // Invitations issued before this setting was added still require photos.
+    photosRequired: found.invitation.photosRequired !== false,
   };
 }
 
@@ -204,7 +209,7 @@ export async function submitReview(token: string, input: unknown) {
   // Include reviews created before the order-level claim was introduced.
   if (await hasReviewForOrder(found.invitation.reference))
     throw new AdminError("A review has already been submitted for this order.", 409);
-  const submission = validateReviewSubmission(input);
+  const submission = validateReviewSubmission(input, { photosRequired: found.invitation.photosRequired !== false });
   const photos = submission.photoUrls.map(url => photoFromInvitation(url, found.invitation.uploadKey));
   if (photos.some(photo => !photo)) throw new AdminError("One of the uploaded photos is not valid.");
   await Promise.all(photos.map(async photo => {

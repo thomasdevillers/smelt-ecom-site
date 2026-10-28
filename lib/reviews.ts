@@ -63,7 +63,7 @@ export interface ReviewSubmission {
 
 const clean = (value: unknown) => typeof value === "string" ? value.trim() : "";
 
-export function validateReviewSubmission(input: unknown): ReviewSubmission {
+export function validateReviewSubmission(input: unknown, options: { photosRequired?: boolean } = {}): ReviewSubmission {
   const value = input && typeof input === "object" && !Array.isArray(input)
     ? input as Record<string, unknown>
     : {};
@@ -85,7 +85,7 @@ export function validateReviewSubmission(input: unknown): ReviewSubmission {
     throw new Error(`Add no more than ${REVIEW_MAX_PHOTOS} different photos.`);
   if (value.consent !== true)
     throw new Error("Please confirm that we may publish your review and photos.");
-  if (photoUrls.length === 0)
+  if (options.photosRequired !== false && photoUrls.length === 0)
     throw new Error("Add at least one photo of your hats to submit your review and qualify for the refund.");
 
   return { rating, body, displayName, anonymous, photoUrls, consent: true };

@@ -45,5 +45,7 @@ describe("repeat-customer order fulfilment", () => {
     const html = render({ ...order(), completedAt: "2026-10-01T10:00:00.000Z" });
     expect(html).toContain("Mark review message sent");
     expect(html).toContain("Mark this after you send the message in WhatsApp.");
+    expect(html).toContain("Create review link (photos required)");
+    expect(html).toContain("Create review link (photos optional)");
   });
 });

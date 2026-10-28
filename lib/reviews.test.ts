@@ -195,6 +195,45 @@ describe("review invitations and verified submission", () => {
     expect(await listReviewRecords()).toEqual([]);
   });
 
+  it.each([1, 5])("accepts a %i-star review without photos only for a custom optional-photo invitation", async rating => {
+    const created = await createReviewInvitation("order-1", { photosRequired: false });
+    vi.stubEnv("BLOB_READ_WRITE_TOKEN", "");
+    expect(await getPublicInvitation(created.token)).toMatchObject({ valid: true, photosRequired: false, photoUploadsEnabled: false });
+    const response = await reviewPOST(new Request("https://saunahat.co.za/api/reviews", {
+      method: "POST", headers: { origin: "https://saunahat.co.za", "content-type": "application/json" },
+      body: JSON.stringify({ token: created.token, rating, body: "My honest experience.", anonymous: true, photoUrls: [], consent: true }),
+    }));
+    expect(response.status).toBe(201);
+    expect(mocks.blobHead).not.toHaveBeenCalled();
+    expect((await listReviewRecords())[0]).toMatchObject({ rating, photos: [], rewardType: "manual_refund", status: "pending" });
+    expect((await getPublicInvitation(created.token)).used).toBe(true);
+  });
+
+  it("keeps photos required for old invitations and ignores attempts to waive them in a submission", async () => {
+    const { token } = await invitation();
+    const stored = mocks.strings.get(`smelt:reviews:v1:test:invite:${digest(token)}`) as { photosRequired?: boolean };
+    delete stored.photosRequired;
+    expect(await getPublicInvitation(token)).toMatchObject({ photosRequired: true });
+    await expect(submitReview(token, { rating: 5, body: "Great hat", displayName: "Tumi", photoUrls: [], consent: true, photosRequired: false })).rejects.toThrow("at least one photo");
+    expect((await getPublicInvitation(token)).used).toBe(false);
+  });
+
+  it("lets optional-photo invitations include photos and still verifies those uploads", async () => {
+    const created = await createReviewInvitation("order-1", { photosRequired: false });
+    const visible = await getPublicInvitation(created.token);
+    const url = photoUrl(visible.uploadKey!);
+    await submitReview(created.token, { rating: 4, body: "Good hat", displayName: "Tumi", photoUrls: [url], consent: true });
+    expect(mocks.blobHead).toHaveBeenCalledWith(url, expect.any(Object));
+    expect((await listReviewRecords())[0].photos).toHaveLength(1);
+  });
+
+  it("restores the photo requirement when a custom link is replaced by a standard link", async () => {
+    const optional = await createReviewInvitation("order-1", { photosRequired: false });
+    const standard = await createReviewInvitation("order-1");
+    expect((await getPublicInvitation(optional.token)).valid).toBe(false);
+    expect(await getPublicInvitation(standard.token)).toMatchObject({ valid: true, photosRequired: true });
+  });
+
   it.each([1, 3, 5])("records a manual refund review for a %i-star rating without issuing or queuing a voucher", async rating => {
     const { token, visible } = await invitation();
     const result = await submitReview(token, { rating, body: "My honest experience.", displayName: "Tumi", photoUrls: [photoUrl(visible.uploadKey!)], consent: true });
