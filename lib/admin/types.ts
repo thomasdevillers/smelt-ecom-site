@@ -23,7 +23,7 @@ export interface AdminOrder {
   items: OrderItem[];
   address: ShippingAddress;
   shippingMethod: string;
-  preorder?: import("../preorders").PreorderDetails;
+  preorder?: import("../legacyPreorders").PreorderDetails;
   canShip: boolean;
   reviewReason?: string;
   receipt: ShippingReceipt | null;
@@ -38,7 +38,6 @@ export interface OrdersPage {
   total: number;
   activeTotal: number;
   completedTotal: number;
-  preorderToFulfil: { cream: number; green: number };
 }
 
 export type AnalyticsDays = 7 | 28 | 90;

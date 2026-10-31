@@ -1,8 +1,8 @@
 "use client";
-import PreorderNotice from "@/components/PreorderNotice";
 import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/lib/cart";
+import { useAvailability } from "@/lib/useAvailability";
 import { PRODUCT, COLOURS } from "@/lib/product";
 import {
   bundleDiscount,
@@ -17,6 +17,7 @@ import styles from "./cart.module.css";
 
 export default function CartPage() {
   const { cart, dispatch, subtotal } = useCart();
+  const { stock, error: stockError, refresh } = useAvailability();
   const lines = COLOURS.filter((c) => cart[c] > 0);
   const freeShip = qualifiesForFreeShipping(cart.green + cart.cream);
   const delivery = shippingFee(cart.green + cart.cream);
@@ -38,6 +39,8 @@ export default function CartPage() {
           <div className={styles.lines}>
             {lines.map((c) => {
               const v = PRODUCT.variants[c];
+              const maxQuantity = stock ? stock[c] : 0;
+              const atStockLimit = stock !== null && cart[c] >= maxQuantity;
               return (
                 <div key={c} className={styles.line}>
                   <Image
@@ -64,9 +67,10 @@ export default function CartPage() {
                       <span>{cart[c]}</span>
                       <button
                         onClick={() =>
-                          dispatch({ type: "add", colour: c, qty: 1 })
+                          dispatch({ type: "add", colour: c, qty: 1, maxQuantity })
                         }
                         aria-label={`Increase ${v.name}`}
+                        disabled={stock === null || atStockLimit}
                       >
                         +
                       </button>
@@ -77,6 +81,8 @@ export default function CartPage() {
                         Remove
                       </button>
                     </div>
+                    {atStockLimit && <small role="status">Only {maxQuantity} available</small>}
+                    {stock === null && !stockError && <small role="status">Checking stock…</small>}
                   </div>
                   <div className={styles.lineTotal}>
                     {formatMoney(lineTotal(cart[c]))}
@@ -87,7 +93,7 @@ export default function CartPage() {
           </div>
 
           <aside className={styles.summary}>
-            <PreorderNotice />
+            {stockError && <p role="alert">{stockError} <button onClick={() => void refresh()}>Retry</button></p>}
             <div className={styles.shipMsg}>
               {freeShip
                 ? "Free shipping unlocked. Warm regards."

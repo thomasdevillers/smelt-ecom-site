@@ -1,4 +1,3 @@
-import { PREORDER_MODE } from "./salesMode";
 import { randomUUID } from "node:crypto";
 import { Redis } from "@upstash/redis";
 import type { CartState } from "./cartReducer";
@@ -95,7 +94,7 @@ function snapshot(result: unknown): InventorySnapshot {
 export async function getInventory(): Promise<InventorySnapshot> {
   const k = keys();
   const result = await store().eval(READ_STOCK, [k.stock, k.reservations, k.expiries], [
-    Date.now(), (localStockTest() || PREORDER_MODE) ? 0 : INITIAL_STOCK.green, (localStockTest() || PREORDER_MODE) ? 0 : INITIAL_STOCK.cream,
+    Date.now(), localStockTest() ? 0 : INITIAL_STOCK.green, localStockTest() ? 0 : INITIAL_STOCK.cream,
   ]);
   return snapshot(result);
 }
@@ -109,7 +108,7 @@ export async function reserveInventory(cart: CartState, reservationId: string): 
   const result = await store().eval(
     RESERVE_STOCK,
     [k.stock, k.reservations, k.expiries],
-    [Date.now(), (localStockTest() || PREORDER_MODE) ? 0 : INITIAL_STOCK.green, (localStockTest() || PREORDER_MODE) ? 0 : INITIAL_STOCK.cream, reservationId, cart.green, cart.cream, Date.now() + RESERVATION_TTL_SECONDS * 1000],
+    [Date.now(), localStockTest() ? 0 : INITIAL_STOCK.green, localStockTest() ? 0 : INITIAL_STOCK.cream, reservationId, cart.green, cart.cream, Date.now() + RESERVATION_TTL_SECONDS * 1000],
   );
   const values = Array.isArray(result) ? result : [];
   return { reserved: Number(values[0]) === 1, stock: snapshot(values.slice(1)) };
@@ -121,7 +120,7 @@ export async function releaseInventory(reservationId: string): Promise<boolean> 
 }
 
 export async function commitInventory(reservationId: string, cart: CartState): Promise<boolean> {
-  if (reservationId.startsWith("smeltp-")) return (await import("./preorderStore")).commitPurchase(reservationId, cart);
+  if (reservationId.startsWith("smeltp-")) return (await import("./purchaseStore")).commitPurchase(reservationId, cart);
   const k = keys();
   return Number(await store().eval(
     COMMIT_STOCK,

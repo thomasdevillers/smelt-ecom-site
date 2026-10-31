@@ -32,7 +32,7 @@ Each request has bounded conversation length and a 700-token output limit. OpenA
 2. Ask about fit, cleaning and delivery using the suggested questions.
 3. Ask a follow-up, such as “And what about the cream one?” after a product question.
 4. Ask about the price for two hats. Confirm the answer matches the product controls and free express delivery.
-5. Ask when a pre-order will arrive. Confirm it uses the current estimate and distinguishes arrival from delivery.
+5. Ask when an order will arrive. Confirm it distinguishes dispatch time from courier transit and checks current stock.
 6. Ask to track a specific order. Confirm it offers contact with the founders and does not invent a tracking status.
 7. Verify keyboard focus, loading/error states, source links and **New chat**. Confirm purchasing still works while the panel is open.
 

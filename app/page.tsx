@@ -5,7 +5,6 @@ import FounderStory from "@/components/FounderStory";
 import Button from "@/components/ui/Button";
 import SectionLabel from "@/components/ui/SectionLabel";
 import { COLOURS, PRODUCT } from "@/lib/product";
-import { PREORDER_COPY, PREORDER_MODE } from "@/lib/salesMode";
 import styles from "./page.module.css";
 
 export const metadata = {
@@ -77,7 +76,7 @@ export default function Home() {
         <Button href="/product" variant="paper">Find your sauna hat <span aria-hidden="true">→</span></Button>
         <div className={styles.delivery}>
           <span>Ships nationwide from Cape Town.</span>
-          <span>{PREORDER_MODE ? PREORDER_COPY : "In-stock orders dispatched within 1–3 business days."}</span>
+          <span>{"In-stock orders dispatched within 1–3 business days."}</span>
           <Link href="/policies#shipping-policy">Delivery details</Link>
         </div>
       </section>

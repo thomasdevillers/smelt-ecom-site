@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import type { Availability } from './preorders';
+import type { Availability } from './availability';
 export function useAvailability() {
   const [stock, setStock] = useState<Availability | null>(null);
   const [error, setError] = useState('');
@@ -9,7 +9,7 @@ export function useAvailability() {
       const response = await fetch('/api/inventory', { cache: 'no-store' });
       if (!response.ok) throw new Error();
       const data = await response.json();
-      if (![data.green, data.cream, data.preorder?.green, data.preorder?.cream].every(n => Number.isSafeInteger(n) && n >= 0)) throw new Error();
+      if (![data.green, data.cream].every(n => Number.isSafeInteger(n) && n >= 0)) throw new Error();
       setStock(data); setError('');
     } catch { setStock(null); setError('We couldn’t check availability. Please try again.'); }
   }, []);

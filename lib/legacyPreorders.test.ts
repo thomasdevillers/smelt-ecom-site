@@ -1,15 +1,12 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { preorderQuantities, parsePreorder, preorderTiming, PREORDER_BATCH, PREORDER_ARRIVAL } from './preorders';
+import { parsePreorder, preorderTiming, LEGACY_PREORDER_BATCH } from './legacyPreorders';
 import { orderConfirmationEmail } from './emails/orderConfirmation';
 import { ownerOrderEmail } from './emails/ownerOrder';
 import { localStockTest, stockScope } from './stockEnvironment';
 afterEach(() => vi.unstubAllEnvs());
 describe('pre-order customer promise', () => {
-  it('only requests consent for quantities that cannot ship from current stock', () => {
-    expect(preorderQuantities({ green: 3, cream: 1 }, { green: 2, cream: 0 })).toEqual({ green: 1, cream: 1 });
-  });
   it('shows the shipping date in customer and owner confirmations', () => {
-    const preorder = { batch: PREORDER_BATCH, arrival: PREORDER_ARRIVAL, timing: 'dispatch' as const, quantities: { green: 2, cream: 0 } };
+    const preorder = { batch: LEGACY_PREORDER_BATCH, arrival: '22 October 2026', timing: 'dispatch' as const, quantities: { green: 2, cream: 0 } };
     const input = { reference: 'preorder', total: 'R900', items: [{ colour: 'green', name: 'Forest Green', qty: 2 }], preorder };
     const email = orderConfirmationEmail(input);
     const owner = ownerOrderEmail({ ...input, email: 'customer@example.com', customerName: 'Test', cart: { green: 2, cream: 0 }, address: null, shippingMethod: 'aramex', test: true });
@@ -26,12 +23,12 @@ describe('pre-order customer promise', () => {
     expect(email.text).not.toContain('Your hat is in stock');
   });
   it('preserves the original arrival promise for existing orders', () => {
-    const preorder = parsePreorder({ batch: PREORDER_BATCH, arrival: '15 October 2026', quantities: { green: 1, cream: 0 } })!;
+    const preorder = parsePreorder({ batch: LEGACY_PREORDER_BATCH, arrival: '15 October 2026', quantities: { green: 1, cream: 0 } })!;
     expect(preorderTiming(preorder)).toContain('Expected 15 October 2026. Delivery follows arrival.');
     expect(orderConfirmationEmail({ reference: 'existing', total: 'R450', items: [], preorder }).text).not.toContain('22 October');
   });
   it('rejects malformed pre-order descriptions', () => {
-    expect(parsePreorder({ batch: PREORDER_BATCH, arrival: PREORDER_ARRIVAL, quantities: { green: -1, cream: 0 } })).toBeUndefined();
+    expect(parsePreorder({ batch: LEGACY_PREORDER_BATCH, arrival: '22 October 2026', quantities: { green: -1, cream: 0 } })).toBeUndefined();
     expect(parsePreorder(null)).toBeUndefined();
   });
   it('isolates local zero-stock testing even when local credentials point to live services', () => {

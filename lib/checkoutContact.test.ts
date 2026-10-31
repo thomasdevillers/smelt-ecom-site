@@ -18,12 +18,12 @@ import { POST } from "@/app/api/checkout/route";
 import { initializeTransaction } from "@/lib/paystack";
 import { PRICING_VERSION } from "./pricing";
 import { reserveVoucher } from "@/lib/vouchers";
-vi.mock("@/lib/preorderStore", () => ({
+vi.mock("@/lib/purchaseStore", () => ({
   releaseRejectedPurchase: vi.fn(),
   reservePurchase: vi.fn().mockResolvedValue({ reserved: true }),
-  getAvailability: vi.fn().mockResolvedValue({ green: 0, cream: 13, preorder: { green: 0, cream: 0 } }),
+  getAvailability: vi.fn().mockResolvedValue({ green: 0, cream: 13 }),
 }));
-import { reservePurchase } from "@/lib/preorderStore";
+import { reservePurchase } from "@/lib/purchaseStore";
 import { ATTRIBUTION_WINDOW_MS, captureTouch, mergeAttribution } from "./attribution";
 const request = (address: unknown, extra: Record<string, unknown> = {}) => new Request("https://saunahat.co.za/api/checkout", {
   method: "POST", headers: { "Content-Type": "application/json", Origin: "https://saunahat.co.za" },
@@ -96,7 +96,7 @@ it.each([3, 4])("initializes the %i-hat bundle server-side for every colour mix"
     const cart = { green, cream: qty - green };
     const response = await POST(request({ phone: "0837875826" }, { cart, amount: 1, pricingVersion: "forged" }));
     expect(response.status).toBe(200);
-    expect(reservePurchase).toHaveBeenLastCalledWith(cart, expect.any(String), undefined);
+    expect(reservePurchase).toHaveBeenLastCalledWith(cart, expect.any(String));
     expect(initializeTransaction).toHaveBeenLastCalledWith(expect.objectContaining({
       amount: total,
       metadata: expect.objectContaining({ cart, unitPrice: 550, pricingVersion: PRICING_VERSION }),
@@ -107,4 +107,11 @@ it("applies the server-validated voucher after the mixed bundle discount", async
   const response = await POST(request({ phone: "0837875826" }, { cart: { green: 2, cream: 2 }, voucherCode: "SMELT-ABCDEFGHIJKL" }));
   expect(response.status).toBe(200);
   expect(initializeTransaction).toHaveBeenLastCalledWith(expect.objectContaining({ amount: 1950 }));
+});
+
+it("ignores obsolete preorder consent and never records it on new payments", async () => {
+  const response = await POST(request({ phone: "0837875826" }, { preorderConsent: { accepted: true, batch: "2026-10-22", quantities: { green: 99, cream: 99 } } }));
+  expect(response.status).toBe(200);
+  expect(reservePurchase).toHaveBeenLastCalledWith({ green: 1, cream: 0 }, expect.any(String));
+  expect(vi.mocked(initializeTransaction).mock.calls.at(-1)![0].metadata).not.toHaveProperty("preorder");
 });

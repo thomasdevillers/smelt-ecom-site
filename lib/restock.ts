@@ -2,10 +2,10 @@ import { adminStore, digest, AdminError } from './admin/store';
 import { normalizeWhatsAppPhone } from './whatsapp';
 import { stockScope } from './stockEnvironment';
 import { COLOURS, PRODUCT, type Colour } from './product';
-import { PREORDER_BATCH } from './preorders';
+import { LEGACY_PREORDER_BATCH } from './legacyPreorders';
 import { abs } from './seo';
 export interface RestockSignup { id: string; colour: Colour; phone: string; createdAt: string; notifiedAt: string | null; consent: string }
-const key = () => `smelt:restock:v1:${stockScope()}:${PREORDER_BATCH}`;
+const key = () => `smelt:restock:v1:${stockScope()}:${LEGACY_PREORDER_BATCH}`;
 export async function signupRestock(body: Record<string, unknown>, ip: string) {
   if (!COLOURS.includes(body.colour as Colour) || body.consent !== true || typeof body.phone !== 'string' || body.phone.length > 24 || !/^[+\d\s()-]+$/.test(body.phone)) throw new AdminError('Choose a colour, enter a valid WhatsApp number and agree to the restock message.');
   const phone = normalizeWhatsAppPhone(body.phone);

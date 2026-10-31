@@ -1,8 +1,8 @@
 "use client";
-import PreorderNotice from "@/components/PreorderNotice";
 import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/lib/cart";
+import { useAvailability } from "@/lib/useAvailability";
 import { PRODUCT, COLOURS } from "@/lib/product";
 import {
   bundleDiscount,
@@ -17,6 +17,7 @@ import styles from "./CartDrawer.module.css";
 
 export default function CartDrawer() {
   const { cart, dispatch, subtotal, isOpen, closeCart, count } = useCart();
+  const { stock, error: stockError, refresh } = useAvailability();
   const lines = COLOURS.filter((c) => cart[c] > 0);
   const freeShip = qualifiesForFreeShipping(cart.green + cart.cream);
   const shipProgress = freeShip ? 100 : 50;
@@ -65,6 +66,8 @@ export default function CartDrawer() {
             <div className={styles.lines}>
               {lines.map((c) => {
                 const v = PRODUCT.variants[c];
+                const maxQuantity = stock ? stock[c] : 0;
+                const atStockLimit = stock !== null && cart[c] >= maxQuantity;
                 return (
                   <div key={c} className={styles.line}>
                     <Image
@@ -95,13 +98,16 @@ export default function CartDrawer() {
                         <span>{cart[c]}</span>
                         <button
                           aria-label={`Increase ${v.name}`}
+                          disabled={stock === null || atStockLimit}
                           onClick={() =>
-                            dispatch({ type: "add", colour: c, qty: 1 })
+                            dispatch({ type: "add", colour: c, qty: 1, maxQuantity })
                           }
                         >
                           +
                         </button>
                       </div>
+                      {atStockLimit && <small role="status">Only {maxQuantity} available</small>}
+                      {stock === null && !stockError && <small role="status">Checking stock…</small>}
                     </div>
                     <div className={styles.lineTotal}>
                       {formatMoney(lineTotal(cart[c]))}
@@ -112,7 +118,7 @@ export default function CartDrawer() {
             </div>
 
             <div className={styles.foot}>
-              <PreorderNotice />
+              {stockError && <p role="alert">{stockError} <button onClick={() => void refresh()}>Retry</button></p>}
               <div className={styles.shipMsg}>
                 {freeShip
                   ? "You've unlocked free shipping. Warm regards."

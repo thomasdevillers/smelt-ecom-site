@@ -3,7 +3,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ hgetall: vi.fn(), hget: vi.fn(), eval: vi.fn(), verify: vi.fn() }));
 vi.mock('./admin/store', () => ({ adminStore: () => mocks, AdminError: class extends Error {} }));
 vi.mock('./paystack', () => ({ verifyTransaction: mocks.verify }));
-import { expirePurchaseReservations, purchaseNeedsReview, resolvePurchasePreorder, EXPIRE_PURCHASE, COMMIT_PURCHASE } from './preorderStore';
+import { expirePurchaseReservations, purchaseNeedsReview, resolvePurchasePreorder, EXPIRE_PURCHASE, COMMIT_PURCHASE } from './purchaseStore';
 import { PRICING_VERSION } from './pricing';
 import { GET } from '../app/api/cron/inventory/route';
 

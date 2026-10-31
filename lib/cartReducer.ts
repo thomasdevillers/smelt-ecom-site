@@ -9,7 +9,7 @@ export interface CartState {
 export const emptyCart: CartState = { green: 0, cream: 0 };
 
 export type CartAction =
-  | { type: "add"; colour: Colour; qty: number }
+  | { type: "add"; colour: Colour; qty: number; maxQuantity?: number }
   | { type: "addBundle"; quantities: CartState }
   | { type: "set"; colour: Colour; qty: number }
   | { type: "remove"; colour: Colour }
@@ -22,6 +22,8 @@ export function cartReducer(state: CartState, action: CartState | CartAction): C
     case "addBundle":
       return { green: state.green + action.quantities.green, cream: state.cream + action.quantities.cream };
     case "add":
+      // Check against the reducer's latest state so queued clicks cannot exceed stock.
+      if (action.qty > 0 && action.maxQuantity !== undefined && state[action.colour] + action.qty > action.maxQuantity) return state;
       return { ...state, [action.colour]: Math.max(0, state[action.colour] + action.qty) };
     case "set":
       return { ...state, [action.colour]: Math.max(0, action.qty) };

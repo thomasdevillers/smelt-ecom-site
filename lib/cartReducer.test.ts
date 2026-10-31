@@ -20,6 +20,24 @@ describe("cartReducer", () => {
     expect(s.green).toBe(3);
   });
 
+  it("allows the last available hat and rejects queued increments beyond stock", () => {
+    let s = { green: 1, cream: 2 };
+    const increment = { type: "add", colour: "green", qty: 1, maxQuantity: 2 } as const;
+    s = cartReducer(s, increment);
+    expect(s).toEqual({ green: 2, cream: 2 });
+    expect(cartReducer(s, increment)).toBe(s);
+    expect(cartReducer(s, { ...increment, colour: "cream", maxQuantity: 3 })).toEqual({ green: 2, cream: 3 });
+  });
+
+  it("blocks increases when stock is unavailable or has fallen below the bag quantity", () => {
+    const s = { green: 3, cream: 1 };
+    for (const maxQuantity of [0, 2]) {
+      expect(cartReducer(s, { type: "add", colour: "green", qty: 1, maxQuantity })).toBe(s);
+    }
+    expect(cartReducer(s, { type: "set", colour: "green", qty: 2 })).toEqual({ green: 2, cream: 1 });
+    expect(cartReducer(s, { type: "remove", colour: "green" })).toEqual({ green: 0, cream: 1 });
+  });
+
   it("sets an absolute quantity and clamps at zero", () => {
     let s = cartReducer(emptyCart, { type: "set", colour: "cream", qty: 5 });
     expect(s.cream).toBe(5);

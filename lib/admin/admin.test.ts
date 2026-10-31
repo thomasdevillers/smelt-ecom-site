@@ -292,51 +292,13 @@ describe("order completion", () => {
   });
 });
 
-describe("pre-order fulfilment totals", () => {
-  const preorder = { batch: "2026-10-22", arrival: "22 October 2026", quantities: { cream: 2, green: 1 } };
-  it("counts pre-order units across provider and dashboard pages, excluding completed and regular orders", async () => {
-    mocks.fetch.mockImplementation(async (url: string) => ({ ok: true, status: 200, json: async () => ({ status: true,
-      data: Array.from({ length: url.includes("page=1") ? 100 : 2 }, (_, i) => {
-        const index = url.includes("page=1") ? i : i + 100;
-        return { ...transaction, reference: `order-${index}`, metadata: {
-          ...transaction.metadata, cart: { cream: 3, green: 4 },
-          ...(index !== 0 ? { preorder } : {}),
-        } };
-      }), meta: { total: 102, pageCount: 2 },
-    }) }));
-    mocks.hgetall.mockResolvedValue({ "order-1": "2026-10-11T12:00:00.000Z" });
-    for (const view of ["active", "preorders", "completed"] as const) {
-      const result = await listOrders(2, "", view);
-      expect(result.preorderToFulfil).toEqual({ cream: 200, green: 100 });
-      expect(result.orders.length).toBeLessThanOrEqual(25);
-    }
-  });
-  it("returns zero counts for an unknown customer", async () => {
-    mocks.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ status: true, data: [transaction], meta: { total: 1, pageCount: 1 } }) });
-    expect(await listOrders(1, "unknown@example.com")).toMatchObject({
-      total: 0, preorderToFulfil: { cream: 0, green: 0 },
-    });
-  });
-  it("counts only the remaining allocation for an order-reference search", async () => {
-    const order = { ...transaction, reference: "smeltp-partial", metadata: { ...transaction.metadata, preorder } };
-    mocks.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ status: true, data: [order], meta: { total: 1, pageCount: 1 } }) });
-    mocks.hget.mockResolvedValue({ status: "paid", preorderGreen: 0, preorderCream: 1 });
-    expect(await listOrders(1, order.reference)).toMatchObject({ preorderToFulfil: { cream: 1, green: 0 } });
-    mocks.hgetall.mockResolvedValue({ [order.reference]: "2026-10-11T12:00:00.000Z" });
-    expect(await listOrders(1, order.reference)).toMatchObject({ preorderToFulfil: { cream: 0, green: 0 } });
-    mocks.hgetall.mockResolvedValue({});
-    expect(await listOrders(1, order.reference)).toMatchObject({ preorderToFulfil: { cream: 1, green: 0 } });
-  });
-});
-
 describe("pre-orders supplied from returned stock", () => {
   const paidPreorder = { ...transaction, reference: "smeltp-returned-stock", metadata: { ...transaction.metadata, preorder: { batch: "2026-10-22", arrival: "22 October 2026", quantities: { green: 1, cream: 0 } } } };
-  it("makes the corrected order shippable and removes it from the pre-order filter", async () => {
+  it("makes the corrected order shippable in the active orders list", async () => {
     mocks.hget.mockResolvedValue({ status: "paid", green: 1, cream: 0, preorderGreen: 0, preorderCream: 0 });
     mocks.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ status: true, data: paidPreorder }) });
     expect(await getPaidOrder(paidPreorder.reference)).toMatchObject({ canShip: true, preorder: undefined });
     mocks.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ status: true, data: [paidPreorder], meta: { total: 1, pageCount: 1 } }) });
-    expect(await listOrders(1, "", "preorders")).toMatchObject({ total: 0, orders: [], preorderToFulfil: { cream: 0, green: 0 } });
     expect((await listOrders(1)).orders[0]).toMatchObject({ canShip: true, preorder: undefined });
   });
 });

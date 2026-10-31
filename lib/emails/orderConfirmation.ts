@@ -1,4 +1,4 @@
-import { parsePreorder, preorderTiming } from "../preorders";
+import { parsePreorder, preorderTiming } from "../legacyPreorders";
 import { SHIPPING_OPTIONS, type ShippingMethod } from "../pricing";
 import { renderEmail } from "./layout";
 import { orderItemsTable, moneyRow, addressBlock } from "./components";

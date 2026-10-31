@@ -1,6 +1,5 @@
 "use client";
 import { useAvailability } from "@/lib/useAvailability";
-import { hasPreorder, preorderQuantities } from "@/lib/preorders";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -32,9 +31,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const discount = bundleDiscount(cart.green + cart.cream);
   const { stock, error: stockError, refresh } = useAvailability();
-  const quantities = stock ? preorderQuantities(cart, stock) : { green: 0, cream: 0 };
-  const needsPreorder = hasPreorder(quantities);
-  const available = stock !== null && cart.green <= stock.green + stock.preorder.green && cart.cream <= stock.cream + stock.preorder.cream;
+  const available = stock !== null && cart.green <= stock.green && cart.cream <= stock.cream;
   const lines = COLOURS.filter((c) => cart[c] > 0);
   const checkoutTracked = useRef(false);
 
@@ -196,7 +193,6 @@ export default function CheckoutPage() {
       address: paystackAddress,
       cart,
       shippingMethod,
-      preorderConsent: needsPreorder ? { accepted: true, batch: stock?.batch, quantities } : undefined,
       voucherCode: activeVoucher?.code,
     };
     const orderKey = JSON.stringify(order);
@@ -289,7 +285,7 @@ export default function CheckoutPage() {
             {shippingFee(cart.green + cart.cream, method) === 0 ? "FREE" : formatMoney(shippingFee(cart.green + cart.cream, method))}
           </span>
         </span>
-        <span className={styles.shippingDescription}>{needsPreorder ? `${stock?.timing} Courier transit starts after dispatch.` : SHIPPING_OPTIONS[method].description}</span>
+        <span className={styles.shippingDescription}>{SHIPPING_OPTIONS[method].description}</span>
         {method === "aramex" && <span className={styles.shippingDescription}>Free with two or more hats.</span>}
       </span>
     </div>
@@ -346,7 +342,7 @@ export default function CheckoutPage() {
           <button type="button" onClick={clearEmailDiscount}>Continue without discount</button>
         </div>}
         {stockError && <p role="alert">{stockError} <button onClick={() => void refresh()}>Retry availability</button></p>}
-        {stock && !available && <p role="alert">Some quantities exceed available stock and pre-order capacity. <Link href="/cart">Edit your bag</Link>.</p>}
+        {stock && !available && <p role="alert">Some quantities exceed available stock. <Link href="/cart">Edit your bag</Link>.</p>}
         {lines.length > 0 && (
           <form className={styles.form} onSubmit={handlePay}>
             <fieldset className={styles.shippingOptions} disabled={status === "submitting"}>
@@ -529,7 +525,7 @@ export default function CheckoutPage() {
             >
               {status === "submitting"
                 ? "Starting secure checkout…"
-                : `${needsPreorder ? "Pay for pre-order" : "Pay"} ${formatMoney(totalAmount)} securely`}
+                : `Pay ${formatMoney(totalAmount)} securely`}
             </button>
           </form>
         )}

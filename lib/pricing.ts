@@ -1,6 +1,5 @@
-import { PREORDER_MODE, PREORDER_PRICE, REGULAR_PRICE } from "./salesMode";
 
-export const BASE_PRICE = PREORDER_MODE ? PREORDER_PRICE : REGULAR_PRICE;
+export const BASE_PRICE = 550;
 export const SHIPPING_FEE = 90;
 export const FOUNDERS_DELIVERY_FEE = 5000;
 export const SHIPPING_METHODS = ["aramex", "founders"] as const;

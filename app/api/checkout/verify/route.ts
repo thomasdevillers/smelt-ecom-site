@@ -1,4 +1,4 @@
-import { resolvePurchasePreorder } from "@/lib/preorderStore";
+import { resolvePurchasePreorder } from "@/lib/purchaseStore";
 import { after } from "next/server";
 import { tryOrderConfirmation } from "@/lib/orderConfirmation";
 import { verifyTransaction } from "@/lib/paystack";

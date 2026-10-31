@@ -18,8 +18,6 @@ import { trackMetaEvent } from "@/lib/metaPixel";
 import { trackVercelEvent, vercelProductData } from "@/lib/vercelAnalytics";
 import styles from "@/app/product/product.module.css";
 import { useAvailability } from "@/lib/useAvailability";
-import { PREORDER_MODE } from "@/lib/salesMode";
-import PreorderPrice from "./PreorderPrice";
 
 function ProductLinkSelection({ onSelect }: { onSelect: (colour: Colour, quantity: PurchaseQuantity) => void }) {
   const params = useSearchParams();
@@ -52,9 +50,8 @@ export default function ProductClient() {
     : { green: colour === "green" ? 1 : 0, cream: colour === "cream" ? 1 : 0 };
   const bundleChoices = quantity === 1 ? [] : BUNDLE_GREEN_COUNTS[quantity];
   const selectionLabel = isBundle ? bundleChoiceLabel(bundleGreen, quantity) : v.name;
-  const selectionInStock = stock !== null && canAddSelection(selection, cart, stock);
   const selectedColours = COLOURS.filter(c => selection[c] > 0);
-  const isPreorder = stock !== null && selectedColours.some(c => cart[c] + selection[c] > stock[c]);
+  const selectionInStock = stock !== null && canAddSelection(selection, cart, stock);
   const add = () => {
     if (!selectionInStock) return;
     if (isBundle) dispatch({ type: "addBundle", quantities: selection });
@@ -69,22 +66,19 @@ export default function ProductClient() {
   const bundleStatus = (green: number) => {
     if (!stock) return "Checking stock…";
     const mix = { green, cream: quantity - green };
-    if (!canAddSelection(mix, cart, stock)) return PREORDER_MODE ? "Fully reserved" : "Not enough stock";
-    if (PREORDER_MODE) return "Pre-order";
-    return COLOURS.some(c => mix[c] > 0 && cart[c] + mix[c] > stock[c]) ? "Includes pre-order" : "In stock";
+    if (!canAddSelection(mix, cart, stock)) return "Not enough stock";
+    return "In stock";
   };
   const selectionStatus = (c: Colour) => {
     if (!stock) return "Checking stock…";
     const qty = selection[c];
-    if (stock[c] + stock.preorder[c] < cart[c] + qty) return PREORDER_MODE ? "Fully reserved" : "Not enough stock";
-    if (PREORDER_MODE) return "Pre-order";
-    const ready = Math.min(qty, Math.max(0, stock[c] - cart[c]));
-    return ready === qty ? `${stock[c]} left` : ready > 0 ? `${ready} in stock · ${qty - ready} on pre-order` : "Pre-order";
+    if (stock[c] < cart[c] + qty) return "Not enough stock";
+    return `${stock[c]} left`;
   };
-  const unavailableLabel = PREORDER_MODE ? "Pre-orders fully reserved" : !isBundle && stock?.[colour] === 0
+  const unavailableLabel = !isBundle && stock?.[colour] === 0
     ? "Out of stock"
     : "Not enough stock";
-  const addLabel = isPreorder ? (isBundle ? `Pre-order ${quantity} hats` : "Pre-order") : isBundle ? `Add ${quantity} hats` : "Add to bag";
+  const addLabel = isBundle ? `Add ${quantity} hats` : "Add to bag";
 
   useEffect(() => {
     if (viewed.current) return;
@@ -111,7 +105,7 @@ export default function ProductClient() {
         <div className={styles.info}>
           <SectionLabel>The collection (all two of them)</SectionLabel>
           <h1 className={styles.h1}>{PRODUCT.name}</h1>
-          {PREORDER_MODE ? <PreorderPrice /> : <div className={styles.price}>{formatMoney(BASE_PRICE)}</div>}
+          <div className={styles.price}>{formatMoney(BASE_PRICE)}</div>
           {process.env.NEXT_PUBLIC_ASK_HAT_ENABLED !== "false" && <div className={styles.productAssistant}><AskAboutHat /></div>}
 
           <fieldset className={styles.purchaseOptions}>
@@ -147,7 +141,7 @@ export default function ProductClient() {
                     <i style={{ backgroundColor: PRODUCT.variants[c].swatch }} />
                   </span>
                   <span>{PRODUCT.variants[c].name}</span>
-                  {stock && <small>{PREORDER_MODE ? (stock.preorder[c] > 0 ? "Pre-order" : "Fully reserved") : stock[c] === 0 ? "Out of stock" : `${stock[c]} left`}</small>}
+                  {stock && <small>{stock[c] === 0 ? "Out of stock" : `${stock[c]} left`}</small>}
                 </button>
               ))}
             </div>
@@ -195,9 +189,9 @@ export default function ProductClient() {
           </button>
 
           {stockError && <p role="alert">{stockError} <button onClick={() => void refresh()}>Retry</button></p>}
-          {!isPreorder && <div className={styles.reassure}>
+          <div className={styles.reassure}>
             <span>In-stock orders dispatched from Cape Town within 1–3 business days</span>
-          </div>}
+          </div>
         </div>
       </div>
 

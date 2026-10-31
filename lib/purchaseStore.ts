@@ -1,29 +1,18 @@
-import { PREORDER_MODE } from './salesMode';
-import { adminStore, AdminError } from './admin/store';
+import type { Availability } from './availability';
+import { adminStore } from './admin/store';
 import { getInventory, RESERVATION_TTL_SECONDS } from './inventory';
 import { verifyTransaction } from './paystack';
 import { paidCheckoutTotal, sanitizeCart } from './checkoutShared';
 import { parseVoucherMetadata } from './vouchers';
 import { localStockTest, stockScope } from './stockEnvironment';
-import { PREORDER_BATCH, PREORDER_ARRIVAL, PREORDER_TIMING, parsePreorder, type Availability, type PreorderDetails } from './preorders';
+import { LEGACY_PREORDER_BATCH, parsePreorder, type PreorderDetails } from './legacyPreorders';
 import type { CartState } from './cartReducer';
 
 const prefix = () => `smelt:preorders:v1:${stockScope()}`;
 const stockKey = () => `smelt:inventory:v1:${stockScope()}:available`;
-const quotaKey = () => `${prefix()}:capacity:${PREORDER_BATCH}`;
-function capacity(colour: 'GREEN' | 'CREAM') {
-  const value = Number(process.env[`PREORDER_${colour}_CAPACITY`] ?? 100);
-  return Number.isSafeInteger(value) && value >= 0 ? value : 0;
-}
-async function seed() {
-  await getInventory();
-  await adminStore().eval(`redis.call('HSETNX', KEYS[1], 'green', ARGV[1]); redis.call('HSETNX', KEYS[1], 'cream', ARGV[2]); return 1`, [quotaKey()], [capacity('GREEN'), capacity('CREAM')]);
-}
+const quotaKey = () => `${prefix()}:capacity:${LEGACY_PREORDER_BATCH}`;
 export async function getAvailability(): Promise<Availability> {
-  await seed();
-  const values = await adminStore().eval<(string | number)[], number[]>(`return {tonumber(redis.call('HGET', KEYS[1], 'green')), tonumber(redis.call('HGET', KEYS[1], 'cream')), tonumber(redis.call('HGET', KEYS[2], 'green')), tonumber(redis.call('HGET', KEYS[2], 'cream'))}`, [stockKey(), quotaKey()], []);
-  const open = PREORDER_MODE;
-  return { green: PREORDER_MODE ? 0 : values[0], cream: PREORDER_MODE ? 0 : values[1], preorder: { green: open ? values[2] : 0, cream: open ? values[3] : 0 }, batch: PREORDER_BATCH, timing: PREORDER_TIMING, localTest: localStockTest() };
+  return { ...await getInventory(), localTest: localStockTest() };
 }
 // Returned stock belongs to paid customers before new checkouts. Run inside the
 // same Redis operation as a release/commit so no buyer can take it in between.
@@ -69,32 +58,23 @@ export const REALLOCATE_PAID_PURCHASES = `${REALLOCATE_PAID}
 return allocatePaid(KEYS[1], KEYS[2], KEYS[3], KEYS[4])
 `;
 
-// One atomic operation reserves current stock AND future capacity. A consented
-// quantity is a ceiling: stock disappearing cannot silently increase a pre-order.
+// Only physical stock can be reserved. Legacy keys remain stable so existing
+// payments, expiry reconciliation and historical allocations stay reachable.
 export const RESERVE_PURCHASE = `${REALLOCATE_PAID}
 allocatePaid(KEYS[1], KEYS[2], KEYS[3], KEYS[4])
-if redis.call('HEXISTS', KEYS[3], ARGV[1]) == 1 then return {0, 0, 0} end
-local g = tonumber(redis.call('HGET', KEYS[1], 'green'))
-local c = tonumber(redis.call('HGET', KEYS[1], 'cream'))
-if ARGV[7] == '1' then g = 0; c = 0 end
-local pg = math.max(0, tonumber(ARGV[2]) - g)
-local pc = math.max(0, tonumber(ARGV[3]) - c)
-if pg > tonumber(ARGV[4]) or pc > tonumber(ARGV[5]) then return {0, 0, 0} end
-if pg > tonumber(redis.call('HGET', KEYS[2], 'green')) or pc > tonumber(redis.call('HGET', KEYS[2], 'cream')) then return {0, 0, 0} end
-redis.call('HINCRBY', KEYS[1], 'green', -(tonumber(ARGV[2]) - pg))
-redis.call('HINCRBY', KEYS[1], 'cream', -(tonumber(ARGV[3]) - pc))
-redis.call('HINCRBY', KEYS[2], 'green', -pg)
-redis.call('HINCRBY', KEYS[2], 'cream', -pc)
-redis.call('HSET', KEYS[3], ARGV[1], cjson.encode({green=tonumber(ARGV[2]), cream=tonumber(ARGV[3]), preorderGreen=pg, preorderCream=pc, status='held', createdAt=ARGV[6], preorderOnly=ARGV[7] == '1'}))
-return {1, pg, pc}
+if redis.call('HEXISTS', KEYS[3], ARGV[1]) == 1 then return 0 end
+local g = tonumber(redis.call('HGET', KEYS[1], 'green') or '0')
+local c = tonumber(redis.call('HGET', KEYS[1], 'cream') or '0')
+if tonumber(ARGV[2]) > g or tonumber(ARGV[3]) > c then return 0 end
+redis.call('HINCRBY', KEYS[1], 'green', -tonumber(ARGV[2]))
+redis.call('HINCRBY', KEYS[1], 'cream', -tonumber(ARGV[3]))
+redis.call('HSET', KEYS[3], ARGV[1], cjson.encode({green=tonumber(ARGV[2]), cream=tonumber(ARGV[3]), status='held', createdAt=ARGV[4]}))
+return 1
 `;
-export async function reservePurchase(cart: CartState, reference: string, consent: unknown): Promise<{ reserved: boolean; preorder?: PreorderDetails }> {
-  await seed();
-  const d = consent as { batch?: string; quantities?: CartState; accepted?: boolean } | undefined;
-  const accepted = d?.accepted === true && d.batch === PREORDER_BATCH && PREORDER_MODE;
-  const safe = (n: unknown) => typeof n === 'number' && Number.isSafeInteger(n) && n >= 0 && n <= 99 ? n : 0;
-  const r = await adminStore().eval<(string | number)[], number[]>(RESERVE_PURCHASE, [stockKey(), quotaKey(), `${prefix()}:orders`, `${prefix()}:received:${PREORDER_BATCH}`], [reference, cart.green, cart.cream, accepted ? safe(d?.quantities?.green) : 0, accepted ? safe(d?.quantities?.cream) : 0, new Date().toISOString(), PREORDER_MODE ? '1' : '0']);
-  return { reserved: r[0] === 1, ...(r[1] + r[2] > 0 ? { preorder: { batch: PREORDER_BATCH, arrival: PREORDER_ARRIVAL, timing: 'dispatch' as const, quantities: { green: r[1], cream: r[2] } } } : {}) };
+export async function reservePurchase(cart: CartState, reference: string): Promise<{ reserved: boolean }> {
+  await getInventory();
+  const result = await adminStore().eval(RESERVE_PURCHASE, [stockKey(), quotaKey(), `${prefix()}:orders`, `${prefix()}:received:${LEGACY_PREORDER_BATCH}`], [reference, cart.green, cart.cream, new Date().toISOString()]);
+  return { reserved: Number(result) === 1 };
 }
 export const COMMIT_PURCHASE = `${REALLOCATE_PAID}
 local raw = redis.call('HGET', KEYS[1], ARGV[1])
@@ -127,39 +107,11 @@ allocatePaid(KEYS[2], KEYS[3], KEYS[1], KEYS[4])
 return 1
 `;
 export async function commitPurchase(reference: string, cart: CartState) {
-  return Number(await adminStore().eval(COMMIT_PURCHASE, [`${prefix()}:orders`, stockKey(), quotaKey(), `${prefix()}:received:${PREORDER_BATCH}`], [reference, cart.green, cart.cream])) === 1;
+  return Number(await adminStore().eval(COMMIT_PURCHASE, [`${prefix()}:orders`, stockKey(), quotaKey(), `${prefix()}:received:${LEGACY_PREORDER_BATCH}`], [reference, cart.green, cart.cream])) === 1;
 }
 
-export async function batchReceived(batch = PREORDER_BATCH) {
+export async function batchReceived(batch = LEGACY_PREORDER_BATCH) {
   return Boolean(await adminStore().get(`${prefix()}:received:${batch}`));
-}
-
-// Allocate ALL promised units before making leftover stock available. Holds
-// with an unresolved payment remain covered even when a webhook arrives late.
-export const RECEIVE_BATCH = `
-if redis.call('EXISTS', KEYS[4]) == 1 then return 0 end
-local pg = 0
-local pc = 0
-for _, raw in ipairs(redis.call('HVALS', KEYS[3])) do
-  local d = cjson.decode(raw)
-  if d.status == 'held' or d.status == 'paid' then
-    pg = pg + (d.preorderGreen or 0)
-    pc = pc + (d.preorderCream or 0)
-  end
-end
-if pg > tonumber(ARGV[1]) or pc > tonumber(ARGV[2]) then return -1 end
-redis.call('HINCRBY', KEYS[1], 'green', tonumber(ARGV[1]) - pg)
-redis.call('HINCRBY', KEYS[1], 'cream', tonumber(ARGV[2]) - pc)
-redis.call('HSET', KEYS[2], 'green', 0, 'cream', 0)
-redis.call('SET', KEYS[4], ARGV[3])
-return 1
-`;
-export async function receiveBatch(green: unknown, cream: unknown) {
-  if (![green, cream].every(n => typeof n === 'number' && Number.isSafeInteger(n) && n >= 0 && n <= 10000)) throw new AdminError('Enter the actual received quantity for each colour.');
-  await seed();
-  const result = Number(await adminStore().eval(RECEIVE_BATCH, [stockKey(), quotaKey(), `${prefix()}:orders`, `${prefix()}:received:${PREORDER_BATCH}`], [green as number, cream as number, new Date().toISOString()]));
-  if (result === -1) throw new AdminError('The received batch does not cover existing pre-orders and payment holds. Review the shortfall before releasing stock.', 409);
-  return result === 1;
 }
 
 // Releases are atomic with payment commits. Expiry additionally checks the
@@ -174,10 +126,10 @@ if redis.call('EXISTS', KEYS[4]) == 1 then
   redis.call('HINCRBY', KEYS[1], 'green', d.green)
   redis.call('HINCRBY', KEYS[1], 'cream', d.cream)
 else
-  redis.call('HINCRBY', KEYS[1], 'green', d.green - d.preorderGreen)
-  redis.call('HINCRBY', KEYS[1], 'cream', d.cream - d.preorderCream)
-  redis.call('HINCRBY', KEYS[2], 'green', d.preorderGreen)
-  redis.call('HINCRBY', KEYS[2], 'cream', d.preorderCream)
+  redis.call('HINCRBY', KEYS[1], 'green', d.green - (d.preorderGreen or 0))
+  redis.call('HINCRBY', KEYS[1], 'cream', d.cream - (d.preorderCream or 0))
+  redis.call('HINCRBY', KEYS[2], 'green', d.preorderGreen or 0)
+  redis.call('HINCRBY', KEYS[2], 'cream', d.preorderCream or 0)
 end
 d.status = ARGV[2] or 'released'
 d.releasedAt = ARGV[4]
@@ -190,7 +142,7 @@ export const EXPIRE_PURCHASE = RELEASE_ALLOCATION;
 
 // For initialization rejection, before a payable link is known to exist.
 export async function releaseRejectedPurchase(reference: string) {
-  await adminStore().eval(RELEASE_REJECTED_PURCHASE, [stockKey(), quotaKey(), `${prefix()}:orders`, `${prefix()}:received:${PREORDER_BATCH}`], [reference]);
+  await adminStore().eval(RELEASE_REJECTED_PURCHASE, [stockKey(), quotaKey(), `${prefix()}:orders`, `${prefix()}:received:${LEGACY_PREORDER_BATCH}`], [reference]);
 }
 
 interface PurchaseAllocation extends CartState {
@@ -219,7 +171,7 @@ export async function expirePurchaseReservations(now = Date.now()) {
           else result.retained++;
         } else if (payment.status === 'abandoned' || payment.status === 'failed') {
           result.released += Number(await adminStore().eval(EXPIRE_PURCHASE,
-            [stockKey(), quotaKey(), `${prefix()}:orders`, `${prefix()}:received:${PREORDER_BATCH}`],
+            [stockKey(), quotaKey(), `${prefix()}:orders`, `${prefix()}:received:${LEGACY_PREORDER_BATCH}`],
             [reference, 'expired', cutoff, new Date(now).toISOString()]));
         } else result.retained++;
       } catch (error) {
@@ -241,7 +193,7 @@ export async function purchaseNeedsReview(reference: string) {
 // allocations. Only a paid allocation can shorten that original waiting time.
 export async function resolvePurchasePreorder(reference: string, metadata: unknown): Promise<PreorderDetails | undefined> {
   const original = parsePreorder(metadata);
-  if (!original || original.batch !== PREORDER_BATCH || !reference.startsWith('smeltp-')) return original;
+  if (!original || original.batch !== LEGACY_PREORDER_BATCH || !reference.startsWith('smeltp-')) return original;
   const allocation = await adminStore().hget<PurchaseAllocation & { preorderGreen: number; preorderCream: number }>(`${prefix()}:orders`, reference);
   if (!allocation || allocation.status !== 'paid') return original;
   const { preorderGreen: green, preorderCream: cream } = allocation;

@@ -6,7 +6,7 @@ import { BASE_PRICE, PRICING_VERSION, parseShippingMethod } from "@/lib/pricing"
 import { sanitizeAddress } from "@/lib/address";
 import type { MetaClientContext } from "@/lib/meta";
 import { createInventoryReservationId } from "@/lib/inventory";
-import { reservePurchase, getAvailability, releaseRejectedPurchase } from "@/lib/preorderStore";
+import { reservePurchase, getAvailability, releaseRejectedPurchase } from "@/lib/purchaseStore";
 import { localStockTest } from "@/lib/stockEnvironment";
 import { releaseVoucherCodeReservation, releaseVoucherReservation, reserveVoucher, type VoucherMetadata } from "@/lib/vouchers";
 import { AdminError } from "@/lib/admin/store";
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Request origin is not allowed." }, { status: 403 });
   }
 
-  let body: { shippingMethod?: unknown; email?: unknown; cart?: unknown; name?: unknown; address?: unknown; metaClient?: MetaClientContext; preorderConsent?: unknown; voucherCode?: unknown; attribution?: unknown };
+  let body: { shippingMethod?: unknown; email?: unknown; cart?: unknown; name?: unknown; address?: unknown; metaClient?: MetaClientContext; voucherCode?: unknown; attribution?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -63,14 +63,14 @@ export async function POST(request: Request) {
   const reservationId = createInventoryReservationId().replace("smelt-", "smeltp-");
   let reservation;
   try {
-    reservation = await reservePurchase(cart, reservationId, body.preorderConsent);
+    reservation = await reservePurchase(cart, reservationId);
   } catch (error) {
     console.error("Inventory reservation failed:", error);
     return Response.json({ error: "We couldn't confirm stock right now. Please try again." }, { status: 503 });
   }
   if (!reservation.reserved) {
     return Response.json(
-      { error: "Availability has changed. Review your bag and confirm any pre-order before paying.", stock: await getAvailability() },
+      { error: "Availability has changed. Review your bag before paying.", stock: await getAvailability() },
       { status: 409 },
     );
   }
@@ -102,7 +102,6 @@ export async function POST(request: Request) {
       metadata: {
         cart, items, unitPrice: BASE_PRICE, pricingVersion: PRICING_VERSION, amountRand: amount, customerName, shippingAddress, shippingMethod,
         inventoryReservation: reservationId,
-        preorder: reservation.preorder,
         voucher,
         cancel_action: `${origin}/api/checkout/cancel?reservation=${encodeURIComponent(reservationId)}`,
         metaClient: body.metaClient,

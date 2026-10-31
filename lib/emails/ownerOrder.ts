@@ -3,7 +3,7 @@ import { addressBlock, moneyRow, orderItemsTable } from './components';
 import { absoluteUrl, escapeHtml } from './theme';
 import { formatMoney, shippingFee, SHIPPING_OPTIONS, type ShippingMethod } from '../pricing';
 import { type CartState } from '../cartReducer';
-import { parsePreorder, preorderTiming } from '../preorders';
+import { parsePreorder, preorderTiming } from '../legacyPreorders';
 import type { ShippingAddress } from '../address';
 import type { OrderItem } from '../orderTypes';
 import { attributionChannel, type OrderAttribution } from '../attribution';

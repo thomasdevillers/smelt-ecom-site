@@ -1,7 +1,7 @@
 import { generateHatAnswer, reserveHatRequest } from "@/lib/askHat.server";
 import { hatKnowledge } from "@/lib/askHatKnowledge";
 import { parseHatMessages } from "@/lib/askHatShared";
-import { getAvailability } from "@/lib/preorderStore";
+import { getAvailability } from "@/lib/purchaseStore";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;

@@ -10,7 +10,7 @@ For an opted-in lead, the owner alert is labelled as an automated sequence and s
 - Email 2 follows about 23 hours after email 1 (roughly 24 hours after abandonment).
 - Email 3 follows about 48 hours later (roughly 72 hours after abandonment) and says it is the final message.
 - The first send creates a personal R50 voucher valid for seven days and tied to the opted-in email address.
-- The private button restores the saved hat quantities, name, email and voucher. Stock and pre-order capacity are still checked normally before payment.
+- The private button restores the saved hat quantities, name, email and voucher. Physical stock is checked again before payment.
 - Every email links to a confirmation page where the customer can stop the sequence. Unsubscribing does not affect transactional order or shipping emails.
 
 ## Safety rules

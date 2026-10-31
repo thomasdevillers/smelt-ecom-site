@@ -1,5 +1,3 @@
-import { BASE_PRICE, formatMoney } from "@/lib/pricing";
-import { PREORDER_COPY, PREORDER_MODE } from "@/lib/salesMode";
 import Image from "next/image";
 import Button from "./ui/Button";
 import styles from "./Hero.module.css";

@@ -2,16 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ eval: vi.fn(), fetch: vi.fn(), availability: vi.fn() }));
 vi.mock("server-only", () => ({}));
 vi.mock("@upstash/redis", () => ({ Redis: class { eval = mocks.eval; } }));
-vi.mock("./preorderStore", () => ({ getAvailability: mocks.availability }));
+vi.mock("./purchaseStore", () => ({ getAvailability: mocks.availability }));
 import { POST } from "@/app/api/ask-hat/route";
 import { generateHatAnswer, reserveHatRequest } from "./askHat.server";
 import { parseHatMessages, parseHatAnswer } from "./askHatShared";
 import { hatKnowledge } from "./askHatKnowledge";
 import { BASE_PRICE, lineTotal, formatMoney } from "./pricing";
-import { PREORDER_COPY } from "./salesMode";
-import type { Availability } from "./preorders";
+import type { Availability } from "./availability";
 
-const stock: Availability = { green: 0, cream: 0, preorder: { green: 42, cream: 38 }, batch: "2026-10-22", timing: PREORDER_COPY, localTest: true };
+const stock: Availability = { green: 0, cream: 0, localTest: true };
 const messages = [{ role: "user" as const, content: "Will it fit me?" }];
 const answer = { answer: "It has a relaxed, one-size shape that sits loosely on most heads.", sources: ["fit"], needsHuman: false };
 function providerResponse(value: unknown = answer, overrides = {}) {
@@ -55,8 +54,8 @@ describe("hat questions and reference facts", () => {
     expect(knowledge.pricing.twoHats).toBe(formatMoney(lineTotal(2)));
     expect(knowledge.pricing.oneHatExpressDelivery).toBe("R90");
     expect(knowledge.pricing.twoHatExpressDelivery).toBe("R0");
-    expect(knowledge.shipping.currentTiming).not.toBe(PREORDER_COPY);
-    expect(knowledge.availability).toMatchObject({ green: { inStock: 0, preorderPlaces: 42 } });
+    expect(JSON.stringify(knowledge)).not.toContain("preorderPlaces");
+    expect(knowledge.availability).toMatchObject({ green: { inStock: 0 } });
     expect(JSON.stringify(hatKnowledge(null))).toContain("Could not verify current availability");
   });
 });
@@ -70,7 +69,7 @@ describe("OpenAI hat answers", () => {
     const body = JSON.parse(options.body);
     expect(body).toMatchObject({ model: "gpt-4.1-mini", store: false, max_output_tokens: 700 });
     expect(body.input[0].role).toBe("developer");
-    expect(body.input[0].content).toContain(PREORDER_COPY);
+    expect(body.input[0].content).not.toContain("Pre-orders ship");
     expect(body.input.slice(1)).toEqual(messages);
     expect(body.text.format).toMatchObject({ type: "json_schema", strict: true });
     expect(body).not.toHaveProperty("tools");

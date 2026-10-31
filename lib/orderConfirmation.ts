@@ -1,4 +1,4 @@
-import { resolvePurchasePreorder } from "./preorderStore";
+import { resolvePurchasePreorder } from "./purchaseStore";
 import { createHash } from "node:crypto";
 import { Redis } from "@upstash/redis";
 import { Resend } from "resend";

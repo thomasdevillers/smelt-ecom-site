@@ -1,4 +1,3 @@
-vi.mock("./salesMode", async original => ({ ...await original<typeof import("./salesMode")>(), PREORDER_MODE: true }));
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import { createHash, createHmac } from "node:crypto";
 const mocks = vi.hoisted(() => ({
@@ -15,7 +14,7 @@ vi.mock("./vouchers", () => ({
   commitVoucher: mocks.commitVoucher,
 }));
 import { sendOrderConfirmation, sendOwnerOrderNotification, type ConfirmedOrder } from "./orderConfirmation";
-import { checkoutTotal } from "./checkoutShared";
+import { paidCheckoutTotal } from "./checkoutShared";
 import { PRICING_VERSION } from "./pricing";
 import { captureTouch, mergeAttribution } from "./attribution";
 import { POST as webhook } from "../app/api/paystack/webhook/route";
@@ -25,7 +24,7 @@ const store = new Map<string, unknown>();
 const order: ConfirmedOrder = {
   reference: "paid-confirmation-test", email: "buyer@example.com", currency: "ZAR",
   paidAt: "2026-09-26T05:00:00.000Z",
-  cart: { green: 1, cream: 0 }, amount: checkoutTotal({ green: 1, cream: 0 }) * 100,
+  cart: { green: 1, cream: 0 }, amount: paidCheckoutTotal({ green: 1, cream: 0 }, undefined) * 100,
   address: { line1: "1 Test Street", city: "Cape Town", province: "Western Cape", postalCode: "8001" },
 };
 beforeEach(() => {

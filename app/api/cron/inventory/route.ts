@@ -1,5 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
-import { expirePurchaseReservations } from "@/lib/preorderStore";
+import { expirePurchaseReservations } from "@/lib/purchaseStore";
 
 export const runtime = "nodejs";
 export const maxDuration = 240;

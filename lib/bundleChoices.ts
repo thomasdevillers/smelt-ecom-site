@@ -1,5 +1,5 @@
 import type { CartState } from "./cartReducer";
-import type { Availability } from "./preorders";
+import type { Availability } from "./availability";
 
 export type PurchaseQuantity = 1 | 2 | 3 | 4;
 export const PURCHASE_QUANTITIES: PurchaseQuantity[] = [1, 2, 3, 4];
@@ -19,6 +19,6 @@ export function bundleChoiceLabel(green: number, quantity: number): string {
 
 /** Include hats already in the bag when checking the selected mix. */
 export function canAddSelection(selection: CartState, cart: CartState, stock: Availability): boolean {
-  return stock.green + stock.preorder.green >= cart.green + selection.green &&
-    stock.cream + stock.preorder.cream >= cart.cream + selection.cream;
+  return stock.green >= cart.green + selection.green &&
+    stock.cream >= cart.cream + selection.cream;
 }
