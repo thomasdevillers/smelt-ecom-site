@@ -160,6 +160,8 @@ export default function AdminDashboard() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
   const [error, setError] = useState("");
   const [data, setData] = useState<OrdersPage | null>(null);
   const [query, setQuery] = useState("");
@@ -202,6 +204,27 @@ export default function AdminDashboard() {
     catch { setError("Could not sign out. Please try again."); }
     finally { setBusy(false); }
   }
+  async function exportOrders() {
+    setExporting(true); setExportError("");
+    try {
+      const response = await fetch("/api/admin/orders/export", { cache: "no-store" });
+      if (!response.ok) {
+        const body = await response.json();
+        throw new RequestError(body.error || "Could not export orders. Please try again.", response.status);
+      }
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = response.headers.get("Content-Disposition")?.match(/filename="([^"]+)"/)?.[1] || "smelt-orders.csv";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (caught) {
+      if (caught instanceof RequestError && caught.status === 401) expire();
+      else setExportError(caught instanceof Error ? caught.message : "Could not export orders. Please try again.");
+    } finally { setExporting(false); }
+  }
   const sectionCopy = {
     orders: { eyebrow: "SMELT / FULFILMENT", title: <>The dispatch desk<span>.</span></>, description: "Paste a waybill. Send the good news." },
     analytics: { eyebrow: "SMELT / COMMERCE", title: <>Store performance<span>.</span></>, description: "Traffic, intent and verified sales in one view." },
@@ -240,7 +263,10 @@ export default function AdminDashboard() {
           <button type="button" aria-pressed={view === "completed"} onClick={() => { setView("completed"); setPage(1); setNotice(""); }}>Completed orders {data && <span>{data.completedTotal}</span>}</button>
         </nav>
         {notice && <p className={styles.notice} role="status">{notice}</p>}
-        <div className={styles.toolbar}><form onSubmit={e => { e.preventDefault(); setPage(1); if (search === query.trim() && page === 1) void load(); else setSearch(query.trim()); }}><label className={styles.srOnly} htmlFor="order-search">Search by customer name, email or order reference</label><input id="order-search" type="search" placeholder="Name, email or order reference" value={query} onChange={e => setQuery(e.target.value)} /><button disabled={loading}>Search</button>{search && <button type="button" className={styles.secondary} onClick={() => { setQuery(""); setSearch(""); setPage(1); }}>Clear</button>}</form><div className={styles.orderActions}>{view === "completed" && <label className={styles.sortControl} htmlFor="completed-order-sort"><span>Sort completed</span><select id="completed-order-sort" value={completedSort} disabled={loading} onChange={e => { setCompletedSort(e.target.value as "newest" | "oldest"); setPage(1); }}><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></label>}<button className={styles.refresh} disabled={loading} onClick={() => void load()}>{loading ? "Refreshing…" : "Refresh orders ↻"}</button></div></div>
+        <div className={styles.toolbar}><form onSubmit={e => { e.preventDefault(); setPage(1); if (search === query.trim() && page === 1) void load(); else setSearch(query.trim()); }}><label className={styles.srOnly} htmlFor="order-search">Search by customer name, email or order reference</label><input id="order-search" type="search" placeholder="Name, email or order reference" value={query} onChange={e => setQuery(e.target.value)} /><button disabled={loading}>Search</button>{search && <button type="button" className={styles.secondary} onClick={() => { setQuery(""); setSearch(""); setPage(1); }}>Clear</button>}</form><div className={styles.orderActions}>{view === "completed" && <label className={styles.sortControl} htmlFor="completed-order-sort"><span>Sort completed</span><select id="completed-order-sort" value={completedSort} disabled={loading} onChange={e => { setCompletedSort(e.target.value as "newest" | "oldest"); setPage(1); }}><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></label>}<button type="button" className={styles.secondary} disabled={exporting} onClick={() => void exportOrders()}>{exporting ? "Exporting…" : "Export all orders CSV ↓"}</button><button className={styles.refresh} disabled={loading} onClick={() => void load()}>{loading ? "Refreshing…" : "Refresh orders ↻"}</button></div></div>
+        <p className={styles.note}>CSV includes all paid orders across every page, including completed orders, regardless of the current search. Amounts include delivery and any discounts. Paystack fees are included where available; refunds and bank payouts are not included.</p>
+        {exporting && <p className={styles.note} role="status">Preparing your order export…</p>}
+        {exportError && <p className={styles.error} role="alert">{exportError}</p>}
         <p className={styles.help}>{view === "completed" ? `Completed orders, ${completedSort === "oldest" ? "oldest" : "most recently"} completed first. Reopen an order to move it back to active orders.` : view === "preorders" ? "Paid pre-orders, oldest payment first. Dispatch these before general restock orders once the batch is received." : "Send tracking and mark complete, or review an accepted previous shipping email and complete the order without sending again."}</p>
         {error && <p className={styles.error} role="alert">{error}</p>}
         {loading && <div className={styles.loading} role="status">Loading orders…</div>}

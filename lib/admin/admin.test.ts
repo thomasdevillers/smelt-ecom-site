@@ -9,6 +9,7 @@ import { publicReceipt } from "./receipts";
 import { hasAdminSession, login, logout } from "./auth";
 import { digest } from "./store";
 import { GET as ordersGET, PATCH as ordersPATCH } from "@/app/api/admin/orders/route";
+import { GET as ordersExportGET } from "@/app/api/admin/orders/export/route";
 import { GET as analyticsGET } from "@/app/api/admin/analytics/route";
 import { POST as shippingPOST } from "@/app/api/admin/shipping/route";
 import { GET as reviewsGET, POST as reviewsPOST, PATCH as reviewsPATCH } from "@/app/api/admin/reviews/route";
@@ -153,6 +154,7 @@ describe("admin access", () => {
   });
   it("protects order reads and sends without exposing data", async () => {
     expect((await ordersGET(new Request("https://saunahat.co.za/api/admin/orders"))).status).toBe(401);
+    expect((await ordersExportGET()).status).toBe(401);
     expect((await analyticsGET(new Request("https://saunahat.co.za/api/admin/analytics"))).status).toBe(401);
     expect((await reviewsGET(new Request("https://saunahat.co.za/api/admin/reviews"))).status).toBe(401);
     expect((await reviewsPATCH(request({ action: "markMessageSent", reference: "order-1" }))).status).toBe(401);

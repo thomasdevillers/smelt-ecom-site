@@ -126,27 +126,34 @@ export async function setOrderCompleted(reference: string, completed: boolean) {
   await db.hsetnx(completionKey(), reference, timestamp);
   return await db.hget<string>(completionKey(), reference);
 }
+// Both the dashboard and accounting export must read every provider page.
+export async function listPaidTransactions(): Promise<unknown[]> {
+  const query = new URLSearchParams({ status: "success", perPage: "100", page: "1" });
+  const transactions: unknown[] = [];
+  let providerPage = 1;
+  while (true) {
+    query.set("page", String(providerPage));
+    const body = await paystack(`/transaction?${query}`);
+    if (!Array.isArray(body.data) || !Number.isSafeInteger(body.meta?.total) || body.meta.total < 0
+      || !Number.isSafeInteger(body.meta?.pageCount) || body.meta.pageCount < 0
+      || (!body.data.length && providerPage < body.meta.pageCount))
+      throw new AdminError("Order data could not be read. Please try again.", 502);
+    transactions.push(...body.data);
+    if (providerPage >= body.meta.pageCount) break;
+    providerPage++;
+  }
+  return transactions;
+}
 export async function listOrders(
   page: number,
   search = "",
   view: "active" | "completed" | "preorders" = "active",
   completedSort: "newest" | "oldest" = "newest",
 ): Promise<OrdersPage> {
-  const query = new URLSearchParams({ status: "success", perPage: "100", page: "1" });
-  let orders: AdminOrder[] = [];
+  let orders = (await listPaidTransactions()).map(normalizeOrder);
   // Search the same paid-order dataset as the dashboard. Provider verification
   // accepts exact references only and reports ordinary search misses as errors.
   const term = search.trim().toLowerCase();
-  let providerPage = 1;
-  while (true) {
-    query.set("page", String(providerPage));
-    const body = await paystack(`/transaction?${query}`);
-    if (!Array.isArray(body.data) || !Number.isSafeInteger(body.meta?.total) || !Number.isSafeInteger(body.meta?.pageCount))
-      throw new AdminError("Order data could not be read. Please try again.", 502);
-    orders.push(...body.data.map(normalizeOrder));
-    if (providerPage >= body.meta.pageCount) break;
-    providerPage++;
-  }
   // Filter before allocation totals, completion filters, and dashboard pagination.
   if (term) orders = orders.filter(order =>
     [order.name, order.email, order.reference].some(value => value.toLowerCase().includes(term)));
