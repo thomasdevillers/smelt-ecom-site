@@ -228,7 +228,7 @@ export default function AdminDashboard() {
   const sectionCopy = {
     orders: { eyebrow: "SMELT / FULFILMENT", title: <>The dispatch desk<span>.</span></>, description: "Paste a waybill. Send the good news." },
     analytics: { eyebrow: "SMELT / COMMERCE", title: <>Store performance<span>.</span></>, description: "Traffic, intent and verified sales in one view." },
-    restock: { eyebrow: "SMELT / NEXT BATCH", title: <>Restock requests<span>.</span></>, description: "WhatsApp requests by colour." },
+    restock: { eyebrow: "SMELT / NEXT BATCH", title: <>Restock requests<span>.</span></>, description: "Waiting-list emails and restock requests." },
     reviews: { eyebrow: "SMELT / CUSTOMER PROOF", title: <>Reviews, reviewed<span>.</span></>, description: "Approve the real thing. Publish only what customers sent." },
   }[section];
   return <div className={styles.shell}>

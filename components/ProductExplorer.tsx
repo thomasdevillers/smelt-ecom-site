@@ -8,6 +8,7 @@ import SectionLabel from "./ui/SectionLabel";
 import styles from "./ProductExplorer.module.css";
 import { trackVercelEvent, vercelProductData } from "@/lib/vercelAnalytics";
 import { useAvailability } from "@/lib/useAvailability";
+import RestockSignup from './RestockSignup';
 
 export default function ProductExplorer() {
   const [colour, setColour] = useState<Colour>("green");
@@ -76,9 +77,9 @@ export default function ProductExplorer() {
             </div>
           </div>
 
-          <button className={styles.add} onClick={add} disabled={!inStock}>
-            {stock === null ? "Checking stock…" : inStock ? `Add to bag · ${formatMoney(BASE_PRICE)}` : stock[colour] === 0 ? "Out of stock" : "Not enough stock"}
-          </button>
+          {stock !== null && !inStock ? <RestockSignup key={`${colour}:${cart[colour]}`} quantities={{ green: colour === 'green' ? cart.green + 1 : 0, cream: colour === 'cream' ? cart.cream + 1 : 0 }} /> : <button className={styles.add} onClick={add} disabled={!inStock}>
+            {stock === null ? "Checking stock…" : `Add to bag · ${formatMoney(BASE_PRICE)}`}
+          </button>}
           {stockError && <p role="alert">{stockError} <button onClick={() => void refresh()}>Retry</button></p>}
         </div>
       </div>

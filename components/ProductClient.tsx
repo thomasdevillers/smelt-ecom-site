@@ -6,6 +6,7 @@ import HairPSA from "@/components/HairPSA";
 import InTheWild from "@/components/InTheWild";
 import Faq from "@/components/Faq";
 import ProductReviews from "@/components/ProductReviews";
+import RestockSignup from "@/components/RestockSignup";
 import AskAboutHat from "@/components/AskAboutHat";
 import SectionLabel from "@/components/ui/SectionLabel";
 import { COLOURS, PRODUCT, type Colour } from "@/lib/product";
@@ -52,6 +53,8 @@ export default function ProductClient() {
   const selectionLabel = isBundle ? bundleChoiceLabel(bundleGreen, quantity) : v.name;
   const selectedColours = COLOURS.filter(c => selection[c] > 0);
   const selectionInStock = stock !== null && canAddSelection(selection, cart, stock);
+  const requested = { green: cart.green + selection.green, cream: cart.cream + selection.cream };
+  const waitlistAvailable = stock !== null && !selectionInStock;
   const add = () => {
     if (!selectionInStock) return;
     if (isBundle) dispatch({ type: "addBundle", quantities: selection });
@@ -75,9 +78,6 @@ export default function ProductClient() {
     if (stock[c] < cart[c] + qty) return "Not enough stock";
     return `${stock[c]} left`;
   };
-  const unavailableLabel = !isBundle && stock?.[colour] === 0
-    ? "Out of stock"
-    : "Not enough stock";
   const addLabel = isBundle ? `Add ${quantity} hats` : "Add to bag";
 
   useEffect(() => {
@@ -150,7 +150,6 @@ export default function ProductClient() {
             <div className={`${styles.bundleChoices} ${quantity >= 3 ? styles.bundleChoicesLarge : ""}`}>
               {bundleChoices.map(green => {
                 const mix = { green, cream: quantity - green };
-                const available = stock === null || canAddSelection(mix, cart, stock);
                 return (
                   <button
                     key={green}
@@ -161,7 +160,6 @@ export default function ProductClient() {
                       setColour(green === 0 ? "cream" : "green");
                     }}
                     aria-pressed={bundleGreen === green}
-                    disabled={!available}
                   >
                     <span className={styles.bundleSwatches} aria-hidden="true">
                       {COLOURS.flatMap(c => Array.from({ length: mix[c] }, (_, i) => (
@@ -181,12 +179,12 @@ export default function ProductClient() {
             <ul>{selectedColours.map(c => (
               <li key={c}><span>{selection[c]} × {PRODUCT.variants[c].name}</span><span>{selectionStatus(c)}</span></li>
             ))}</ul>
-            {stock && !selectionInStock ? <p>Choose another available mix.</p> : <p>All hats ship together. Free delivery.</p>}
+            {selectionInStock && <p>All hats ship together. Free delivery.</p>}
           </div>}
 
-          <button className={styles.add} onClick={add} disabled={!selectionInStock}>
-            {stock === null ? "Checking stock…" : selectionInStock ? `${addLabel} · ${formatMoney(total)}` : unavailableLabel}
-          </button>
+          {waitlistAvailable ? <RestockSignup id="product-waitlist" key={`${requested.green}:${requested.cream}`} quantities={requested} /> : <button className={styles.add} onClick={add} disabled={!selectionInStock}>
+            {stock === null ? "Checking stock…" : `${addLabel} · ${formatMoney(total)}`}
+          </button>}
 
           {stockError && <p role="alert">{stockError} <button onClick={() => void refresh()}>Retry</button></p>}
           <div className={styles.reassure}>
@@ -201,7 +199,11 @@ export default function ProductClient() {
       <Faq />
       <div className={styles.stickyBar}>
         <div className={styles.stickyInfo}>{selectionLabel} · {formatMoney(total)}</div>
-        <button className={styles.stickyAdd} onClick={add} disabled={!selectionInStock}>{stock === null ? "Checking…" : selectionInStock ? addLabel : unavailableLabel}</button>
+        <button className={styles.stickyAdd} onClick={waitlistAvailable ? () => {
+          const form = document.getElementById('product-waitlist');
+          form?.scrollIntoView({ block: 'center' });
+          form?.querySelector('input')?.focus({ preventScroll: true });
+        } : add} disabled={stock === null}>{stock === null ? "Checking…" : selectionInStock ? addLabel : 'Notify me'}</button>
       </div>
     </main>
   );
