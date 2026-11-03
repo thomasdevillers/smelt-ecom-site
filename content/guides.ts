@@ -620,6 +620,181 @@ export const GUIDES: Guide[] = [
   },
 
   {
+    slug: "common-sauna-mistakes",
+    nav: "Common mistakes",
+    title: "Common Sauna Mistakes And What To Do Instead | Smelt",
+    h1: "The most common sauna mistakes, and what to do instead",
+    description:
+      "Soaking your hat, ice-chugging between rounds, using the plunge as an escape hatch, and chasing temperature instead of consistency. The mistakes we see most, why they work against you, and the fix for each.",
+    question: "What are the most common sauna mistakes?",
+    answer:
+      "Most sauna mistakes are about rhythm rather than temperature: soaking your hat instead of lightly damping it, ice-chugging cold water mid-session, using the cold plunge to bail out before you have built any heat, and chasing a high number on the wall instead of going consistently. Alcohol is the only one on the list that actually kills people.",
+    published: "2026-11-03",
+    updated: "2026-11-03",
+    readMinutes: 9,
+    hero: ON_HEAD,
+    takeaways: [
+      "Nearly all of these are rhythm errors, not heat errors. The wall temperature is the least interesting variable.",
+      "A soaked hat is worse than a dry one. Lightly damp is the setting you want.",
+      "Hydrate, but sip cool rather than chugging ice water mid-round.",
+      "Feeling unwell always outranks any theory about adaptation. Alcohol is the genuinely dangerous mistake.",
+    ],
+    blocks: [
+      {
+        heading: "Before the list: we make hats, not medical advice",
+        body: [
+          "Worth saying once, plainly. We are two people who sauna a lot and who have spent a long time thinking about one piece of equipment. We are not doctors, and nothing below is medical advice.",
+          "If you are pregnant, have a heart condition, have low or unstable blood pressure, or take medication that affects your circulation or your ability to sweat, the sauna question is one for an actual clinician rather than a hat company. The rest of this is about doing it better, not about whether you should.",
+        ],
+      },
+      {
+        heading: "1. Soaking your hat instead of damping it",
+        body: [
+          "The most common mistake we see with our own product, and an easy one to make, because it sounds like more water should mean more cooling.",
+          "It doesn't. Wool felt insulates through the air trapped between its matted fibres, and water conducts heat roughly twenty-five times better than air does. Flood those pockets and you have swapped your insulator for a conductor and strapped it to your scalp. A soaked hat feels lovely for two minutes, then heavy and hot, usually sooner than a dry one would.",
+          "The fix: wet it with cool water, then squeeze until it stops dripping completely. You want felt that is cool and damp to the touch, still springy, and about the weight it was dry. Full reasoning in [wet or dry](/articles/should-you-wet-your-sauna-hat).",
+        ],
+      },
+      {
+        heading: "2. Wearing the hat perched on your crown",
+        body: [
+          "A hat sitting on the top of your head like a party hat is doing a fraction of its job, and we see it constantly.",
+          "Your ears are the part that actually hurts first. They are thin cartilage with skin on both sides and very little blood flow to carry heat away, which is why the involuntary shoulder-hunch happens three minutes before you give up and leave. A hat that stops above the ears leaves the most vulnerable thing on your head completely exposed.",
+          "The fix: pull it down low, so the brim covers the tops of your ears, and leave it loose rather than tight. Gripping compresses the felt, and compressed felt has fewer air pockets, which is the same as a thinner hat. There is more on fit in [how to choose a sauna hat](/articles/how-to-choose-a-sauna-hat).",
+        ],
+        figure: SIDE_FIT,
+      },
+      {
+        heading: "3. Chugging ice water between rounds",
+        body: [
+          "Here is where we have to be careful, because the popular version of this advice is half right and the half that is wrong is the dangerous half.",
+          "The reasonable part: heat adaptation tracks the thermal load you actually accumulate. Heat stress drives the heat shock protein response, and anything that aggressively dumps heat out of your core reduces the stimulus you came for. Pouring a litre of ice water into yourself mid-session is working directly against the thing the session is for. It is also just unpleasant, and a stomach full of cold water in a hot room is a reliable route to feeling queasy.",
+          "The part people get wrong: this is not an argument against drinking. You lose a serious amount of fluid through sweat, and dehydration is the actual mechanism behind most of the dizziness and fainting that happens in saunas. Fluid loss is a real acute risk. Blunted heat shock protein expression is a theoretical reduction in a long-term benefit. Those two things are not remotely the same size, and trading the first for the second is a bad deal.",
+          "The fix: hydrate properly across the whole day rather than treating the changing room as your only chance. Between rounds, sip cool or room-temperature water rather than chugging something with ice in it. And if you are thirsty, lightheaded or your mouth is dry, drink, without doing arithmetic about adaptation first.",
+        ],
+      },
+      {
+        heading: "4. Using the cold plunge as an escape hatch",
+        body: [
+          "The cold plunge has become the headline act, and the mistake is not plunging as such. It is what the plunge gets used for.",
+          "If you are bailing into cold water at minute three of every round because the heat has become unpleasant, you are not doing contrast bathing, you are using the plunge to avoid ever accumulating any heat. The sauna becomes a brief uncomfortable prelude to the bit you actually like. Whatever you were hoping to get from the heat, you are mostly not getting it, because you never stayed in it.",
+          "We want to be honest about the limits of the stronger claim here, because it is all over the internet in a more confident form than the evidence supports. See the section near the end on what is solid and what is inference.",
+          "The fix: earn the cold. Build real heat first, to the point where you are properly sweating and ready to come out, then cool down. Treat the plunge as the second half of a cycle rather than as a rescue, and if you find yourself needing rescuing every round, the room is too hot for you today. Sit lower.",
+        ],
+        figure: IN_SAUNA,
+      },
+      {
+        heading: "5. Chasing the number on the wall",
+        body: [
+          "Someone will always tell you what temperature they sauna at, and it will always be higher than yours. It is the least interesting variable in the whole practice.",
+          "What the observational research on sauna bathing has actually picked up is a relationship with frequency. The large Finnish cohort work that gets cited for sauna health benefits found its dose-response pattern in how often people went, not in how hot they went. Four to seven times a week looked better than once. Nobody is reporting that 100°C beats 85°C.",
+          "A related version of the same error: sitting on the top bench specifically so you can say you did, while being too uncomfortable to stay more than five minutes. Twenty comfortable minutes lower down is a bigger thermal dose than five heroic minutes at the ceiling.",
+          "The fix: pick a temperature you can actually sit in, and go more often. Consistency is the variable with the evidence behind it.",
+        ],
+      },
+      {
+        heading: "6. Drinking alcohol in or before the sauna",
+        body: [
+          "This is the only item on this list that is genuinely dangerous rather than merely suboptimal, so it gets its own section and no jokes.",
+          "Alcohol and heat stress are a bad combination for several reasons at once. Alcohol is a diuretic, so you start dehydrated and get worse. It dilates your blood vessels, which is exactly what the heat is already doing, so your blood pressure regulation is fighting on two fronts. It impairs your judgement about how hot you are and how long you have been in. And it increases the odds of falling asleep in a hot room, which is the specific scenario behind a meaningful share of sauna deaths in countries where sauna use is near-universal.",
+          "The fix: there isn't a moderate version worth engineering. Sauna, then drink afterwards if you want to, with water in between.",
+        ],
+      },
+      {
+        heading: "7. Standing up fast and walking straight out",
+        body: [
+          "The most common way people actually come to harm in a sauna is not dramatic. They stand up quickly from the top bench and their blood pressure drops out from under them.",
+          "Heat dilates your peripheral blood vessels, which lowers your blood pressure. Sitting still in a hot room makes this manageable. Standing up abruptly asks your circulation to push blood back up to your brain against gravity at the exact moment it is least equipped to do it, and the result is the grey-out and the stagger. Add any dehydration and it gets worse.",
+          "The fix: sit up before you stand up. Move to a lower bench for the last minute or two of a round, then get up slowly and hold something. Then cool down properly before you get dressed and leave, rather than going straight from heat to street.",
+        ],
+      },
+      {
+        heading: "8. Starting on the top bench",
+        body: [
+          "Heat tolerance is trainable, and like anything trainable it is unpleasant to skip straight to the advanced version.",
+          "The air at head height on the top bench can be fifteen to twenty degrees hotter than at your feet, so a beginner going straight up there is not experiencing the same room as the regular who recommended it. The predictable outcome is a miserable four minutes, a conclusion that sauna is not for you, and no second attempt.",
+          "The fix: start on a lower bench and work up over weeks. Also wear a hat, which is the single biggest difference to how tolerable the top bench feels, for the reason set out in [what a sauna hat does](/articles/what-does-a-sauna-hat-do).",
+        ],
+      },
+      {
+        heading: "9. Pushing through the warning signs",
+        body: [
+          "There is a culture of endurance around sauna that quietly encourages people to ignore their own body, and it is worth naming as a mistake rather than a virtue.",
+          "Dizziness, nausea, a headache starting, a heart rate that feels wrong, tingling or numbness, or feeling confused are all signals to get out. Not to tough out one more minute. None of these are the sensation of adaptation happening; they are the sensation of your thermoregulation losing.",
+          "Worth repeating a point we make in the hat guides: a sauna hat is comfort equipment, not safety equipment. It makes the room more pleasant. It does not raise your ceiling for how much total heat your body can handle, and it will not protect you from a session you have pushed too far.",
+          "The fix: leave. The room will still be there tomorrow, and going tomorrow is the thing with the evidence behind it anyway.",
+        ],
+      },
+      {
+        heading: "10. Putting the hat away damp",
+        body: [
+          "An unglamorous one to finish on, but it is the mistake that ruins the most hats.",
+          "A wool felt hat that goes straight from a session into a sealed gym bag, and stays there until next time, is the hat that develops a smell you cannot shift. Wool is remarkably resistant to odour while it can breathe and dry. Sealed up damp, it has no chance. Mildew is the next stage, and at that point the felt has often been colonised all the way through.",
+          "The fix: squeeze it out, reshape it with your hands while damp, and let it air-dry fully somewhere with moving air. Never on a radiator and never with a hairdryer, because fast heat is what hardens and shrinks felt. If you sauna most days, two hats on rotation solves the drying problem entirely. Full routine on the [care guide](/care).",
+        ],
+      },
+      {
+        heading: "The smaller ones",
+        body: [
+          "Less consequential, still worth not doing.",
+        ],
+        list: [
+          "Taking your phone in. Heat and humidity are genuinely bad for it, and it is bad manners in a shared room.",
+          "A big meal immediately before. Digestion and heat stress compete for blood flow, and you will feel it.",
+          "Skipping the pre-sauna shower. It is a shared room, and rinsing off also helps you sweat sooner.",
+          "Shaving or exfoliating right before. Freshly scraped skin plus heat plus sweat equals stinging.",
+          "Sitting directly on hot timber with no towel. Both a hygiene thing and a burn thing.",
+          "Wearing synthetic gym kit in. It traps heat against you, holds smell, and some of it does not like high temperatures.",
+        ],
+      },
+      {
+        heading: "What is solid here and what is inference",
+        body: [
+          "Two items above touch on physiology, and the internet is extremely confident about them in a way the research does not quite support. Since we would rather you trusted the rest of this page, here is the honest split.",
+        ],
+        list: [
+          "Solid: heat stress induces heat shock proteins, and heat adaptation broadly scales with the thermal load you accumulate. This is well established.",
+          "Solid: dehydration is a real and immediate risk in a sauna, and it is behind most acute incidents.",
+          "Solid: the large observational sauna studies found their dose-response relationship in frequency of use.",
+          "Inference, not demonstrated: that a cold plunge between rounds meaningfully blunts the benefits you came for. The mechanism is plausible, but the strongest human sauna evidence comes from Finnish populations who routinely cool down between rounds, so plunging plainly does not cancel the benefit out.",
+          "Inference borrowed from a different field: the popular no-ice-baths argument mostly comes from research on cold water immersion after resistance exercise, where it does appear to blunt some adaptation signalling. Sauna is not resistance training, and that transfer has not been shown.",
+          "Our actual position: a brief plunge after real heat is fine and we both do it. Using cold to cut every round short is the mistake, and that one needs no physiology to justify.",
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: "Does a cold plunge after a sauna ruin the benefits?",
+        a: "Almost certainly not. The mechanism people cite is plausible, in that cooling reduces your accumulated thermal load, but the strongest evidence for sauna health benefits comes from populations who cool down between rounds as standard practice. The real mistake is using cold water to escape every round at minute three, so you never build any heat at all.",
+      },
+      {
+        q: "Should I drink water during a sauna?",
+        a: "Yes. Fluid loss through sweat is substantial and dehydration is behind most dizziness and fainting in saunas. The refinement worth making is to sip cool or room-temperature water rather than chugging ice water mid-round, and to hydrate across the whole day rather than only in the changing room.",
+      },
+      {
+        q: "Is drinking cold water in a sauna actually bad?",
+        a: "Ice-cold water in volume works against the thermal stimulus and tends to make people feel queasy, so it is not ideal. It is a minor optimisation though, and it never outranks being properly hydrated. If you are thirsty, drink.",
+      },
+      {
+        q: "What is the single biggest sauna mistake?",
+        a: "Alcohol, by a distance, because it is the only one that gets people killed. It dehydrates you, drops your blood pressure on top of what the heat is already doing, wrecks your judgement about how long you have been in, and makes falling asleep in a hot room far more likely.",
+      },
+      {
+        q: "How hot should a sauna be?",
+        a: "Hot enough that you sweat properly and cool enough that you can stay in comfortably, which for most people lands somewhere between 80 and 95°C. The wall temperature matters far less than people think. Going regularly at a moderate temperature beats occasional heroics at the top of the range.",
+      },
+      {
+        q: "How often should I use a sauna?",
+        a: "More often is the variable with actual evidence behind it. The large Finnish cohort studies found their clearest dose-response pattern in frequency, with four to seven sessions a week associated with better outcomes than one. Bear in mind that is observational research, so it shows association rather than proof of cause.",
+      },
+      {
+        q: "Do I really need a sauna hat?",
+        a: "Need is strong. It makes a hot room noticeably more tolerable by insulating your scalp and ears, which are the parts that give up first, so most people last longer and more comfortably with one. It is comfort equipment though, not safety equipment, and it does not make a hot room safe.",
+      },
+    ],
+  },
+
+  {
     slug: "where-do-sauna-hats-come-from",
     nav: "Where they come from",
     title: "Where Do Sauna Hats Come From? Banya, Not Finland | Smelt",
