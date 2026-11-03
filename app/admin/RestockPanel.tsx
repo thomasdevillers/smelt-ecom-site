@@ -6,7 +6,9 @@ import type { AdminEmailRestockSignup } from '@/lib/restockEmail';
 import type { Availability } from '@/lib/availability';
 import styles from './admin.module.css';
 export default function RestockPanel({ onExpired }: { onExpired: () => void }) {
-  const [data, setData] = useState<{ signups: (RestockSignup & { whatsappUrl: string })[]; emailSignups: AdminEmailRestockSignup[]; stock: Availability } | null>(null);
+  const [data, setData] = useState<{ signups: (RestockSignup & { whatsappUrl: string })[]; emailSignups: AdminEmailRestockSignup[]; stock: Availability; received: boolean } | null>(null);
+  const [green, setGreen] = useState(100);
+  const [cream, setCream] = useState(100);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const load = useCallback(async () => {
@@ -28,11 +30,26 @@ export default function RestockPanel({ onExpired }: { onExpired: () => void }) {
     } catch (e) { setError(e instanceof Error ? e.message : 'Please try again.'); }
     finally { setBusy(false); }
   }
+  async function receive(event: React.FormEvent) {
+    event.preventDefault();
+    if (!window.confirm(`Confirm ${green} green and ${cream} cream hats have physically arrived? Existing pre-orders and payment holds will be allocated first, and only remaining hats will become available to buy.`)) return;
+    setBusy(true);
+    try {
+      const r = await fetch('/api/admin/restock', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'receive', confirmed: true, green, cream }) });
+      if (r.status === 401) { onExpired(); return; }
+      const value = await r.json();
+      if (!r.ok) throw new Error(value.error || 'Could not receive the batch.');
+      await load();
+    } catch (e) { setError(e instanceof Error ? e.message : 'Please try again.'); }
+    finally { setBusy(false); }
+  }
   return <section>
     <p className={styles.help}>Email signups receive a waiting-list confirmation. Send restock updates once the full requested quantity is available, then mark notified. Remove anyone who opts out.</p>
     <button className={styles.refresh} onClick={() => void load()}>Refresh restock list</button>
     {error && <p role="alert" className={styles.error}>{error}</p>}
-    {data && <p>{data.stock.localTest ? 'Local test inventory · ' : ''}Green: {data.stock.green} ready · Cream: {data.stock.cream} ready</p>}
+    {data && <p>{data.stock.localTest ? 'Local test inventory · ' : ''}Green: {data.stock.green} ready / {data.stock.preorder.green} pre-order spaces · Cream: {data.stock.cream} ready / {data.stock.preorder.cream} pre-order spaces</p>}
+    {data && !data.received && <details className={styles.login}><summary>Receive the November batch</summary><p>Use only when the hats have physically arrived. This closes pre-orders for the batch and reserves promised hats before making leftovers available.</p><form onSubmit={receive}><label>Green hats received<input type="number" min={0} max={10000} required value={green} onChange={e => setGreen(Number(e.target.value))} /></label><label>Cream hats received<input type="number" min={0} max={10000} required value={cream} onChange={e => setCream(Number(e.target.value))} /></label><button disabled={busy}>Receive batch and allocate pre-orders</button></form></details>}
+    {data?.received && <p>The batch has been received and pre-orders allocated. Dispatch paid pre-orders first, in payment order for each colour.</p>}
     {data?.signups.length === 0 && data.emailSignups.length === 0 && <p>No restock signups yet.</p>}
     {!!data?.emailSignups.length && <div className={styles.restockList}>
       {data.emailSignups.map(row => {

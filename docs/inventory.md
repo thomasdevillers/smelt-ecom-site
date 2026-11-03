@@ -1,11 +1,9 @@
-# Stock-only sales
+# Inventory and preorders
 
-New checkouts reserve physical stock only. There is no preorder mode, capacity setting, consent flow, or campaign batch receipt endpoint. Prices are defined in `lib/pricing.ts`.
+The manual storefront switch lives in `lib/salesMode.ts`. See [the preorder switch guide](preorder-switch.md) for November capacity, pricing, receipt and normal-sales restoration.
 
-`lib/purchaseStore.ts` owns atomic reservation, payment commit, release and expiry. The existing `smelt:preorders:v1` Redis namespace and `smeltp-` references are intentionally preserved: normal sales already use these records. Renaming keys would disconnect paid orders and pending payments. Do not reset stock or historical allocation data.
+`lib/purchaseStore.ts` owns atomic reservation, payment commit, release, expiry and batch receipt. The existing `smelt:preorders:v1` Redis namespace and `smeltp-` references are preserved. Physical stock is shared; future capacity and receipt status belong to each batch. New allocations carry their batch, while untagged historical allocations retain the October identity.
 
-`lib/legacyPreorders.ts`, historical order displays, and the allocation compatibility branches only interpret previously stored purchases. Old payment links must retain their recorded pricing and allocation checks. No new purchase can allocate future capacity.
+During preorder mode every new hat requires preorder consent. Successfully paid November orders can be allocated existing physical stock for early dispatch without changing the customer-facing promise. Never reset stock or historical allocation data.
 
-Inventory changes must use actual received quantities and account for held and paid allocations. The retired October batch receipt endpoint is unavailable.
-
-`npm test` covers local behavior. The opt-in `RUN_INVENTORY_REDIS_TESTS=1 npx vitest run lib/purchaseStore.integration.test.ts` uses disposable UUID keys, not customer inventory.
+`npm test` covers local behavior. The opt-in `RUN_INVENTORY_REDIS_TESTS=1 node_modules/.bin/vitest run lib/purchaseStore.integration.test.ts lib/preorderStore.integration.test.ts --testTimeout=20000` uses disposable UUID keys, not customer inventory.

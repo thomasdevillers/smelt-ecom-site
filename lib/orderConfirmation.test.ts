@@ -1,3 +1,4 @@
+vi.mock("./salesMode", async original => ({ ...await original<typeof import("./salesMode")>(), PREORDER_MODE: true }));
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import { createHash, createHmac } from "node:crypto";
 const mocks = vi.hoisted(() => ({
@@ -14,7 +15,7 @@ vi.mock("./vouchers", () => ({
   commitVoucher: mocks.commitVoucher,
 }));
 import { sendOrderConfirmation, sendOwnerOrderNotification, type ConfirmedOrder } from "./orderConfirmation";
-import { paidCheckoutTotal } from "./checkoutShared";
+import { checkoutTotal } from "./checkoutShared";
 import { PRICING_VERSION } from "./pricing";
 import { captureTouch, mergeAttribution } from "./attribution";
 import { POST as webhook } from "../app/api/paystack/webhook/route";
@@ -24,7 +25,7 @@ const store = new Map<string, unknown>();
 const order: ConfirmedOrder = {
   reference: "paid-confirmation-test", email: "buyer@example.com", currency: "ZAR",
   paidAt: "2026-09-26T05:00:00.000Z",
-  cart: { green: 1, cream: 0 }, amount: paidCheckoutTotal({ green: 1, cream: 0 }, undefined) * 100,
+  cart: { green: 1, cream: 0 }, amount: checkoutTotal({ green: 1, cream: 0 }) * 100,
   address: { line1: "1 Test Street", city: "Cape Town", province: "Western Cape", postalCode: "8001" },
 };
 beforeEach(() => {
@@ -203,7 +204,7 @@ describe("payment route integration", () => {
   ])("reconciles through %s a mixed %i-hat bundle with voucher and receipt discounts", async (route, qty) => {
     const count = Number(qty);
     const cart = { green: 2, cream: count - 2 };
-    const amount = (count === 3 ? 1200 : 1550) * 100;
+    const amount = (count === 3 ? 1150 : 1550) * 100;
     const metadata = { cart, unitPrice: 450, pricingVersion: PRICING_VERSION, shippingMethod: "aramex", voucher: { amount: 50 } };
     mocks.verify.mockResolvedValue({ ...order, amount, status: "success", customerEmail: order.email, metadata });
     const response = route === "webhook"
@@ -216,8 +217,8 @@ describe("payment route integration", () => {
     expect(mocks.send).toHaveBeenCalledTimes(2);
     for (const [message] of mocks.send.mock.calls) {
       expect(message.text).toContain("Bundle discount");
-      expect(message.text).toContain(count === 3 ? "R100" : "R200");
-      expect(message.text).toContain(count === 3 ? "R1 200" : "R1 550");
+      expect(message.text).toContain(count === 3 ? "R150" : "R200");
+      expect(message.text).toContain(count === 3 ? "R1 150" : "R1 550");
     }
   });
 

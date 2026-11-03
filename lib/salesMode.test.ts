@@ -1,0 +1,26 @@
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { countdownParts } from './salesMode';
+import { paidCheckoutTotal } from './checkoutShared';
+
+afterEach(() => { vi.doUnmock('./salesMode'); vi.resetModules(); });
+describe('November pre-order campaign', () => {
+  it('counts down to the shipping day in SAST and stays at zero afterwards', () => {
+    expect(countdownParts(Date.parse('2026-11-28T20:57:13Z'))).toEqual([1, 1, 2, 47]);
+    expect(countdownParts(Date.parse('2026-11-29T22:00:00Z'))).toEqual([0, 0, 0, 0]);
+    expect(countdownParts(Date.parse('2026-12-01T10:00:00Z'))).toEqual([0, 0, 0, 0]);
+  });
+  it('restores regular pricing only through the manual switch', async () => {
+    vi.doMock('./salesMode', () => ({ PREORDER_MODE: false, PREORDER_PRICE: 450, REGULAR_PRICE: 550 }));
+    const pricing = await import('./pricing');
+    expect(pricing.BASE_PRICE).toBe(550);
+    expect(pricing.lineTotal(2)).toBe(1100);
+    expect([1, 2, 3, 4].map(qty => pricing.bundleSubtotal(qty))).toEqual([550, 1100, 1550, 2000]);
+    expect(paidCheckoutTotal({ green: 1, cream: 0 }, 'aramex', 50, 450)).toBe(490);
+    expect(paidCheckoutTotal({ green: 1, cream: 0 }, 'aramex', 50, 550)).toBe(500);
+  });
+  it('preserves legacy R450 payments and rejects unknown price snapshots', () => {
+    expect(paidCheckoutTotal({ green: 1, cream: 0 }, 'aramex')).toBe(540);
+    expect(paidCheckoutTotal({ green: 1, cream: 0 }, 'aramex', 0, 1)).toBeNaN();
+    expect(paidCheckoutTotal({ green: 1, cream: 0 }, 'aramex', 0, '450')).toBeNaN();
+  });
+});

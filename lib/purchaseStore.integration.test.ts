@@ -15,7 +15,7 @@ describe.skipIf(process.env.RUN_INVENTORY_REDIS_TESTS !== '1')('stock-only alloc
     await db.eval(`redis.call('HSET', KEYS[1], 'green', 2, 'cream', 1); redis.call('HSET', KEYS[2], 'green', 100, 'cream', 100); redis.call('HSET', KEYS[3], '_test', '{}'); for _, k in ipairs(KEYS) do redis.call('EXPIRE', k, 120) end; return 1`, keys.slice(0, 3), []);
   });
   afterEach(async () => { if (keys) await db.del(...keys); });
-  const reserve = (id: string, g: number, c: number) => db.eval(RESERVE_PURCHASE, keys, [id, g, c, '2026-09-22T10:00:00.000Z']);
+  const reserve = (id: string, g: number, c: number) => db.eval<(string | number)[], number[]>(RESERVE_PURCHASE, keys, [id, g, c, 0, 0, '2026-09-22T10:00:00.000Z', '0']).then(result => result[0]);
   const commit = (id: string, g: number, c: number) => db.eval(COMMIT_PURCHASE, [keys[2], keys[0], keys[1], keys[3]], [id, g, c]);
   const expire = (id: string, cutoff = '2026-09-22T10:00:00.000Z') => db.eval(EXPIRE_PURCHASE, keys, [id, 'expired', cutoff, '2026-09-22T11:00:00.000Z']);
 
@@ -36,7 +36,7 @@ describe.skipIf(process.env.RUN_INVENTORY_REDIS_TESTS !== '1')('stock-only alloc
     expect(await commit('mixed', 2, 1)).toBe(1);
     expect(await commit('mixed', 3, 1)).toBe(0);
     expect(await db.hgetall(keys[0])).toEqual({ green: 0, cream: 0 });
-    expect(await db.hget(keys[2], 'mixed')).not.toHaveProperty('preorderGreen');
+    expect(await db.hget(keys[2], 'mixed')).toMatchObject({ preorderGreen: 0, preorderCream: 0 });
   });
   it('returns rejected stock once without reviving the rejected purchase', async () => {
     await reserve('rejected', 2, 1);

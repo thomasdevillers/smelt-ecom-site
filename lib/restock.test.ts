@@ -1,8 +1,9 @@
+vi.mock("./salesMode", async original => ({ ...await original<typeof import("./salesMode")>(), PREORDER_MODE: false }));
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ eval: vi.fn(), hgetall: vi.fn(), hdel: vi.fn(), admin: vi.fn() }));
 vi.mock('@upstash/redis', () => ({ Redis: class { eval = mocks.eval; hgetall = mocks.hgetall; hdel = mocks.hdel; } }));
 vi.mock('./admin/auth', () => ({ requireAdmin: mocks.admin }));
-vi.mock('./purchaseStore', () => ({ getAvailability: vi.fn() }));
+vi.mock('./purchaseStore', () => ({ getAvailability: vi.fn(), batchReceived: vi.fn().mockResolvedValue(false) }));
 import { POST } from '../app/api/restock/route';
 import { GET } from '../app/api/admin/restock/route';
 import { AdminError } from './admin/store';

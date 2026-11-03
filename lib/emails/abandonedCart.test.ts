@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+vi.mock("../salesMode", async original => ({ ...await original<typeof import("../salesMode")>(), PREORDER_MODE: false }));
+import { describe, it, expect, vi } from "vitest";
 import { abandonedCartEmail } from "./abandonedCart";
 
 describe("abandonedCartEmail", () => {

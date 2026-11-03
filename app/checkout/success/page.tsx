@@ -1,5 +1,5 @@
 "use client";
-import { parsePreorder, preorderTiming, type PreorderDetails } from "@/lib/legacyPreorders";
+import { parsePreorder, preorderTiming, type PreorderDetails } from "@/lib/preorders";
 import SocialLinks from "@/components/SocialLinks";
 import DeliveryMap from "@/components/DeliveryMap";
 import { getDeliveryAddress, type DeliveryAddress } from "@/lib/deliveryMap";

@@ -19,6 +19,8 @@ import { trackMetaEvent } from "@/lib/metaPixel";
 import { trackVercelEvent, vercelProductData } from "@/lib/vercelAnalytics";
 import styles from "@/app/product/product.module.css";
 import { useAvailability } from "@/lib/useAvailability";
+import { PREORDER_MODE } from "@/lib/salesMode";
+import PreorderPrice from "./PreorderPrice";
 
 function ProductLinkSelection({ onSelect }: { onSelect: (colour: Colour, quantity: PurchaseQuantity) => void }) {
   const params = useSearchParams();
@@ -51,10 +53,11 @@ export default function ProductClient() {
     : { green: colour === "green" ? 1 : 0, cream: colour === "cream" ? 1 : 0 };
   const bundleChoices = quantity === 1 ? [] : BUNDLE_GREEN_COUNTS[quantity];
   const selectionLabel = isBundle ? bundleChoiceLabel(bundleGreen, quantity) : v.name;
-  const selectedColours = COLOURS.filter(c => selection[c] > 0);
   const selectionInStock = stock !== null && canAddSelection(selection, cart, stock);
   const requested = { green: cart.green + selection.green, cream: cart.cream + selection.cream };
-  const waitlistAvailable = stock !== null && !selectionInStock;
+  const waitlistAvailable = !PREORDER_MODE && stock !== null && !selectionInStock;
+  const selectedColours = COLOURS.filter(c => selection[c] > 0);
+  const isPreorder = stock !== null && selectedColours.some(c => cart[c] + selection[c] > stock[c]);
   const add = () => {
     if (!selectionInStock) return;
     if (isBundle) dispatch({ type: "addBundle", quantities: selection });
@@ -69,16 +72,22 @@ export default function ProductClient() {
   const bundleStatus = (green: number) => {
     if (!stock) return "Checking stock…";
     const mix = { green, cream: quantity - green };
-    if (!canAddSelection(mix, cart, stock)) return "Not enough stock";
-    return "In stock";
+    if (!canAddSelection(mix, cart, stock)) return PREORDER_MODE ? "Fully reserved" : "Not enough stock";
+    if (PREORDER_MODE) return "Pre-order";
+    return COLOURS.some(c => mix[c] > 0 && cart[c] + mix[c] > stock[c]) ? "Includes pre-order" : "In stock";
   };
   const selectionStatus = (c: Colour) => {
     if (!stock) return "Checking stock…";
     const qty = selection[c];
-    if (stock[c] < cart[c] + qty) return "Not enough stock";
-    return `${stock[c]} left`;
+    if (stock[c] + stock.preorder[c] < cart[c] + qty) return PREORDER_MODE ? "Fully reserved" : "Not enough stock";
+    if (PREORDER_MODE) return "Pre-order";
+    const ready = Math.min(qty, Math.max(0, stock[c] - cart[c]));
+    return ready === qty ? `${stock[c]} left` : ready > 0 ? `${ready} in stock · ${qty - ready} on pre-order` : "Pre-order";
   };
-  const addLabel = isBundle ? `Add ${quantity} hats` : "Add to bag";
+  const unavailableLabel = PREORDER_MODE ? "Pre-orders fully reserved" : !isBundle && stock?.[colour] === 0
+    ? "Out of stock"
+    : "Not enough stock";
+  const addLabel = isPreorder ? (isBundle ? `Pre-order ${quantity} hats` : "Pre-order") : isBundle ? `Add ${quantity} hats` : "Add to bag";
 
   useEffect(() => {
     if (viewed.current) return;
@@ -105,7 +114,7 @@ export default function ProductClient() {
         <div className={styles.info}>
           <SectionLabel>The collection (all two of them)</SectionLabel>
           <h1 className={styles.h1}>{PRODUCT.name}</h1>
-          <div className={styles.price}>{formatMoney(BASE_PRICE)}</div>
+          {PREORDER_MODE ? <PreorderPrice /> : <div className={styles.price}>{formatMoney(BASE_PRICE)}</div>}
           {process.env.NEXT_PUBLIC_ASK_HAT_ENABLED !== "false" && <div className={styles.productAssistant}><AskAboutHat /></div>}
 
           <fieldset className={styles.purchaseOptions}>
@@ -141,7 +150,7 @@ export default function ProductClient() {
                     <i style={{ backgroundColor: PRODUCT.variants[c].swatch }} />
                   </span>
                   <span>{PRODUCT.variants[c].name}</span>
-                  {stock && <small>{stock[c] === 0 ? "Out of stock" : `${stock[c]} left`}</small>}
+                  {stock && <small>{PREORDER_MODE ? (stock.preorder[c] > 0 ? "Pre-order" : "Fully reserved") : stock[c] === 0 ? "Out of stock" : `${stock[c]} left`}</small>}
                 </button>
               ))}
             </div>
@@ -183,13 +192,13 @@ export default function ProductClient() {
           </div>}
 
           {waitlistAvailable ? <RestockSignup id="product-waitlist" key={`${requested.green}:${requested.cream}`} quantities={requested} /> : <button className={styles.add} onClick={add} disabled={!selectionInStock}>
-            {stock === null ? "Checking stock…" : `${addLabel} · ${formatMoney(total)}`}
+            {stock === null ? "Checking stock…" : !selectionInStock ? unavailableLabel : `${addLabel} · ${formatMoney(total)}`}
           </button>}
 
           {stockError && <p role="alert">{stockError} <button onClick={() => void refresh()}>Retry</button></p>}
-          <div className={styles.reassure}>
+          {!PREORDER_MODE && !isPreorder && <div className={styles.reassure}>
             <span>In-stock orders dispatched from Cape Town within 1–3 business days</span>
-          </div>
+          </div>}
         </div>
       </div>
 
@@ -203,7 +212,7 @@ export default function ProductClient() {
           const form = document.getElementById('product-waitlist');
           form?.scrollIntoView({ block: 'center' });
           form?.querySelector('input')?.focus({ preventScroll: true });
-        } : add} disabled={stock === null}>{stock === null ? "Checking…" : selectionInStock ? addLabel : 'Notify me'}</button>
+        } : add} disabled={stock === null || (!selectionInStock && !waitlistAvailable)}>{stock === null ? "Checking…" : selectionInStock ? addLabel : waitlistAvailable ? 'Notify me' : unavailableLabel}</button>
       </div>
     </main>
   );

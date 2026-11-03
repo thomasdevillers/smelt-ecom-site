@@ -11,7 +11,7 @@ vi.mock("@/lib/cart", () => ({ useCart: vi.fn() }));
 vi.mock("@/lib/useAvailability", () => ({ useAvailability: vi.fn() }));
 
 const stock: Availability = {
-  green: 2, cream: 4, localTest: true,
+  green: 2, cream: 4, localTest: true, preorder: { green: 0, cream: 0 }, batch: "2026-11-30", timing: "Pre-orders ship on 30 November.",
 };
 
 function availability(value: Availability | null, error = "") {
@@ -46,6 +46,14 @@ describe.each([CartDrawer, CartPage])("%s stock limits", (Component) => {
     availability({ ...stock, green: 3 });
     const html = renderToStaticMarkup(createElement(Component));
     expect(button(html, "Increase", "green")).not.toContain("disabled");
+  });
+
+  it("uses preorder capacity even when both physical counts are hidden", () => {
+    availability({ ...stock, green: 0, cream: 0, preorder: { green: 2, cream: 100 } });
+    const html = renderToStaticMarkup(createElement(Component));
+    expect(button(html, "Increase", "green")).toContain("disabled");
+    expect(button(html, "Increase", "cream")).not.toContain("disabled");
+    expect(html).toContain("Pre-orders ship on 30 November.");
   });
 
   it("blocks increases while checking stock but keeps decreases available", () => {

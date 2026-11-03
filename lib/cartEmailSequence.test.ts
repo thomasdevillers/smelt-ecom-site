@@ -1,3 +1,4 @@
+vi.mock("./salesMode", async original => ({ ...await original<typeof import("./salesMode")>(), PREORDER_MODE: true }));
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
@@ -113,9 +114,9 @@ describe("abandoned-cart email sequence", () => {
     await processCartEmails(now + 71 * 60 * 60 * 1000);
     expect(mocks.send).toHaveBeenCalledTimes(3);
     expect(mocks.send.mock.calls.map(call => call[0].subject)).toEqual([
-      "R50 off the Smelt you left behind",
-      "Your R50 Smelt code is still warm",
-      "A final reminder about your Smelt cart",
+      "Your Smelt pre-order is waiting — R50 off inside",
+      "Secure your Smelt at the pre-order price",
+      "One last reminder to reserve your Smelt pre-order",
     ]);
     expect(mocks.queue.size).toBe(0);
   });

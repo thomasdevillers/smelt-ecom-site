@@ -9,6 +9,8 @@ import styles from "./ProductExplorer.module.css";
 import { trackVercelEvent, vercelProductData } from "@/lib/vercelAnalytics";
 import { useAvailability } from "@/lib/useAvailability";
 import RestockSignup from './RestockSignup';
+import { PREORDER_MODE } from "@/lib/salesMode";
+import PreorderPrice from "./PreorderPrice";
 
 export default function ProductExplorer() {
   const [colour, setColour] = useState<Colour>("green");
@@ -18,7 +20,8 @@ export default function ProductExplorer() {
   const { cart, dispatch, openCart } = useCart();
   const v = PRODUCT.variants[colour];
 
-  const inStock = stock !== null && stock[colour] >= cart[colour] + 1;
+  const inStock = stock !== null && stock[colour] + stock.preorder[colour] >= cart[colour] + 1;
+  const isPreorder = stock !== null && cart[colour] + 1 > stock[colour];
   const add = () => {
     if (!inStock) return;
     dispatch({ type: "add", colour, qty: 1 });
@@ -56,7 +59,7 @@ export default function ProductExplorer() {
         <div className={styles.panel}>
           <div>
             <h3 className={styles.name}>{PRODUCT.name}</h3>
-            <div className={styles.price}>{v.name} · {formatMoney(BASE_PRICE)}</div>
+            {PREORDER_MODE ? <PreorderPrice /> : <div className={styles.price}>{v.name} · {formatMoney(BASE_PRICE)}</div>}
           </div>
 
           <div>
@@ -71,14 +74,14 @@ export default function ProductExplorer() {
                 >
                   <span>{PRODUCT.variants[choice].name}</span>
                   {/* Always rendered so the chip height doesn't jump when stock loads. */}
-                  {!stock ? <small aria-hidden="true">&nbsp;</small> : <small>{stock[choice] === 0 ? "Out of stock" : `${stock[choice]} left`}</small>}
+                  {!stock ? <small aria-hidden="true">&nbsp;</small> : <small>{PREORDER_MODE ? (stock.preorder[choice] > 0 ? "Pre-order" : "Fully reserved") : stock[choice] === 0 ? "Out of stock" : `${stock[choice]} left`}</small>}
                 </button>
               ))}
             </div>
           </div>
 
-          {stock !== null && !inStock ? <RestockSignup key={`${colour}:${cart[colour]}`} quantities={{ green: colour === 'green' ? cart.green + 1 : 0, cream: colour === 'cream' ? cart.cream + 1 : 0 }} /> : <button className={styles.add} onClick={add} disabled={!inStock}>
-            {stock === null ? "Checking stock…" : `Add to bag · ${formatMoney(BASE_PRICE)}`}
+          {!PREORDER_MODE && stock !== null && !inStock ? <RestockSignup key={`${colour}:${cart[colour]}`} quantities={{ green: colour === 'green' ? cart.green + 1 : 0, cream: colour === 'cream' ? cart.cream + 1 : 0 }} /> : <button className={styles.add} onClick={add} disabled={!inStock}>
+            {stock === null ? "Checking stock…" : !inStock ? "Pre-orders fully reserved" : `${isPreorder ? "Pre-order" : "Add to bag"} · ${formatMoney(BASE_PRICE)}`}
           </button>}
           {stockError && <p role="alert">{stockError} <button onClick={() => void refresh()}>Retry</button></p>}
         </div>

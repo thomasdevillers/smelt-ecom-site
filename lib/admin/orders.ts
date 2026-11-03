@@ -1,4 +1,4 @@
-import { parsePreorder, preorderTiming } from "../legacyPreorders";
+import { parsePreorder, preorderTiming } from "../preorders";
 import { batchReceived, purchaseNeedsReview, resolvePurchasePreorder } from "../purchaseStore";
 import { sanitizeAddress } from "../address";
 import { sanitizeCart } from "../checkoutShared";
@@ -62,10 +62,10 @@ export async function getPaidOrder(reference: string) {
   const { data } = await paystack(`/transaction/verify/${encodeURIComponent(reference)}`);
   if (data?.reference !== reference || data?.status !== "success") throw new AdminError("This order does not have a successful payment.", 409);
   const order = normalizeOrder(data);
-  order.preorder = await resolvePurchasePreorder(order.reference, order.preorder);
+  order.preorder = await resolvePurchasePreorder(order.reference, order.preorder, true);
   if (order.preorder && !await batchReceived(order.preorder.batch)) {
     order.canShip = false;
-    order.reviewReason = `${preorderTiming(order.preorder)} Review this historical allocation before sending tracking.`;
+    order.reviewReason = `${preorderTiming(order.preorder)} Confirm the hats have been received in Restock requests before sending tracking.`;
   }
   await flagUnallocatedPayment(order);
   return order;
@@ -94,7 +94,7 @@ export async function findPaidOrdersByEmail(email: string): Promise<AdminOrder[]
     orders.push(...body.data.map((value: unknown) => normalizeOrder(value)).filter((order: AdminOrder) => order.email === normalized));
     if (page >= body.meta.pageCount) break;
   }
-  await Promise.all(orders.map(async order => { order.preorder = await resolvePurchasePreorder(order.reference, order.preorder); }));
+  await Promise.all(orders.map(async order => { order.preorder = await resolvePurchasePreorder(order.reference, order.preorder, true); }));
   return orders.sort((a, b) => (b.paidAt || "").localeCompare(a.paidAt || ""));
 }
 export const completionKey = () => `smelt:orders:completed:v1:${process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_") ? "live" : "test"}`;
@@ -147,7 +147,7 @@ export async function listPaidTransactions(): Promise<unknown[]> {
 export async function listOrders(
   page: number,
   search = "",
-  view: "active" | "completed" = "active",
+  view: "active" | "completed" | "preorders" = "active",
   completedSort: "newest" | "oldest" = "newest",
 ): Promise<OrdersPage> {
   let orders = (await listPaidTransactions()).map(normalizeOrder);
@@ -157,7 +157,7 @@ export async function listOrders(
   // Filter before allocation totals, completion filters, and dashboard pagination.
   if (term) orders = orders.filter(order =>
     [order.name, order.email, order.reference].some(value => value.toLowerCase().includes(term)));
-  await Promise.all(orders.map(async order => { order.preorder = await resolvePurchasePreorder(order.reference, order.preorder); }));
+  await Promise.all(orders.map(async order => { order.preorder = await resolvePurchasePreorder(order.reference, order.preorder, true); }));
   const db = adminStore();
   const [completed, reviewMessages] = await Promise.all([
     db.hgetall<Record<string, string>>(completionKey()),
@@ -169,17 +169,25 @@ export async function listOrders(
   }
   const completedTotal = orders.filter(order => order.completedAt).length;
   const activeTotal = orders.length - completedTotal;
-  const filtered = orders.filter(order => view === "completed" ? !!order.completedAt : !order.completedAt);
+  // Count outstanding pre-order units across every page, using current allocations.
+  const preorderToFulfil = { cream: 0, green: 0 };
+  for (const order of orders) {
+    if (order.completedAt || !order.preorder) continue;
+    preorderToFulfil.cream += order.preorder.quantities.cream;
+    preorderToFulfil.green += order.preorder.quantities.green;
+  }
+  const filtered = orders.filter(order => view === "completed" ? !!order.completedAt : !order.completedAt && (view !== "preorders" || !!order.preorder));
+  if (view === "preorders") filtered.sort((a, b) => (a.paidAt || "").localeCompare(b.paidAt || "") || a.reference.localeCompare(b.reference));
   if (view === "completed") filtered.sort((a, b) => completedSort === "oldest"
     ? a.completedAt!.localeCompare(b.completedAt!)
     : b.completedAt!.localeCompare(a.completedAt!));
   const pageCount = Math.ceil(filtered.length / 25);
   const currentPage = Math.min(page, Math.max(1, pageCount));
-  const result: OrdersPage = { orders: filtered.slice((currentPage - 1) * 25, currentPage * 25), page: currentPage, pageCount, total: filtered.length, activeTotal, completedTotal };
+  const result: OrdersPage = { orders: filtered.slice((currentPage - 1) * 25, currentPage * 25), page: currentPage, pageCount, total: filtered.length, activeTotal, completedTotal, preorderToFulfil };
   for (const batch of new Set(result.orders.flatMap(order => order.preorder ? [order.preorder.batch] : []))) {
     if (!await batchReceived(batch)) for (const order of result.orders) if (order.preorder?.batch === batch) {
       order.canShip = false;
-      order.reviewReason = `${preorderTiming(order.preorder)} Review this historical allocation before sending tracking.`;
+      order.reviewReason = `${preorderTiming(order.preorder)} Confirm the hats have been received in Restock requests before sending tracking.`;
     }
   }
   await Promise.all(result.orders.map(flagUnallocatedPayment));

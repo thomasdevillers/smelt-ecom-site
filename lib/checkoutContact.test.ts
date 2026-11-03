@@ -21,7 +21,7 @@ import { reserveVoucher } from "@/lib/vouchers";
 vi.mock("@/lib/purchaseStore", () => ({
   releaseRejectedPurchase: vi.fn(),
   reservePurchase: vi.fn().mockResolvedValue({ reserved: true }),
-  getAvailability: vi.fn().mockResolvedValue({ green: 0, cream: 13 }),
+  getAvailability: vi.fn().mockResolvedValue({ green: 0, cream: 13, preorder: { green: 0, cream: 0 } }),
 }));
 import { reservePurchase } from "@/lib/purchaseStore";
 import { ATTRIBUTION_WINDOW_MS, captureTouch, mergeAttribution } from "./attribution";
@@ -69,7 +69,7 @@ it("reserves a personal review voucher and sends only the discounted amount to P
   expect(response.status).toBe(200);
   expect(reserveVoucher).toHaveBeenCalledWith("SMELT-ABCDEFGHIJKL", "buyer@example.com", "smeltp-00000000-0000-4000-8000-000000000000");
   expect(initializeTransaction).toHaveBeenCalledWith(expect.objectContaining({
-    amount: 590,
+    amount: 490,
     metadata: expect.objectContaining({ voucher: { id: "a".repeat(64), amount: 50 } }),
   }));
 });
@@ -85,33 +85,43 @@ it.each([{ green: 1, cream: 0 }, { green: 0, cream: 1 }, { green: 2, cream: 0 },
   const response = await POST(request({ phone: "0837875826" }, { cart, amount: 1, pricingVersion: "hat-bundles-v2" }));
   expect(response.status).toBe(200);
   expect(initializeTransaction).toHaveBeenLastCalledWith(expect.objectContaining({
-    amount: cart.green + cart.cream === 1 ? 640 : 1100,
+    amount: cart.green + cart.cream === 1 ? 540 : 900,
     metadata: expect.objectContaining({ pricingVersion: PRICING_VERSION }),
   }));
 });
 
 it.each([3, 4])("initializes the %i-hat bundle server-side for every colour mix", async qty => {
-  const total = qty === 3 ? 1550 : 2000;
+  const total = qty === 3 ? 1200 : 1600;
   for (let green = 0; green <= qty; green++) {
     const cart = { green, cream: qty - green };
     const response = await POST(request({ phone: "0837875826" }, { cart, amount: 1, pricingVersion: "forged" }));
     expect(response.status).toBe(200);
-    expect(reservePurchase).toHaveBeenLastCalledWith(cart, expect.any(String));
+    expect(reservePurchase).toHaveBeenLastCalledWith(cart, expect.any(String), undefined);
     expect(initializeTransaction).toHaveBeenLastCalledWith(expect.objectContaining({
       amount: total,
-      metadata: expect.objectContaining({ cart, unitPrice: 550, pricingVersion: PRICING_VERSION }),
+      metadata: expect.objectContaining({ cart, unitPrice: 450, pricingVersion: PRICING_VERSION }),
     }));
   }
 });
 it("applies the server-validated voucher after the mixed bundle discount", async () => {
   const response = await POST(request({ phone: "0837875826" }, { cart: { green: 2, cream: 2 }, voucherCode: "SMELT-ABCDEFGHIJKL" }));
   expect(response.status).toBe(200);
-  expect(initializeTransaction).toHaveBeenLastCalledWith(expect.objectContaining({ amount: 1950 }));
+  expect(initializeTransaction).toHaveBeenLastCalledWith(expect.objectContaining({ amount: 1550 }));
 });
 
-it("ignores obsolete preorder consent and never records it on new payments", async () => {
-  const response = await POST(request({ phone: "0837875826" }, { preorderConsent: { accepted: true, batch: "2026-10-22", quantities: { green: 99, cream: 99 } } }));
-  expect(response.status).toBe(200);
-  expect(reservePurchase).toHaveBeenLastCalledWith({ green: 1, cream: 0 }, expect.any(String));
-  expect(vi.mocked(initializeTransaction).mock.calls.at(-1)![0].metadata).not.toHaveProperty("preorder");
+it("records the server-reserved November preorder promise with payment metadata", async () => {
+  const quantities = { green: 1, cream: 0 };
+  const consent = { accepted: true, batch: "2026-11-30", quantities };
+  const preorder = { batch: "2026-11-30", arrival: "30 November 2026", timing: "dispatch" as const, quantities };
+  vi.mocked(reservePurchase).mockResolvedValueOnce({ reserved: true, preorder });
+  expect((await POST(request({ phone: "0837875826" }, { preorderConsent: consent }))).status).toBe(200);
+  expect(reservePurchase).toHaveBeenLastCalledWith(quantities, expect.any(String), consent);
+  expect(initializeTransaction).toHaveBeenLastCalledWith(expect.objectContaining({ amount: 540,
+    metadata: expect.objectContaining({ preorder, unitPrice: 450, pricingVersion: PRICING_VERSION }),
+  }));
+});
+it("does not initialize a payment when consent or preorder availability is rejected", async () => {
+  vi.mocked(reservePurchase).mockResolvedValueOnce({ reserved: false });
+  expect((await POST(request({ phone: "0837875826" }))).status).toBe(409);
+  expect(initializeTransaction).not.toHaveBeenCalled();
 });

@@ -5,7 +5,8 @@ import { POLICIES } from "@/content/policies";
 import { PRODUCT, COLOURS } from "./product";
 import { BASE_PRICE } from "./pricing";
 import { bundleSubtotal, bundleDeliveredSaving, formatMoney, lineTotal, shippingFee, SHIPPING_OPTIONS } from "./pricing";
-import type { Availability } from "./availability";
+import { PREORDER_MODE, PREORDER_COPY, REGULAR_PRICE } from "./salesMode";
+import type { Availability } from "./preorders";
 
 /** Reference material, never prewritten answers. Rebuilt for each question. */
 export function hatKnowledge(availability: Availability | null) {
@@ -27,10 +28,12 @@ export function hatKnowledge(availability: Availability | null) {
       fourHats: formatMoney(bundleSubtotal(4)),
       threeHatDeliveredSaving: formatMoney(bundleDeliveredSaving(3)),
       fourHatDeliveredSaving: formatMoney(bundleDeliveredSaving(4)),
-      bundleRule: "Any green/cream combination. Three and four hats include free express delivery. Savings compare full item prices plus R90 delivery. Four hats are best value. Larger carts use four-hat packs, then a three-hat pack if possible, with remaining hats at the single price.",
+      bundleRule: `Any green/cream combination. Three and four hats include free express delivery. Savings compare full item prices plus R90 delivery. ${PREORDER_MODE ? "Three- and four-hat packs both cost R400 per hat." : "Four hats are best value."} Larger carts use four-hat packs, then a three-hat pack if possible, with remaining hats at the single price.`,
       twoHatDiscount: "The two-hat bundle has no item discount and includes free express delivery.",
       oneHatExpressDelivery: formatMoney(shippingFee(1)),
       twoHatExpressDelivery: formatMoney(shippingFee(2)),
+      preorderMode: PREORDER_MODE,
+      ...(PREORDER_MODE ? { regularPriceAfterRestock: formatMoney(REGULAR_PRICE), timing: PREORDER_COPY } : {}),
     },
     shipping: {
       ...POLICIES.shipping,
@@ -39,13 +42,15 @@ export function hatKnowledge(availability: Availability | null) {
         feeForOneHat: formatMoney(shippingFee(1, id as "aramex" | "founders")),
         feeForTwoHats: formatMoney(shippingFee(2, id as "aramex" | "founders")),
       })),
+      ...(PREORDER_MODE ? { currentTiming: PREORDER_COPY, rule: "The current pre-order date is the shipping date for new orders, not the delivery date. Courier transit starts after dispatch. Existing orders retain their confirmed timing. Do not promise next-business-day delivery for pre-orders." } : {}),
     },
     availability: availability ? {
       checkedAt: new Date().toISOString(),
-      green: { inStock: availability.green },
-      cream: { inStock: availability.cream },
+      green: { inStock: availability.green, preorderPlaces: availability.preorder.green },
+      cream: { inStock: availability.cream, preorderPlaces: availability.preorder.cream },
+      timing: availability.timing,
       rule: "Availability is a snapshot and can change before checkout. These counts exclude existing checkout holds.",
-    } : { status: "Could not verify current availability. Do not claim a colour is in stock; ask the customer to check the colour options or contact Smelt." },
+    } : { status: "Could not verify current availability. Do not claim a colour is in stock or available for pre-order; ask the customer to check the colour options or contact Smelt." },
     returns: POLICIES.returns,
     contact: {
       intro: CONTACT.intro,

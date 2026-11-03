@@ -1,4 +1,5 @@
 "use client";
+import PreorderNotice from "@/components/PreorderNotice";
 import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/lib/cart";
@@ -66,7 +67,7 @@ export default function CartDrawer() {
             <div className={styles.lines}>
               {lines.map((c) => {
                 const v = PRODUCT.variants[c];
-                const maxQuantity = stock ? stock[c] : 0;
+                const maxQuantity = stock ? Math.min(99, stock[c] + stock.preorder[c]) : 0;
                 const atStockLimit = stock !== null && cart[c] >= maxQuantity;
                 return (
                   <div key={c} className={styles.line}>
@@ -118,7 +119,8 @@ export default function CartDrawer() {
             </div>
 
             <div className={styles.foot}>
-              {stockError && <p role="alert">{stockError} <button onClick={() => void refresh()}>Retry</button></p>}
+              <PreorderNotice />
+            {stockError && <p role="alert">{stockError} <button onClick={() => void refresh()}>Retry</button></p>}
               <div className={styles.shipMsg}>
                 {freeShip
                   ? "You've unlocked free shipping. Warm regards."
