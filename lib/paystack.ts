@@ -50,7 +50,8 @@ export async function initializeTransaction(params: {
       // Paystack expects the amount in the currency's subunit. ZAR -> cents.
       amount: Math.round(params.amount * 100),
       currency: "ZAR",
-      channels: ["card", "apple_pay"],
+      // Apple Pay and Google Pay run on the card rails, so "card" must stay in the list.
+      channels: ["card", "apple_pay", "google_pay"],
       callback_url: params.callbackUrl,
       reference: params.reference,
       metadata: params.metadata,
