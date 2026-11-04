@@ -114,6 +114,20 @@ export default function ProductClient() {
         <div className={styles.info}>
           <SectionLabel>The collection (all two of them)</SectionLabel>
           <h1 className={styles.h1}>{PRODUCT.name}</h1>
+          <ul className={styles.benefits} aria-label="Sauna hat benefits" role="list">
+            {[
+              "Helps protect hair and scalp from direct heat",
+              "Made from 100% wool",
+              "Made for regular sauna sessions",
+            ].map(benefit => (
+              <li key={benefit}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+                  <path d="m5 12 4 4L19 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span>{benefit}</span>
+              </li>
+            ))}
+          </ul>
           {PREORDER_MODE ? <PreorderPrice /> : <div className={styles.price}>{formatMoney(BASE_PRICE)}</div>}
           {process.env.NEXT_PUBLIC_ASK_HAT_ENABLED !== "false" && <div className={styles.productAssistant}><AskAboutHat /></div>}
 
@@ -196,9 +210,11 @@ export default function ProductClient() {
           </button>}
 
           {stockError && <p role="alert">{stockError} <button onClick={() => void refresh()}>Retry</button></p>}
-          {!PREORDER_MODE && !isPreorder && <div className={styles.reassure}>
-            <span>In-stock orders dispatched from Cape Town within 1–3 business days</span>
-          </div>}
+          <div className={styles.reassure}>
+            <span>{PREORDER_MODE || isPreorder
+              ? "Shipping takes 1–3 business days once the hats arrive."
+              : "In-stock orders dispatched from Cape Town within 1–3 business days"}</span>
+          </div>
         </div>
       </div>
 

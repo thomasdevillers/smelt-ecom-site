@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { countdownParts, PREORDER_COPY, PREORDER_DATE_LABEL, PREORDER_DEADLINE, PREORDER_PRICE, REGULAR_PRICE } from '@/lib/salesMode';
+import { countdownParts, PREORDER_DATE_LABEL, PREORDER_DEADLINE, PREORDER_PRICE, REGULAR_PRICE } from '@/lib/salesMode';
 import { formatMoney } from '@/lib/pricing';
 import styles from './PreorderPrice.module.css';
 
@@ -15,9 +15,8 @@ export default function PreorderPrice() {
   }, []);
   return <section className={styles.card} aria-label="Pre-order price and shipping date">
     <div className={styles.priceBlock}>
-      <span className={styles.eyebrow}>Pre-orders open</span>
+      <span className={styles.eyebrow}>Sold out again · Pre-orders open</span>
       <div className={styles.price}>{formatMoney(PREORDER_PRICE)}<span>per hat</span></div>
-      <p>{PREORDER_COPY}</p>
     </div>
     <div className={styles.arrival}>
       <p className={styles.increase}>Price increases to <strong>{formatMoney(REGULAR_PRICE)}</strong> when stock arrives.</p>

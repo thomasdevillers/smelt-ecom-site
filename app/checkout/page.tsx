@@ -290,7 +290,7 @@ export default function CheckoutPage() {
             {shippingFee(cart.green + cart.cream, method) === 0 ? "FREE" : formatMoney(shippingFee(cart.green + cart.cream, method))}
           </span>
         </span>
-        <span className={styles.shippingDescription}>{needsPreorder ? `${stock?.timing} Courier transit starts after dispatch.` : SHIPPING_OPTIONS[method].description}</span>
+        <span className={styles.shippingDescription}>{needsPreorder ? `${stock?.timing} Shipping takes 1–3 business days once the hats arrive.` : SHIPPING_OPTIONS[method].description}</span>
         {method === "aramex" && <span className={styles.shippingDescription}>Free with two or more hats.</span>}
       </span>
     </div>
