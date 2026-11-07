@@ -14,6 +14,12 @@ const CAMPAIGN_TTL = 30 * 24 * 60 * 60;
 const RECOVERY_TTL = 10 * 24 * 60 * 60;
 const UNSUBSCRIBE_TTL = 2 * 365 * 24 * 60 * 60;
 const RETRY_DELAY = 5 * 60 * 1000;
+// Delays before each retry of a send Resend rejected with a transient error (cron runs every 10 minutes,
+// so 5 minutes means "next run"). After the last retry fails the campaign is handed off as manual.
+const SEND_RETRY_DELAYS = [5 * 60 * 1000, 30 * 60 * 1000, HOUR, 3 * HOUR, 6 * HOUR] as const;
+const RETRYABLE_SEND_ERRORS = new Set([
+  "rate_limit_exceeded", "daily_quota_exceeded", "concurrent_idempotent_requests", "application_error", "internal_server_error",
+]);
 const NEXT_DELAYS = [23 * HOUR, 48 * HOUR] as const;
 const mode = () => process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_") ? "live" : "test";
 const prefix = () => `smelt:cart-email:v1:${mode()}`;
@@ -25,7 +31,7 @@ const receiptKey = (id: string, step: CartRecoveryStep) => `${prefix()}:receipt:
 
 type Message = { from: string; to: string; subject: string; html: string; text: string };
 type Receipt =
-  | { status: "pending"; startedAt: number; message: Message }
+  | { status: "pending"; startedAt: number; message: Message; failedAttempts?: number }
   | { status: "accepted"; id: string; acceptedAt: string }
   | { status: "manual"; reason: string; at: string };
 
@@ -45,6 +51,17 @@ type CartCampaign = {
   unsubscribeToken: string;
   voucher: VoucherReward;
 };
+
+type SendFailure = { name: string; statusCode: number | null };
+
+class SendRetryError extends Error {
+  constructor(readonly delay: number, readonly failure: SendFailure, readonly failedAttempts: number) {
+    super("cart_email_not_accepted");
+  }
+}
+
+const isRetryableSendFailure = ({ name, statusCode }: SendFailure) =>
+  statusCode === null || statusCode === 429 || statusCode >= 500 || RETRYABLE_SEND_ERRORS.has(name);
 
 const parseStored = <T>(value: T | string | null): T | null => {
   if (!value) return null;
@@ -154,7 +171,7 @@ redis.call('SET', KEYS[1], cjson.encode(campaign), 'KEEPTTL')
 return 1`, [campaignKey(campaign.id), CUSTOMER_QUEUE], [campaign.id, step, now, nextDue, done ? "1" : "0"]);
 }
 
-async function deliver(campaign: CartCampaign, lead: FollowupLead, now: number): Promise<"sent" | "accepted" | "manual"> {
+async function deliver(campaign: CartCampaign, lead: FollowupLead, now: number): Promise<"sent" | "accepted" | "manual" | "rejected"> {
   const step = campaign.nextStep;
   const config = configuration();
   const recoveryUrl = new URL(`/checkout/recover/${campaign.recoveryToken}`, config.siteUrl).toString();
@@ -176,12 +193,36 @@ async function deliver(campaign: CartCampaign, lead: FollowupLead, now: number):
     await db.set(receiptKey(campaign.id, step), { status: "manual", reason: "ambiguous_delivery", at: new Date(now).toISOString() } satisfies Receipt, { keepTtl: true });
     return "manual";
   }
-  const result = await new Resend(config.apiKey).emails.send(receipt.message, {
-    idempotencyKey: `cart-recovery/${campaign.id}/${step}`,
-  });
-  if (result.error || !result.data?.id) throw new Error("cart_email_not_accepted");
+  let failure: SendFailure | null = null;
+  let emailId: string | undefined;
+  try {
+    const result = await new Resend(config.apiKey).emails.send(receipt.message, {
+      idempotencyKey: `cart-recovery/${campaign.id}/${step}`,
+    });
+    if (result.error) failure = { name: result.error.name, statusCode: result.error.statusCode };
+    else if (!result.data?.id) failure = { name: "missing_email_id", statusCode: null };
+    else emailId = result.data.id;
+  } catch {
+    failure = { name: "network_error", statusCode: null };
+  }
+  if (failure || !emailId) {
+    const sendFailure = failure ?? { name: "missing_email_id", statusCode: null };
+    const failedAttempts = (receipt.failedAttempts ?? 0) + 1;
+    const retryDelay = SEND_RETRY_DELAYS[failedAttempts - 1];
+    if (isRetryableSendFailure(sendFailure) && retryDelay !== undefined) {
+      await db.set(receiptKey(campaign.id, step), { ...receipt, failedAttempts } satisfies Receipt, { keepTtl: true });
+      throw new SendRetryError(retryDelay, sendFailure, failedAttempts);
+    }
+    await db.set(receiptKey(campaign.id, step), {
+      status: "manual", reason: `send_failed:${sendFailure.name}`, at: new Date(now).toISOString(),
+    } satisfies Receipt, { keepTtl: true });
+    console.error("Cart recovery email failed; campaign handed off as manual", {
+      id: digest(campaign.id), step, error: sendFailure.name, statusCode: sendFailure.statusCode, failedAttempts,
+    });
+    return "rejected";
+  }
   await db.set(receiptKey(campaign.id, step), {
-    status: "accepted", id: result.data.id, acceptedAt: new Date(now).toISOString(),
+    status: "accepted", id: emailId, acceptedAt: new Date(now).toISOString(),
   } satisfies Receipt, { keepTtl: true });
   return "sent";
 }
@@ -233,13 +274,21 @@ export async function processCartEmails(now = Date.now()) {
         campaign ??= await getOrCreateCampaign(lead, now);
         if (!campaign) throw new Error("cart_campaign_not_created");
         const result = await deliver(campaign, lead, now);
-        if (result === "manual") {
+        if (result === "manual" || result === "rejected") {
           await stopCampaign(campaign, "manual"); counts.manual++; continue;
         }
         await finalizeStep(campaign, campaign.nextStep, now);
         if (result === "sent") counts.sent++;
       } catch (error) {
         counts.errors++;
+        if (error instanceof SendRetryError) {
+          console.warn("Cart recovery email deferred", {
+            id: digest(id), code: error.message, error: error.failure.name, statusCode: error.failure.statusCode,
+            failedAttempts: error.failedAttempts, retryInMinutes: error.delay / 60_000,
+          });
+          await db.zadd(CUSTOMER_QUEUE, { member: id, score: now + error.delay });
+          continue;
+        }
         console.error("Cart recovery email deferred", { id: digest(id), code: error instanceof Error ? error.message : "unknown" });
         await db.zadd(CUSTOMER_QUEUE, { member: id, score: now + RETRY_DELAY });
       }

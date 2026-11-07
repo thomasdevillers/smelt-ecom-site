@@ -136,6 +136,50 @@ describe("abandoned-cart email sequence", () => {
     expect(mocks.send).not.toHaveBeenCalled();
   });
 
+  it("hands a permanently rejected send off as manual without retrying", async () => {
+    const value = lead(); queueLead(value);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.send.mockResolvedValue({ data: null, error: { name: "validation_error", statusCode: 422, message: "Invalid `to` field." } });
+    await expect(processCartEmails(now)).resolves.toMatchObject({ manual: 1, sent: 0, errors: 0 });
+    expect(mocks.queue.has(value.id)).toBe(false);
+    await processCartEmails(now + 24 * 60 * 60 * 1000);
+    expect(mocks.send).toHaveBeenCalledTimes(1);
+    expect(errorSpy).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ error: "validation_error", statusCode: 422 }));
+    errorSpy.mockRestore();
+  });
+
+  it("retries a transient send failure five times with backoff, then hands off as manual", async () => {
+    const value = lead(); queueLead(value);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.send.mockResolvedValue({ data: null, error: { name: "internal_server_error", statusCode: 500, message: "Internal" } });
+    const minutes = (n: number) => n * 60 * 1000;
+    let at = now;
+    await expect(processCartEmails(at)).resolves.toMatchObject({ errors: 1 });
+    for (const delay of [5, 30, 60, 180, 360]) {
+      expect(mocks.queue.get(value.id)).toBe(at + minutes(delay));
+      at += minutes(delay);
+      await processCartEmails(at);
+    }
+    expect(mocks.send).toHaveBeenCalledTimes(6);
+    expect(mocks.queue.has(value.id)).toBe(false);
+    expect(warnSpy).toHaveBeenCalledTimes(5);
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    const campaign = [...mocks.values.entries()].find(([key]) => key.includes(":campaign:"))?.[1] as { status: string };
+    expect(campaign.status).toBe("manual");
+    warnSpy.mockRestore(); errorSpy.mockRestore();
+  });
+
+  it("delivers on a retry after a transient failure", async () => {
+    queueLead(lead());
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    mocks.send.mockResolvedValueOnce({ data: null, error: { name: "rate_limit_exceeded", statusCode: 429, message: "Slow down" } });
+    await processCartEmails(now);
+    await expect(processCartEmails(now + 5 * 60 * 1000)).resolves.toMatchObject({ sent: 1, errors: 0 });
+    expect(mocks.send).toHaveBeenCalledTimes(2);
+    warnSpy.mockRestore();
+  });
+
   it("persists an unsubscribe and stops the queued campaign", async () => {
     const value = lead(); queueLead(value);
     await processCartEmails(now);
