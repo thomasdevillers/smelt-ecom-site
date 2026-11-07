@@ -117,6 +117,32 @@ const IN_SAUNA_SEATED: GuideFigure = {
   height: 1448,
 };
 
+const FIT_LOW_FRONT: GuideFigure = {
+  src: "/images/MarcTomFront.jpg",
+  alt: "Marc and Tom in a sauna wearing Smelt hats pulled low, the cream hat covering the eyes and the green hat covering the ears",
+  caption:
+    "The same hat on two different heads. Both sit right down over the ears, and the cream one is low enough to shade the eyes completely.",
+  width: 1086,
+  height: 1448,
+};
+
+const FIT_TILTED_BACK: GuideFigure = {
+  src: "/images/TomSide.jpeg",
+  alt: "Side profile of Tom wearing a Natural Cream Smelt sauna hat tilted slightly back, still covering the ear",
+  caption:
+    "Tilted back a little for visibility. The front lifts off the eyes, but the felt still comes down over the ear.",
+  width: 1086,
+  height: 1448,
+};
+
+const FIT_STANDARD_SIDE: GuideFigure = {
+  src: "/images/MarcSide.jpg",
+  alt: "Side profile of Marc wearing a Forest Green Smelt sauna hat low on the brow and covering the ear",
+  caption: "Worn level: the front edge sits on the brow line, and the ear is fully covered.",
+  width: 896,
+  height: 923,
+};
+
 export const GUIDES: Guide[] = [
   {
     slug: "what-does-a-sauna-hat-do",
@@ -476,6 +502,102 @@ export const GUIDES: Guide[] = [
       {
         q: "How many sauna hats do I need?",
         a: "One is fine for most people. The reason to own a second is drying time: if you sauna daily, a hat that hasn't fully air-dried is a hat that will start to smell. Two on rotation solves that without any other effort.",
+      },
+    ],
+  },
+
+  {
+    slug: "sauna-hat-size-and-fit",
+    nav: "Size and fit",
+    title: "Sauna Hat Sizing: Why One Size Fits Most | Smelt",
+    h1: "Sauna hat sizing: why one size fits most",
+    description:
+      "Every Smelt sauna hat is made in one size, measuring 113cm around the base. Why it can feel big at first, where it should actually sit on your head, and how to wear it if you want more visibility.",
+    question: "What size sauna hat do I need?",
+    answer:
+      "Sauna hats come in one standard size, and ours is no exception. Every Smelt hat measures 113cm around the base, so rather than gripping your head at a set point, it settles at whatever height your head shape puts it. On most people that means low: over the scalp, over the ears, and down to the eyes. That is meant to happen.",
+    published: "2026-11-07",
+    updated: "2026-11-07",
+    readMinutes: 4,
+    hero: FIT_LOW_FRONT,
+    takeaways: [
+      "There is one size. Every Smelt hat measures 113cm around the base.",
+      "It is not meant to grip your head. It sits higher on some heads and lower on others.",
+      "It should sit low, covering your scalp and ears, which are the most heat-sensitive parts of you.",
+      "Shading your eyes is normal. If you want to see more, tilt it back or fold the front edge up.",
+    ],
+    blocks: [
+      {
+        heading: "Why there is only one size",
+        body: [
+          "We get this question a lot, usually as \"it feels a bit big, do you have a smaller one?\" The answer is no, on purpose. Sauna hats are traditionally made in one standard size, and every Smelt hat is made to the same pattern: 113cm around the base.",
+          "A sauna hat doesn't work like a cap or a beanie, which hold onto your head at one fixed line. It's a relaxed bell of felt that rests on the top of your head and hangs down from there. A smaller head lets it sit lower, a larger head holds it a little higher, and in both cases it ends up covering what it needs to cover. That is how one hat fits most heads.",
+          "Sized sauna hats would actually make things worse. A hat cut to your exact head size would sit tighter, and a tight hat compresses the felt, which squeezes out the trapped air that does the insulating. There is more on that in [how to choose a sauna hat](/articles/how-to-choose-a-sauna-hat).",
+        ],
+      },
+      {
+        heading: "Where it should sit",
+        body: [
+          "Lower than most people expect. If the hat feels like it's sitting quite low, it's probably sitting right.",
+        ],
+        list: [
+          "Scalp: fully covered. The top of your head is right in the hottest air in the room.",
+          "Ears: covered. Ears are thin, have almost no insulation of their own, and are usually the first thing to start burning. The felt should come down over them, not stop above them.",
+          "Eyes: shaded. Pulled fully down, the front edge comes to your eyes. That protects them from the hot air and makes it easy to close your eyes and switch off.",
+        ],
+        figure: FIT_STANDARD_SIDE,
+      },
+      {
+        heading: "If it feels too big",
+        body: [
+          "Usually what's happening is the hat is sitting lower than your other hats do, and the front is coming down over your eyes. That's how it's designed, not a sign that it's the wrong size.",
+          "The photo at the top of this page is the two of us wearing the same size hat. One sits slightly higher than the other, both cover the ears, and the cream one is pulled right down over the eyes. Neither of us is wearing the wrong size, because there is only one.",
+          "Give it a session or two. Wool felt relaxes and shapes itself to your head a little with heat and moisture, especially if you [wet it before you go in](/articles/should-you-wet-your-sauna-hat).",
+        ],
+      },
+      {
+        heading: "Want to see more? Two easy adjustments",
+        body: [
+          "Lots of people like a bit more visibility in the sauna, to keep an eye on the clock, chat to whoever is next to them, or just see the room. There are two common ways to do it without losing the important coverage.",
+        ],
+        list: [
+          "Tilt it back. Push the front of the hat up and let the back sit lower on your neck. Your eyes come out from under the brim and your ears stay covered.",
+          "Fold the front edge up. Turn the front of the felt up on itself to make a small brim. You can see clearly, and the back and sides stay down over your ears.",
+        ],
+        figure: FIT_TILTED_BACK,
+      },
+      {
+        heading: "The quick fit check",
+        body: [
+          "Put the hat on, let it settle, and check three things. If all three are yes, it fits.",
+        ],
+        list: [
+          "Is the top of your head completely covered?",
+          "Are your ears covered, not peeking out below the edge?",
+          "Does it stay on when you lean forward, without you holding it?",
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: "Do Smelt sauna hats come in different sizes?",
+        a: "No. Every Smelt hat is made in one standard size, measuring 113cm around the base. It is designed to sit at different heights on different heads rather than grip at a fixed line, which is why one size fits most people.",
+      },
+      {
+        q: "My sauna hat covers my eyes. Is it too big?",
+        a: "No, that is normal. A sauna hat is meant to sit low, covering your scalp and ears and shading your eyes from the heat. If you want more visibility, tilt the hat back slightly or fold the front edge upwards.",
+      },
+      {
+        q: "How should a sauna hat sit on your head?",
+        a: "Low and loose. It should fully cover the top of your head and come down over your ears, because those are the most heat-sensitive parts of you. It should not feel tight or leave your ears exposed.",
+      },
+      {
+        q: "Will the hat fit a large head?",
+        a: "In most cases, yes. On a larger head the hat simply sits a little higher. The thing to check is that it still comes down over your ears.",
+      },
+      {
+        q: "Will the hat shrink to fit me?",
+        a: "Don't try to shrink it. Wool felt shapes itself slightly to your head with use, but deliberately shrinking it with hot water or a dryer will make it stiff, misshapen and thinner where it matters. Air-dry it and reshape it by hand.",
       },
     ],
   },

@@ -19,7 +19,7 @@ export const FAQ: FaqItem[] = [
   },
   {
     q: "One size? Will it fit me?",
-    a: "It is a relaxed, one-size felt shape that sits softly rather than clamping. Felt has a bit of natural give, so it settles onto most heads comfortably. It is meant to sit loose, not tight.",
+    a: "Every hat is made in one standard size, measuring 113cm around the base. It rests on your head rather than gripping it, so it sits a little higher or lower depending on your head size. It should sit low and loose, covering your scalp and ears, and it is normal for it to shade your eyes. Tilt it back or fold the front up if you want more visibility.",
   },
   {
     q: "How do I look after it?",
