@@ -36,9 +36,11 @@ function ProductLinkSelection({ onSelect }: { onSelect: (colour: Colour, quantit
 export default function ProductClient() {
   const viewed = useRef(false);
   const [colour, setColour] = useState<Colour>("green");
-  const [quantity, setQuantity] = useState<PurchaseQuantity>(1);
+  const [quantity, setQuantity] = useState<number>(1);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [bundleGreen, setBundleGreen] = useState(1);
   const selectFromLink = useCallback((selectedColour: Colour, quantity: PurchaseQuantity) => {
+    setMoreOpen(false);
     setColour(selectedColour);
     setQuantity(quantity);
     setBundleGreen(Math.ceil(quantity / 2));
@@ -51,7 +53,7 @@ export default function ProductClient() {
   const selection: CartState = isBundle
     ? { green: bundleGreen, cream: quantity - bundleGreen }
     : { green: colour === "green" ? 1 : 0, cream: colour === "cream" ? 1 : 0 };
-  const bundleChoices = quantity === 1 ? [] : BUNDLE_GREEN_COUNTS[quantity];
+  const bundleChoices = quantity >= 2 && quantity <= 4 ? BUNDLE_GREEN_COUNTS[quantity as 2 | 3 | 4] : [];
   const selectionLabel = isBundle ? bundleChoiceLabel(bundleGreen, quantity) : v.name;
   const selectionInStock = stock !== null && canAddSelection(selection, cart, stock);
   const requested = { green: cart.green + selection.green, cream: cart.cream + selection.cream };
@@ -65,6 +67,7 @@ export default function ProductClient() {
     openCart();
   };
   const chooseQuantity = (next: PurchaseQuantity) => {
+    setMoreOpen(false);
     setQuantity(next);
     setBundleGreen(Math.ceil(next / 2));
   };
@@ -134,9 +137,18 @@ export default function ProductClient() {
           <fieldset className={styles.purchaseOptions}>
             <legend className={styles.optLabel}>Choose your order</legend>
             {PURCHASE_QUANTITIES.map(qty => (
-              <label key={qty} className={`${styles.purchaseCard} ${qty >= 3 ? styles.purchaseCardWithBanner : ""} ${quantity === qty ? styles.purchaseCardOn : ""}`}>
+              <label key={qty} className={`${styles.purchaseCard} ${qty >= 3 ? styles.purchaseCardWithBanner : ""} ${(quantity === qty || (moreOpen && qty === 4)) ? styles.purchaseCardOn : ""}`}>
                 {qty >= 3 && <em className={styles.purchaseBanner}>{qty === 4 ? "Best value" : "Most popular"}</em>}
-                <input type="radio" name="purchaseOption" value={qty} checked={quantity === qty} onChange={() => chooseQuantity(qty)} />
+                <input
+                  type="radio"
+                  name="purchaseOption"
+                  value={qty}
+                  checked={(quantity === qty || (moreOpen && qty === 4))}
+                  onClick={() => {
+                    if (moreOpen && qty === 4) chooseQuantity(4);
+                  }}
+                  onChange={() => chooseQuantity(qty)}
+                />
                 <span>
                   <strong>{qty === 1 ? "One hat" : qty === 2 ? "Two-hat bundle" : `${qty}-hat bundle`}{qty > 1 && <em>Save {formatMoney(bundleDeliveredSaving(qty))}</em>}</strong>
                   <small>{qty === 1
@@ -149,7 +161,27 @@ export default function ProductClient() {
           </fieldset>
           {quantity >= 3 && <p className={styles.savingsNote}>Savings compared with {formatMoney(BASE_PRICE)} per hat plus R90 delivery.</p>}
 
-          {!isBundle ? <div className={styles.opt}>
+          {moreOpen ? <div id="more-hats" className={styles.moreQuantities}>
+            <p>Choose your mix · 4 or more hats</p>
+            <button type="button" className={styles.backToMixes} onClick={() => chooseQuantity(4)}>Back to colour mixes</button>
+            {COLOURS.map(c => {
+              const max = stock ? Math.max(0, Math.min(99, stock[c] + stock.preorder[c]) - cart[c]) : 0;
+              const update = (delta: number) => {
+                setQuantity(quantity + delta);
+                if (c === "green") setBundleGreen(bundleGreen + delta);
+                setColour(c);
+              };
+              return <div key={c} className={styles.moreRow}>
+                <span><i style={{ backgroundColor: PRODUCT.variants[c].swatch }} aria-hidden="true" />{PRODUCT.variants[c].name}</span>
+                <div className={styles.moreStepper}>
+                  <button type="button" aria-label={`Remove one ${c} hat`} disabled={quantity <= 4 || selection[c] === 0} onClick={() => update(-1)}>−</button>
+                  <output aria-label={`${c} hats`}>{selection[c]}</output>
+                  <button type="button" aria-label={`Add one ${c} hat`} disabled={selection[c] >= max} onClick={() => update(1)}>+</button>
+                </div>
+              </div>;
+            })}
+            <p aria-live="polite">{quantity} hats · {formatMoney(total)} · {formatMoney(bundleSubtotal(4) / 4)} per hat</p>
+          </div> : !isBundle ? <div className={styles.opt}>
             <div className={styles.optLabel}>Colourway</div>
             <div className={`${styles.bundleChoices} ${styles.bundleChoicesLarge}`}>
               {COLOURS.map((c) => (
@@ -194,6 +226,18 @@ export default function ProductClient() {
                   </button>
                 );
               })}
+              {quantity === 4 && <button
+                type="button"
+                className={styles.bundleChoice}
+                onClick={() => setMoreOpen(true)}
+                aria-controls="more-hats"
+              >
+                <span className={styles.bundleSwatches} aria-hidden="true">
+                  {COLOURS.map(c => <i key={c} style={{ backgroundColor: PRODUCT.variants[c].swatch }} />)}
+                </span>
+                <span>More than 4 hats</span>
+                <small>{formatMoney(bundleSubtotal(4) / 4)} per hat · Mix your colours</small>
+              </button>}
             </div>
           </div>}
 

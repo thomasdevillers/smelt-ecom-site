@@ -14,6 +14,8 @@ describe('November pre-order campaign', () => {
     const pricing = await import('./pricing');
     expect(pricing.BASE_PRICE).toBe(550);
     expect(pricing.lineTotal(2)).toBe(1100);
+    expect(pricing.bundleSubtotal(5)).toBe(2500);
+    expect(pricing.bundleSubtotal(6)).toBe(3000);
     expect([1, 2, 3, 4].map(qty => pricing.bundleSubtotal(qty))).toEqual([550, 1100, 1550, 2000]);
     expect(paidCheckoutTotal({ green: 1, cream: 0 }, 'aramex', 50, 450)).toBe(490);
     expect(paidCheckoutTotal({ green: 1, cream: 0 }, 'aramex', 50, 550)).toBe(500);

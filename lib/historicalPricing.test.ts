@@ -14,6 +14,10 @@ describe('preorder pricing and historical payments', () => {
     expect(paidCheckoutTotal({ green: 2, cream: 1 }, 'aramex', 0, 450, 'hat-bundles-v3')).toBe(1250);
     expect(paidCheckoutTotal({ green: 2, cream: 2 }, 'aramex', 0, 550, 'hat-bundles-v3')).toBe(2000);
   });
+  it.each([[3, 1200], [4, 1600], [5, 2050], [6, 2500], [7, 2800], [8, 3200]])('preserves v4 totals for %i hats', (qty, total) => {
+    expect(paidCheckoutTotal({ green: 2, cream: qty - 2 }, 'aramex', 0, 450, 'hat-bundles-v4')).toBe(total);
+    expect(paidCheckoutTotal({ green: 2, cream: qty - 2 }, 'aramex', 50, 450, 'hat-bundles-v4')).toBe(total - 50);
+  });
   it('preserves legacy R450 payments and rejects unknown price snapshots', () => {
     expect(paidCheckoutTotal({ green: 1, cream: 0 }, 'aramex')).toBe(540);
     expect(paidCheckoutTotal({ green: 1, cream: 0 }, 'aramex', 0, 1)).toBeNaN();

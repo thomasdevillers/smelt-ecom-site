@@ -42,8 +42,8 @@ describe("checkoutTotal", () => {
     expect(discountedCheckoutTotal({ green: 1, cream: 0 }, "aramex", -50)).toBeNaN();
     expect(discountedCheckoutTotal({ green: 1, cream: 0 }, "aramex", 540)).toBeNaN();
   });
-  it.each([3, 4])("charges the %i-hat bundle for every possible colour mix", qty => {
-    const total = qty === 3 ? 1200 : 1600;
+  it.each([3, 4, 5, 6, 7, 8, 12])("charges the %i-hat bundle for every possible colour mix", qty => {
+    const total = qty * 400;
     for (let green = 0; green <= qty; green++) {
       const cart = { green, cream: qty - green };
       expect(checkoutTotal(cart)).toBe(total);

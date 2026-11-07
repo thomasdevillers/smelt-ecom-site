@@ -28,7 +28,7 @@ export function hatKnowledge(availability: Availability | null) {
       fourHats: formatMoney(bundleSubtotal(4)),
       threeHatDeliveredSaving: formatMoney(bundleDeliveredSaving(3)),
       fourHatDeliveredSaving: formatMoney(bundleDeliveredSaving(4)),
-      bundleRule: `Any green/cream combination. Three and four hats include free express delivery. Savings compare full item prices plus R90 delivery. ${PREORDER_MODE ? "Three- and four-hat packs both cost R400 per hat." : "Four hats are best value."} Larger carts use four-hat packs, then a three-hat pack if possible, with remaining hats at the single price.`,
+      bundleRule: `Any green/cream combination. Three and four hats include free express delivery. Savings compare full item prices plus R90 delivery. ${PREORDER_MODE ? "Three- and four-hat packs both cost R400 per hat." : "Four hats are best value."} Orders of four or more keep the four-hat per-hat rate for every additional hat.`,
       twoHatDiscount: "The two-hat bundle has no item discount and includes free express delivery.",
       oneHatExpressDelivery: formatMoney(shippingFee(1)),
       twoHatExpressDelivery: formatMoney(shippingFee(2)),

@@ -90,8 +90,8 @@ it.each([{ green: 1, cream: 0 }, { green: 0, cream: 1 }, { green: 2, cream: 0 },
   }));
 });
 
-it.each([3, 4])("initializes the %i-hat bundle server-side for every colour mix", async qty => {
-  const total = qty === 3 ? 1200 : 1600;
+it.each([3, 4, 5, 6, 8])("initializes the %i-hat bundle server-side for every colour mix", async qty => {
+  const total = qty * 400;
   for (let green = 0; green <= qty; green++) {
     const cart = { green, cream: qty - green };
     const response = await POST(request({ phone: "0837875826" }, { cart, amount: 1, pricingVersion: "forged" }));

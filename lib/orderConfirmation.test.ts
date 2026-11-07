@@ -201,10 +201,12 @@ describe("payment route integration", () => {
   it.each([
     ["POST", 3], ["GET", 3], ["webhook", 3],
     ["POST", 4], ["GET", 4], ["webhook", 4],
+    ["POST", 5], ["GET", 5], ["webhook", 5],
+    ["POST", 6], ["GET", 6], ["webhook", 6],
   ])("reconciles through %s a mixed %i-hat bundle with voucher and receipt discounts", async (route, qty) => {
     const count = Number(qty);
     const cart = { green: 2, cream: count - 2 };
-    const amount = (count === 3 ? 1150 : 1550) * 100;
+    const amount = (count * 400 - 50) * 100;
     const metadata = { cart, unitPrice: 450, pricingVersion: PRICING_VERSION, shippingMethod: "aramex", voucher: { amount: 50 } };
     mocks.verify.mockResolvedValue({ ...order, amount, status: "success", customerEmail: order.email, metadata });
     const response = route === "webhook"
@@ -217,8 +219,8 @@ describe("payment route integration", () => {
     expect(mocks.send).toHaveBeenCalledTimes(2);
     for (const [message] of mocks.send.mock.calls) {
       expect(message.text).toContain("Bundle discount");
-      expect(message.text).toContain(count === 3 ? "R150" : "R200");
-      expect(message.text).toContain(count === 3 ? "R1 150" : "R1 550");
+      expect(message.text).toContain(`R${count * 50}`);
+      expect(message.text).toContain(`R${String(count * 400 - 50).replace(/\B(?=(\d{3})+(?!\d))/g, " ")}`);
     }
   });
 

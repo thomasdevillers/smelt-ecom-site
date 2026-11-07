@@ -34,7 +34,7 @@ describe("pricing", () => {
     expect(grandTotal(total, qty)).toBe(total);
   });
 
-  it.each([[0, 0], [1, 450], [2, 900], [5, 2050], [6, 2500], [7, 2800], [8, 3200], [11, 4400]])("combines packs and single hats at quantity %i", (qty, total) => {
+  it.each([[0, 0], [1, 450], [2, 900], [5, 2000], [6, 2400], [7, 2800], [8, 3200], [11, 4400]])("extends the bundle rate at quantity %i", (qty, total) => {
     expect(bundleSubtotal(qty)).toBe(total);
   });
 

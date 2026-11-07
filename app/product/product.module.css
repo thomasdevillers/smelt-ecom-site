@@ -62,3 +62,18 @@
   .bundleChoices { grid-template-columns: 1fr; }
   .bundleChoicesLarge { grid-template-columns: repeat(2, minmax(0,1fr)); }
 }
+
+.moreStepper button:focus-visible { outline: 3px solid var(--terracotta); outline-offset: 3px; }
+.moreQuantities { margin-bottom: 20px; padding: 16px; border: var(--border-ink-soft); border-radius: 12px; }
+.moreQuantities p { margin: 0; font-size: 13px; line-height: 1.5; }
+.moreQuantities > p:last-child { margin-top: 14px; font-weight: 700; }
+.moreRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
+.moreRow > span { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.moreRow i { width: 16px; height: 16px; border-radius: 50%; border: var(--border-ink-soft); }
+.moreStepper { display: flex; align-items: center; border: var(--border-ink-soft); border-radius: var(--radius-pill); }
+.moreStepper button { width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent; color: var(--ink); font: inherit; font-size: 20px; cursor: pointer; }
+.moreStepper button:disabled { opacity: .35; cursor: not-allowed; }
+.moreStepper output { min-width: 28px; text-align: center; font-size: 14px; font-variant-numeric: tabular-nums; }
+
+.backToMixes { min-height: 44px; padding: 8px 0; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.backToMixes:focus-visible { outline: 3px solid var(--terracotta); outline-offset: 2px; }

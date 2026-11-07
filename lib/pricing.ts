@@ -26,14 +26,16 @@ export const FREE_SHIP_MIN_HATS = 2;
 export const LEGACY_PRICING_VERSION = "hat-bundles-v1";
 export const PREVIOUS_PRICING_VERSION = "hat-bundles-v2";
 export const STOCK_PRICING_VERSION = "hat-bundles-v3";
-export const PRICING_VERSION = "hat-bundles-v4";
+export const PREORDER_PACK_PRICING_VERSION = "hat-bundles-v4";
+export const PRICING_VERSION = "hat-bundles-v5";
 export const THREE_HAT_PRICE = PREORDER_MODE ? 1200 : BASE_PRICE * 3 - 100;
 export const FOUR_HAT_PRICE = BASE_PRICE * 4 - 200;
 
-/** Apply packs across the whole order, regardless of the colour mix. */
+/** Keep the four-hat rate for larger orders; retain pack rules for older payments. */
 export function bundleSubtotal(qty: number, price = BASE_PRICE, version: string = PRICING_VERSION): number {
-  const threePrice = version === LEGACY_PRICING_VERSION ? 1250 : version === PRICING_VERSION && price === 450 ? 1200 : price * 3 - 100;
+  const threePrice = version === LEGACY_PRICING_VERSION ? 1250 : (version === PRICING_VERSION || version === PREORDER_PACK_PRICING_VERSION) && price === 450 ? 1200 : price * 3 - 100;
   const fourPrice = version === LEGACY_PRICING_VERSION ? 1600 : price * 4 - 200;
+  if (version === PRICING_VERSION && qty >= 4) return qty * (fourPrice / 4);
   const packs = Math.floor(qty / 4);
   const remainder = qty % 4;
   return packs * fourPrice + (remainder === 3 ? threePrice : remainder * price);
