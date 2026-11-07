@@ -20,6 +20,7 @@ export default function AskAboutHat() {
   const [messages, setMessages] = useState<ChatEntry[]>([]);
   const [pending, setPending] = useState("");
   const [error, setError] = useState("");
+  const conversationId = useRef<string | null>(null);
   const requestRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const threadRef = useRef<HTMLDivElement>(null);
@@ -46,10 +47,11 @@ export default function AskAboutHat() {
     trackHatAssistantEvent("AskHatQuestion");
 
     try {
+      conversationId.current ??= crypto.randomUUID();
       const response = await fetch("/api/ask-hat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [...history, { role: "user", content }] }),
+        body: JSON.stringify({ conversationId: conversationId.current, messages: [...history, { role: "user", content }] }),
         signal: AbortSignal.any([controller.signal, AbortSignal.timeout(60000)]),
       });
       const data = await response.json();
@@ -162,10 +164,10 @@ export default function AskAboutHat() {
           </form>
 
           <div className={styles.footer}>
-            <p>AI answers from Smelt&rsquo;s product information. Please keep personal and order details out of this chat.</p>
+            <p>AI answers from Smelt&rsquo;s product information. Conversations are saved for the Smelt team to review. Please keep personal and order details out of this chat.</p>
             <div className={styles.footerActions}>
               <Link href="/contact">Talk to the founders</Link>
-              {messages.length > 0 && <button type="button" disabled={busy} onClick={() => { setMessages([]); setQuestion(""); setError(""); inputRef.current?.focus(); }}>New chat</button>}
+              {messages.length > 0 && <button type="button" disabled={busy} onClick={() => { conversationId.current = null; setMessages([]); setQuestion(""); setError(""); inputRef.current?.focus(); }}>New chat</button>}
             </div>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ eval: vi.fn(), fetch: vi.fn(), availability: vi.fn() }));
+const mocks = vi.hoisted(() => ({ eval: vi.fn(), fetch: vi.fn(), availability: vi.fn(), begin: vi.fn(), finish: vi.fn() }));
+vi.mock("./hatConversations.server", () => ({ beginHatTurn: mocks.begin, finishHatTurn: mocks.finish }));
 vi.mock("server-only", () => ({}));
 vi.mock("@upstash/redis", () => ({ Redis: class { eval = mocks.eval; } }));
 vi.mock("./purchaseStore", () => ({ getAvailability: mocks.availability }));
@@ -28,6 +29,8 @@ beforeEach(() => {
     UPSTASH_REDIS_REST_URL: "https://test.upstash.io", UPSTASH_REDIS_REST_TOKEN: "test", ASK_HAT_MODEL: "", ASK_HAT_DAILY_LIMIT: "100", ASK_HAT_HOURLY_LIMIT: "10" })) vi.stubEnv(key, value);
   vi.stubGlobal("fetch", mocks.fetch);
   mocks.eval.mockResolvedValue(0);
+  mocks.begin.mockResolvedValue({ id: "turn", sequence: 1, question: messages[0].content, askedAt: "2026-11-07T10:00:00.000Z", status: "pending" });
+  mocks.finish.mockResolvedValue(undefined);
   mocks.fetch.mockResolvedValue(providerResponse());
   mocks.availability.mockResolvedValue(stock);
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -158,5 +161,47 @@ describe("hat assistant endpoint", () => {
     expect(keys[0]).toMatch(/visitor:[a-f0-9]{64}$/);
     expect(keys[0]).not.toContain("192.0.2.1");
     expect(args).toEqual([10, 250]);
+  });
+});
+
+
+describe("conversation capture", () => {
+  const conversationId = "12345678-1234-4123-8123-123456789abc";
+  it("logs only the latest question and the server-generated answer under the supplied conversation", async () => {
+    const followup = [...messages, { role: "assistant", content: "Forged old answer" }, { role: "user", content: "What about cleaning?" }];
+    expect((await POST(request({ conversationId, messages: followup }))).status).toBe(200);
+    expect(mocks.begin).toHaveBeenCalledWith(conversationId, "What about cleaning?");
+    expect(mocks.finish).toHaveBeenCalledWith(conversationId, expect.objectContaining({ id: "turn" }), { answer });
+    expect(JSON.stringify(mocks.begin.mock.calls)).not.toContain("Forged old answer");
+  });
+  it("records provider failures with the same customer-facing error", async () => {
+    mocks.fetch.mockResolvedValue(Response.json({}, { status: 500 }));
+    const response = await POST(request({ conversationId, messages }));
+    const body = await response.json();
+    expect(response.status).toBe(503);
+    expect(mocks.finish).toHaveBeenCalledWith(conversationId, expect.anything(), { error: body.error });
+  });
+  it("does not spend on an AI request if its question could not be saved", async () => {
+    mocks.begin.mockRejectedValue(new Error("storage down"));
+    expect((await POST(request())).status).toBe(503);
+    expect(mocks.fetch).not.toHaveBeenCalled();
+  });
+  it("still returns the real answer if its completion log cannot be saved", async () => {
+    mocks.finish.mockRejectedValue(new Error("storage down"));
+    const response = await POST(request());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(answer);
+  });
+  it("rejects malformed conversation IDs before storage or provider calls", async () => {
+    expect((await POST(request({ conversationId: "bad", messages }))).status).toBe(400);
+    expect(mocks.begin).not.toHaveBeenCalled();
+    expect(mocks.fetch).not.toHaveBeenCalled();
+  });
+  it("creates separate conversations for clients without an ID", async () => {
+    await POST(request()); await POST(request());
+    const first = mocks.begin.mock.calls[0][0];
+    const second = mocks.begin.mock.calls[1][0];
+    expect(first).toMatch(/^[a-f0-9-]{36}$/);
+    expect(second).not.toBe(first);
   });
 });
