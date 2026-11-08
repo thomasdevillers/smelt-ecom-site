@@ -2,6 +2,11 @@
 .page + :global(footer) { margin-top: 0; }
 .grid { display: grid; grid-template-columns: 1fr; gap: 28px; }
 .h1 { font-family: var(--font-bricolage), sans-serif; font-weight: 800; font-size: clamp(30px,7vw,48px); line-height: 1; letter-spacing: -.03em; margin: 0 0 8px; }
+.reviewSummary { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 44px; color: var(--ink); font-size: 13px; line-height: 1.5; text-decoration: none; }
+.reviewSummary > span:nth-last-child(2) { text-decoration: underline; text-underline-offset: 3px; }
+.reviewSummary:hover > span:nth-last-child(2) { text-decoration-thickness: 2px; }
+.reviewSummary:focus-visible { outline: 3px solid var(--terracotta); outline-offset: 3px; border-radius: 3px; }
+.reviewStar { color: var(--terracotta); font-size: 18px; }
 .benefits { display: grid; gap: 8px; list-style: none; margin: 16px 0 20px; padding: 0; color: var(--ink); font-size: 14px; line-height: 1.5; }
 .benefits li { display: flex; align-items: flex-start; gap: 9px; }
 .benefits svg { flex-shrink: 0; margin-top: 3px; }

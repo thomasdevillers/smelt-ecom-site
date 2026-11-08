@@ -8,6 +8,8 @@ Mobile-first e-commerce site for Smelt sauna hats. Next.js (App Router) + TypeSc
 
 > Note: if port 3000 is already in use, start on another port with `PORT=3100 npm run dev`.
 
+During `npm run dev`, the product page shows labelled sample reviews with varied lengths, ratings, and local placeholder photos. The title summary uses the same sample data. These read-only fixtures never enter the review database; production always loads published customer reviews.
+
 ## Test & build
     npm test           # pricing + cart unit tests (Vitest)
     npm run build      # production build

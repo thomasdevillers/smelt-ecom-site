@@ -20,6 +20,10 @@ function failure(error: unknown) {
 }
 
 export async function GET() {
+  if (process.env.NODE_ENV === "development") {
+    const { developmentReviews } = await import("@/lib/devReviews");
+    return Response.json(developmentReviews(), { headers: { "Cache-Control": "no-store" } });
+  }
   try { return response(await listPublishedReviews()); }
   catch (error) { return failure(error); }
 }

@@ -6,6 +6,8 @@ import HairPSA from "@/components/HairPSA";
 import InTheWild from "@/components/InTheWild";
 import Faq from "@/components/Faq";
 import ProductReviews from "@/components/ProductReviews";
+import ProductReviewSummary from "@/components/ProductReviewSummary";
+import type { ReviewSummary } from "@/lib/reviews";
 import RestockSignup from "@/components/RestockSignup";
 import AskAboutHat from "@/components/AskAboutHat";
 import SectionLabel from "@/components/ui/SectionLabel";
@@ -35,6 +37,7 @@ function ProductLinkSelection({ onSelect }: { onSelect: (colour: Colour, quantit
 
 export default function ProductClient() {
   const viewed = useRef(false);
+  const [reviewSummary, setReviewSummary] = useState<ReviewSummary | null>(null);
   const [colour, setColour] = useState<Colour>("green");
   const [quantity, setQuantity] = useState<number>(1);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -117,6 +120,7 @@ export default function ProductClient() {
         <div className={styles.info}>
           <SectionLabel>The collection (all two of them)</SectionLabel>
           <h1 className={styles.h1}>{PRODUCT.name}</h1>
+          <ProductReviewSummary summary={reviewSummary} />
           <ul className={styles.benefits} aria-label="Sauna hat benefits" role="list">
             {[
               "Helps protect hair and scalp from direct heat",
@@ -262,7 +266,7 @@ export default function ProductClient() {
         </div>
       </div>
 
-      <ProductReviews />
+      <ProductReviews onSummary={setReviewSummary} />
       <HairPSA />
       <InTheWild />
       <Faq />

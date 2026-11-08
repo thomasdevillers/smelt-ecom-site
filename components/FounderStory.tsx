@@ -12,15 +12,15 @@ export default function FounderStory() {
       <div className={styles.photos}>
         <figure className={styles.photoFig}>
           <Image
-            src="/images/Founders.jpeg"
-            alt="Tom & Marc, Smelt co-founders"
-            width={1280}
-            height={1600}
+            src="/images/founders-at-contrast.webp"
+            alt="Tom and Marc wearing Smelt sauna hats at Contrast in Kommetjie"
+            width={1440}
+            height={1920}
             sizes="(min-width: 1320px) 560px, (min-width: 880px) 45vw, calc(100vw - 40px)"
             className={styles.photo}
           />
           <figcaption className={styles.cap}>
-            Tom &amp; Marc · Co-founders
+            Tom &amp; Marc · Contrast, Kommetjie
           </figcaption>
         </figure>
       </div>

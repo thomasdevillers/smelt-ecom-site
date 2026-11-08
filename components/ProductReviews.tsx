@@ -16,7 +16,7 @@ const colourLabel = (colours: PublicReview["colours"]) => colours.length === 2
   ? "Forest Green + Natural Cream"
   : colours[0] === "cream" ? "Natural Cream" : "Forest Green";
 
-export default function ProductReviews() {
+export default function ProductReviews({ onSummary }: { onSummary?: (summary: ReviewSummary) => void }) {
   const [data, setData] = useState<ReviewsResponse | null>(null);
   const [activePhoto, setActivePhoto] = useState<string | null>(null);
 
@@ -24,10 +24,15 @@ export default function ProductReviews() {
     let live = true;
     fetch("/api/reviews", { cache: "no-store" })
       .then(async response => response.ok ? response.json() as Promise<ReviewsResponse> : null)
-      .then(result => { if (live && result) setData(result); })
+      .then(result => {
+        if (live && result) {
+          setData(result);
+          onSummary?.(result.summary);
+        }
+      })
       .catch(() => undefined);
     return () => { live = false; };
-  }, []);
+  }, [onSummary]);
 
   useEffect(() => {
     if (!activePhoto) return;
@@ -54,18 +59,11 @@ export default function ProductReviews() {
     </div>
 
     <div className={ctaStyles.writeReview}>
-      <div><span>OWN A SMELT?</span><strong>Put your sauna sessions on record.</strong><p>Leave one honest order review with photos of your hats. Get R50 back for every hat you bought. Every rating counts.</p></div>
+      <div><span>OWN A SMELT?</span><strong>Put your sauna sessions on record.</strong></div>
       <Link href="/review">Write a review →</Link>
     </div>
 
-    {data?.summary.total ? <><div className={styles.breakdown} aria-label="Rating breakdown">
-      {[5, 4, 3, 2, 1].map(rating => <div key={rating}>
-        <span>{rating}★</span>
-        <div aria-hidden="true"><i style={{ width: `${data.summary.total ? data.summary.distribution[rating as 1 | 2 | 3 | 4 | 5] / data.summary.total * 100 : 0}%` }} /></div>
-        <b>{data.summary.distribution[rating as 1 | 2 | 3 | 4 | 5]}</b>
-      </div>)}
-    </div>
-    <div className={styles.grid}>
+    {data?.summary.total ? <div className={styles.grid}>
       {data.reviews.map(review => <article className={styles.card} key={review.id}>
         <div className={styles.cardTop}><Stars rating={review.rating} /><span>Verified purchase</span></div>
         <p className={styles.body}>&ldquo;{review.body}&rdquo;</p>
@@ -77,7 +75,7 @@ export default function ProductReviews() {
         </div>}
         <footer><strong>{review.displayName}</strong><span>{colourLabel(review.colours)}</span></footer>
       </article>)}
-    </div></> : data ? <p className={ctaStyles.empty}>No reviews yet. Verified buyers can be the first to share their experience.</p> : <p className={ctaStyles.empty} role="status">Loading reviews…</p>}
+    </div> : data ? <p className={ctaStyles.empty}>No reviews yet. Verified buyers can be the first to share their experience.</p> : <p className={ctaStyles.empty} role="status">Loading reviews…</p>}
 
     {activePhoto && <div className={styles.lightbox} role="dialog" aria-modal="true" aria-label="Customer review photo" onClick={() => setActivePhoto(null)}>
       <button type="button" onClick={() => setActivePhoto(null)} aria-label="Close photo">Close ×</button>

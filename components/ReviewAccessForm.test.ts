@@ -11,6 +11,7 @@ describe("review email entry", () => {
     const input = html.match(/<input\b[^>]*>/)?.[0];
     expect(input).toContain('type="email"');
     expect(input).toContain('autoComplete="email"');
+    expect(input).toContain("emailInput");
     expect(input).not.toContain("pattern=");
   });
 });
