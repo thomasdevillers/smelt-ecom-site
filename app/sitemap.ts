@@ -11,8 +11,10 @@ type Route = {
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const routes: Route[] = [
-    { path: "/", priority: 1, changeFrequency: "weekly" },
-    { path: "/product", priority: 0.9, changeFrequency: "weekly" },
+    // Advance these dates only after substantive page/content changes, not
+    // on every build. Guides retain their own editorial update dates below.
+    { path: "/", priority: 1, changeFrequency: "weekly", lastModified: "2026-11-10" },
+    { path: "/product", priority: 0.9, changeFrequency: "weekly", lastModified: "2026-11-10" },
     { path: "/our-story", priority: 0.6, changeFrequency: "yearly" },
     { path: "/articles", priority: 0.7, changeFrequency: "monthly" },
     ...GUIDES.map<Route>((g) => ({
