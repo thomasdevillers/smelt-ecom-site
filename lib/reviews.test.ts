@@ -365,12 +365,10 @@ describe("stored helpfulness ordering", () => {
     mocks.hashes.set("smelt:reviews:v1:test:ranking:scores", new Map([[useful.id, { ...scores, score: weightedReviewScore(scores, false), fingerprint: reviewFingerprint(useful), rubricVersion: REVIEW_RUBRIC_VERSION, model: "gpt-4.1-mini", scoredAt: "2026-11-02" }]]));
     return useful;
   }
-  it("activates only after explicit rollout, exposes no scores and preserves honest aggregates", async () => {
+  it("defaults to saved helpfulness scores even with rollout flags off, exposes no scores and preserves honest aggregates", async () => {
     seed();
-    expect((await listPublishedReviews()).reviews[0].id).toBe("praise");
-    vi.stubEnv("REVIEW_RANKING_ENABLED", "true");
-    expect((await listPublishedReviews()).sort).toBe("newest");
-    vi.stubEnv("REVIEW_RANKING_SORT_ENABLED", "true");
+    vi.stubEnv("REVIEW_RANKING_ENABLED", "false");
+    vi.stubEnv("REVIEW_RANKING_SORT_ENABLED", "false");
     const result = await listPublishedReviews();
     expect(result.sort).toBe("helpful"); expect(result.reviews[0].id).toBe("useful");
     expect(result.summary).toMatchObject({ total: 2, average: 3.5, distribution: { 2: 1, 5: 1 } });

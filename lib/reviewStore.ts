@@ -4,7 +4,7 @@ import { AdminError, adminStore, digest } from "./admin/store";
 import { completionKey, findPaidOrdersByEmail, getPaidOrder } from "./admin/orders";
 import { PRODUCT, type Colour } from "./product";
 import { reviewNamespace, type ReviewNamespace } from "./reviewNamespace";
-import { currentReviewRanking, rankReviewRecords, reviewRankingEnabled, reviewRankingPrefix, type ReviewRanking } from "./reviewRanking";
+import { currentReviewRanking, rankReviewRecords, reviewRankingPrefix, type ReviewRanking } from "./reviewRanking";
 import {
   REVIEW_INVITATION_DAYS,
   REVIEW_MAX_PHOTO_BYTES,
@@ -283,15 +283,14 @@ export async function getReviewPhoto(id: string, index: number, allowUnpublished
 export async function listPublishedReviews(): Promise<{ reviews: PublicReview[]; summary: ReturnType<typeof reviewSummary>; sort: "helpful" | "newest" }> {
   let records = await listReviewRecords("published");
   let sort: "helpful" | "newest" = "newest";
-  if (reviewRankingEnabled() && process.env.REVIEW_RANKING_SORT_ENABLED === "true") {
-    try {
-      const rankings = await adminStore().hgetall<Record<string, ReviewRanking>>(`${reviewRankingPrefix()}:scores`) || {};
-      if (records.some(review => currentReviewRanking(review, rankings[review.id]))) {
-        records = rankReviewRecords(records, rankings);
-        sort = "helpful";
-      }
-    } catch { /* A ranking storage failure must not hide published reviews. */ }
-  }
+  // Serving saved scores does not require the flags used to generate rankings.
+  try {
+    const rankings = await adminStore().hgetall<Record<string, ReviewRanking>>(`${reviewRankingPrefix()}:scores`) || {};
+    if (records.some(review => currentReviewRanking(review, rankings[review.id]))) {
+      records = rankReviewRecords(records, rankings);
+      sort = "helpful";
+    }
+  } catch { /* A ranking storage failure must not hide published reviews. */ }
   const reviews = records
     .map(publicReview)
     .filter((review): review is PublicReview => Boolean(review));

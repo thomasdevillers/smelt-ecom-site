@@ -19,7 +19,7 @@ const colourLabel = (colours: PublicReview["colours"]) => colours.length === 2
 export default function ProductReviews({ onSummary }: { onSummary?: (summary: ReviewSummary) => void }) {
   const [data, setData] = useState<ReviewsResponse | null>(null);
   const [activePhoto, setActivePhoto] = useState<string | null>(null);
-  const [sort, setSort] = useState<"default" | "newest">("default");
+  const [sort, setSort] = useState<"helpful" | "newest">("helpful");
   const reviews = sort === "newest" && data
     ? [...data.reviews].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt) || a.id.localeCompare(b.id))
     : data?.reviews ?? [];
@@ -67,12 +67,13 @@ export default function ProductReviews({ onSummary }: { onSummary?: (summary: Re
       <Link href="/review">Write a review →</Link>
     </div>
 
-    {data?.summary.total ? <label className={styles.sort}>Sort reviews
-      <select value={sort} onChange={event => setSort(event.target.value as "default" | "newest")}>
-        <option value="default">{data.sort === "helpful" ? "Most helpful" : "Newest"}</option>
-        {data.sort === "helpful" && <option value="newest">Newest</option>}
-      </select>
-    </label> : null}
+    {data?.summary.total ? <div className={styles.sort} role="group" aria-label="Sort reviews">
+      <span>Sort reviews</span>
+      <div className={styles.sortToggle}>
+        <button type="button" aria-pressed={sort === "helpful"} onClick={() => setSort("helpful")}>Most helpful</button>
+        <button type="button" aria-pressed={sort === "newest"} onClick={() => setSort("newest")}>Most recent</button>
+      </div>
+    </div> : null}
     {data?.summary.total ? <div className={styles.grid}>
       {reviews.map(review => <article className={styles.card} key={review.id}>
         <div className={styles.cardTop}><Stars rating={review.rating} /><span>Verified purchase</span></div>

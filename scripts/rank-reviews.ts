@@ -56,7 +56,7 @@ async function main() {
     console.log(JSON.stringify({ position: index + 1, id: review.id, score: current ? ranking.score : null,
       text: review.body, photos: review.photos.length, reason: current ? ranking.reason : "Not scored/current" }));
   }
-  console.log("Preview only: storefront order is controlled separately by REVIEW_RANKING_SORT_ENABLED.");
+  console.log("Storefront defaults to saved helpfulness scores; shoppers can switch to most recent.");
 }
 
 main().catch(error => {
