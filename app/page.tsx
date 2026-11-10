@@ -6,6 +6,7 @@ import FounderStory from "@/components/FounderStory";
 import Button from "@/components/ui/Button";
 import SectionLabel from "@/components/ui/SectionLabel";
 import { COLOURS, PRODUCT } from "@/lib/product";
+import { BASE_PRICE, formatMoney } from "@/lib/pricing";
 import { PREORDER_COPY, PREORDER_MODE } from "@/lib/salesMode";
 import { SITE_URL, jsonLdScript } from "@/lib/seo";
 import styles from "./page.module.css";
@@ -69,7 +70,8 @@ export default function Home() {
                 <div className={styles.colourwayCaption}>
                   <div>
                     <h3>{variant.name}</h3>
-                    <span>Explore the hat</span>
+                    <p className={styles.price}>{formatMoney(BASE_PRICE)} each{PREORDER_MODE ? " · Pre-order price" : ""}</p>
+                    <span>Shop the {variant.name} sauna hat</span>
                   </div>
                   <span className={styles.arrow} aria-hidden="true">↗</span>
                 </div>

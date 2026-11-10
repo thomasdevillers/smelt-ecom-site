@@ -18,6 +18,7 @@
 .colourwayCaption { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 24px 24px; }
 .colourwayCaption h3 { font-family: var(--font-bricolage), sans-serif; font-size: clamp(24px, 3vw, 32px); letter-spacing: -.025em; margin: 0 0 8px; }
 .colourwayCaption span { font-size: 13px; }
+.price { margin: 0 0 8px; font-size: 16px; font-weight: 600; line-height: 1.5; }
 .colourwayCaption .arrow { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border: var(--border-ink); border-radius: 50%; font-size: 24px; }
 .collection > .textLink { margin-top: 16px; }
 .closing { background: var(--ink); color: var(--paper); text-align: center; padding: 48px 20px; margin-top: 48px; }
