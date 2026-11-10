@@ -30,7 +30,7 @@ describe("review preview fixtures", () => {
 
   it.each(["production", "test"])("uses real published review data in %s, never samples", async (environment) => {
     vi.stubEnv("NODE_ENV", environment);
-    const published = { reviews: [], summary: { total: 0, average: 0, distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } } };
+    const published = { reviews: [], sort: "newest" as const, summary: { total: 0, average: 0, distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } } };
     vi.mocked(listPublishedReviews).mockResolvedValue(published);
 
     const response = await GET();

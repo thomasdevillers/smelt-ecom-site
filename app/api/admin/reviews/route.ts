@@ -3,8 +3,18 @@ import { AdminError, adminFailure, adminJson, readAdminBody, requireSameOrigin }
 import { createReviewInvitation, hasCurrentReviewInvitation, listReviewRecords, moderateReview, removeReviewPhoto } from "@/lib/reviewStore";
 import { markReviewMessageSent } from "@/lib/admin/orders";
 import type { ReviewStatus } from "@/lib/reviews";
+import { after } from "next/server";
+import { processReviewRankings } from "@/lib/reviewScoring";
 
 export const runtime = "nodejs";
+export const maxDuration = 120;
+
+function scheduleRanking(id: string) {
+  after(async () => {
+    try { await processReviewRankings({ id, limit: 1 }); }
+    catch { console.error("Review ranking background task failed"); }
+  });
+}
 
 export async function GET(request: Request) {
   try {
@@ -50,8 +60,14 @@ export async function PATCH(request: Request) {
       return adminJson({ reviewMessageSentAt: await markReviewMessageSent(body.reference) });
     }
     if (typeof body.id !== "string") throw new AdminError("A review is required.");
-    if (body.action === "removePhoto" && typeof body.url === "string") return adminJson({ review: await removeReviewPhoto(body.id, body.url) });
+    if (body.action === "removePhoto" && typeof body.url === "string") {
+      const review = await removeReviewPhoto(body.id, body.url);
+      scheduleRanking(body.id);
+      return adminJson({ review });
+    }
     if (body.status !== "published" && body.status !== "rejected") throw new AdminError("Choose approve or reject.");
-    return adminJson({ review: await moderateReview(body.id, body.status) });
+    const review = await moderateReview(body.id, body.status);
+    if (body.status === "published") scheduleRanking(body.id);
+    return adminJson({ review });
   } catch (error) { return adminFailure(error); }
 }

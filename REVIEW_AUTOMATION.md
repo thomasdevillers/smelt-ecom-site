@@ -1,5 +1,7 @@
 # Review request and R50 voucher automation
 
+For AI-based helpfulness ordering, scoring/backfill commands and rollout settings, see [Review ranking](docs/REVIEW_RANKING.md).
+
 ## Customer flow
 
 1. An order is marked complete in `/admin`.

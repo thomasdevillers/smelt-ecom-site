@@ -51,7 +51,8 @@ import {
   submitReview,
   listReviewRecords,
 } from "./reviewStore";
-import { photoFromInvitation, reviewSummary, validateReviewSubmission, type PublicReview } from "./reviews";
+import { photoFromInvitation, reviewSummary, validateReviewSubmission, type PublicReview, type ReviewRecord } from "./reviews";
+import { reviewFingerprint, REVIEW_RUBRIC_VERSION, weightedReviewScore } from "./reviewRanking";
 import { POST as reviewAccessPOST } from "@/app/api/reviews/access/route";
 import { POST as reviewPOST } from "@/app/api/reviews/route";
 import { digest } from "./admin/store";
@@ -69,6 +70,8 @@ beforeEach(() => {
   vi.stubEnv("BLOB_READ_WRITE_TOKEN", "blob-test");
   vi.stubEnv("BLOB_STORE_ID", "");
   vi.stubEnv("BLOB_WEBHOOK_PUBLIC_KEY", "");
+  vi.stubEnv("REVIEW_RANKING_ENABLED", "false");
+  vi.stubEnv("REVIEW_RANKING_SORT_ENABLED", "false");
   mocks.paidOrder.mockResolvedValue(order);
   mocks.blobHead.mockImplementation(async (url: string) => ({ pathname: new URL(url).pathname.slice(1), size: 1000, contentType: url.endsWith(".jpg") ? "image/jpeg" : "image/webp" }));
   mocks.paidOrdersByEmail.mockResolvedValue([order]);
@@ -338,6 +341,50 @@ describe("review photos and moderation", () => {
     await moderateReview(submitted.id, "rejected");
     expect(mocks.blobDelete).toHaveBeenCalledWith([url]);
     expect((await listPublishedReviews()).summary.total).toBe(0);
+  });
+});
+
+describe("stored helpfulness ordering", () => {
+  it("reads an explicitly selected namespace without changing default reads or payment credentials", async () => {
+    const liveRecord: ReviewRecord = { id: "live-review", productId: "smelt-sauna-hat", orderReference: "private", customerEmail: "private@example.com", displayName: "A", anonymous: false,
+      rating: 4, body: "Specific live review", colours: ["green"], photos: [], verifiedPurchase: true,
+      status: "published", submittedAt: "2026-11-01", publishedAt: "2026-11-01", consentVersion: "2026-09-17" };
+    mocks.hashes.set("smelt:reviews:v1:live:records", new Map([[liveRecord.id, liveRecord]]));
+    expect(await listReviewRecords("published")).toEqual([]);
+    expect((await listReviewRecords("published", "live"))[0].id).toBe("live-review");
+    expect(process.env.PAYSTACK_SECRET_KEY).toBe("sk_test_example");
+    expect((await listPublishedReviews()).reviews).toEqual([]);
+  });
+  function seed() {
+    const useful: ReviewRecord = { id: "useful", productId: "smelt-sauna-hat", orderReference: "private", customerEmail: "secret@example.com", displayName: "A", anonymous: false,
+      rating: 2, body: "Fits over my long hair and dries overnight.", colours: ["green"], photos: [], verifiedPurchase: true,
+      status: "published", submittedAt: "2026-10-01", publishedAt: "2026-10-01", consentVersion: "2026-09-17" };
+    const praise = { ...useful, id: "praise", rating: 5, body: "Love it", submittedAt: "2026-11-01", publishedAt: "2026-11-01" };
+    mocks.hashes.set("smelt:reviews:v1:test:records", new Map([[useful.id, useful], [praise.id, praise]]));
+    const scores = { usefulness: 9, specificity: 8, context: 7, clarity: 8, imageEvidence: 0, reason: "Practical fit and care information." };
+    mocks.hashes.set("smelt:reviews:v1:test:ranking:scores", new Map([[useful.id, { ...scores, score: weightedReviewScore(scores, false), fingerprint: reviewFingerprint(useful), rubricVersion: REVIEW_RUBRIC_VERSION, model: "gpt-4.1-mini", scoredAt: "2026-11-02" }]]));
+    return useful;
+  }
+  it("activates only after explicit rollout, exposes no scores and preserves honest aggregates", async () => {
+    seed();
+    expect((await listPublishedReviews()).reviews[0].id).toBe("praise");
+    vi.stubEnv("REVIEW_RANKING_ENABLED", "true");
+    expect((await listPublishedReviews()).sort).toBe("newest");
+    vi.stubEnv("REVIEW_RANKING_SORT_ENABLED", "true");
+    const result = await listPublishedReviews();
+    expect(result.sort).toBe("helpful"); expect(result.reviews[0].id).toBe("useful");
+    expect(result.summary).toMatchObject({ total: 2, average: 3.5, distribution: { 2: 1, 5: 1 } });
+    expect(result.reviews[0]).not.toHaveProperty("score"); expect(result.reviews[0]).not.toHaveProperty("reason");
+  });
+  it("falls back to newest when scores are stale or storage is unavailable", async () => {
+    const useful = seed();
+    vi.stubEnv("REVIEW_RANKING_ENABLED", "true"); vi.stubEnv("REVIEW_RANKING_SORT_ENABLED", "true");
+    mocks.hashes.get("smelt:reviews:v1:test:records")!.set(useful.id, { ...useful, body: "Edited text" });
+    expect((await listPublishedReviews()).sort).toBe("newest");
+    mocks.db.hgetall.mockImplementationOnce(async (key: string) => Object.fromEntries(mocks.hashes.get(key) || []));
+    mocks.db.hgetall.mockRejectedValueOnce(new Error("Ranking storage unavailable"));
+    const result = await listPublishedReviews();
+    expect(result.sort).toBe("newest"); expect(result.reviews).toHaveLength(2);
   });
 });
 

@@ -10,6 +10,7 @@
     "test": "vitest run",
     "email:shipping": "tsx --env-file-if-exists=.env.local scripts/send-shipping.ts",
     "admin:setup": "tsx scripts/setup-admin.ts",
+    "reviews:rank": "tsx --env-file-if-exists=.env.local scripts/rank-reviews.ts",
     "admin:import-shipping": "tsx --env-file-if-exists=.env.local scripts/import-shipping-receipts.ts"
   },
   "dependencies": {

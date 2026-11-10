@@ -3,6 +3,8 @@ import { del, head } from "@vercel/blob";
 import { AdminError, adminStore, digest } from "./admin/store";
 import { completionKey, findPaidOrdersByEmail, getPaidOrder } from "./admin/orders";
 import { PRODUCT, type Colour } from "./product";
+import { reviewNamespace, type ReviewNamespace } from "./reviewNamespace";
+import { currentReviewRanking, rankReviewRecords, reviewRankingEnabled, reviewRankingPrefix, type ReviewRanking } from "./reviewRanking";
 import {
   REVIEW_INVITATION_DAYS,
   REVIEW_MAX_PHOTO_BYTES,
@@ -17,7 +19,7 @@ import {
   type ReviewStatus,
 } from "./reviews";
 
-const mode = () => process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_") ? "live" : "test";
+const mode = reviewNamespace;
 const prefix = () => `smelt:reviews:v1:${mode()}`;
 const recordsKey = () => `${prefix()}:records`;
 const statusKey = (status: ReviewStatus) => `${prefix()}:status:${status}`;
@@ -263,8 +265,8 @@ function normalizedRecord(value: ReviewRecord | string): ReviewRecord | null {
   return parsed?.productId === REVIEW_PRODUCT_ID ? parsed : null;
 }
 
-export async function listReviewRecords(status?: ReviewStatus): Promise<ReviewRecord[]> {
-  const stored = await adminStore().hgetall<Record<string, ReviewRecord | string>>(recordsKey()) || {};
+export async function listReviewRecords(status?: ReviewStatus, namespace: ReviewNamespace = mode()): Promise<ReviewRecord[]> {
+  const stored = await adminStore().hgetall<Record<string, ReviewRecord | string>>(`smelt:reviews:v1:${namespace}:records`) || {};
   return Object.values(stored)
     .map(normalizedRecord)
     .filter((review): review is ReviewRecord => review !== null && (!status || review.status === status))
@@ -278,11 +280,22 @@ export async function getReviewPhoto(id: string, index: number, allowUnpublished
   return review.photos[index] ?? null;
 }
 
-export async function listPublishedReviews(): Promise<{ reviews: PublicReview[]; summary: ReturnType<typeof reviewSummary> }> {
-  const reviews = (await listReviewRecords("published"))
+export async function listPublishedReviews(): Promise<{ reviews: PublicReview[]; summary: ReturnType<typeof reviewSummary>; sort: "helpful" | "newest" }> {
+  let records = await listReviewRecords("published");
+  let sort: "helpful" | "newest" = "newest";
+  if (reviewRankingEnabled() && process.env.REVIEW_RANKING_SORT_ENABLED === "true") {
+    try {
+      const rankings = await adminStore().hgetall<Record<string, ReviewRanking>>(`${reviewRankingPrefix()}:scores`) || {};
+      if (records.some(review => currentReviewRanking(review, rankings[review.id]))) {
+        records = rankReviewRecords(records, rankings);
+        sort = "helpful";
+      }
+    } catch { /* A ranking storage failure must not hide published reviews. */ }
+  }
+  const reviews = records
     .map(publicReview)
     .filter((review): review is PublicReview => Boolean(review));
-  return { reviews, summary: reviewSummary(reviews) };
+  return { reviews, summary: reviewSummary(reviews), sort };
 }
 
 export async function moderateReview(id: string, status: "published" | "rejected") {
