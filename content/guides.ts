@@ -1046,6 +1046,79 @@ export const GUIDES: Guide[] = [
       },
     ],
   },
+
+  {
+    slug: "why-are-sauna-hats-shaped-like-that",
+    nav: "Why the shape",
+    title: "Why Are Sauna Hats Cone or Bell Shaped? | Smelt",
+    h1: "Why are sauna hats shaped like that?",
+    description:
+      "Sauna hats are cone, bell or bucket shaped so there is a pocket of air between the felt and your crown, and a flared edge that comes down over your ears. How the shape works, and why a fitted hat would do the job worse.",
+    question: "Why are sauna hats cone or bell shaped?",
+    answer:
+      "Sauna hats have a cone, bell or bucket shape so the felt rises away from the crown of your head, leaving a pocket of air between the hottest part of the hat and your scalp. The flared lower edge then drops down over your ears and forehead, which are the parts most sensitive to the heat.",
+    published: "2026-11-10",
+    updated: "2026-11-10",
+    readMinutes: 3,
+    hero: FIT_STANDARD_SIDE,
+    takeaways: [
+      "The raised crown leaves an air gap above your head, and still air is an insulator.",
+      "The top of the hat sits in the hottest air in the room. The gap keeps that felt off your scalp.",
+      "The flared edge exists to cover your ears and forehead, the parts that burn first.",
+      "A fitted, skull-hugging hat would press hot felt straight onto your head and do the job worse.",
+    ],
+    blocks: [
+      {
+        heading: "The short answer",
+        body: [
+          "The shape is doing two jobs. The tall, roomy top keeps the felt off the crown of your head, so there is a layer of air between the hat and your scalp. The wide lower edge hangs down over your ears and forehead, so the most sensitive parts of your head are covered.",
+          "Whether it is a tall banya cone, a rounded bell or a flatter bucket, every traditional sauna hat follows that same basic pattern: room at the top, coverage at the sides. The variations are mostly style.",
+        ],
+      },
+      {
+        heading: "The air pocket above your crown",
+        body: [
+          "The top of a sauna hat sits in the hottest air in the room, because hot air rises and your head is the highest thing on the bench. If that felt were pressed flat against your scalp, the heat it soaks up would have a direct path straight into you.",
+          "A raised dome or cone stops that from happening. The felt only touches your head around the sides, and above your crown there is a gap of still, trapped air. Still air is a poor conductor of heat, which is the same reason wool works in the first place, so that gap acts as a second layer of insulation on top of the felt itself. Your scalp stays much closer to its normal temperature for longer.",
+          "It also explains why a sauna hat should feel loose. Pull a hat down tight and you flatten the crown onto your head, losing the air gap and compressing the felt at the same time. There is more on that in [sauna hat sizing](/articles/sauna-hat-size-and-fit).",
+        ],
+        figure: CREAM_BACK,
+      },
+      {
+        heading: "The flared edge over your ears",
+        body: [
+          "The lower half of the shape is about coverage. Your ears are thin, have very little insulation of their own, and are usually the first thing to start stinging on the top bench. The flare or brim at the bottom of the hat is there to come down over them, along with your forehead and the back of your neck.",
+          "Because the edge flares outward rather than gripping, it sits slightly off the skin in places, which means less hot felt in direct contact with your ears. Pulled fully down, the front edge also shades your eyes, which is meant to happen.",
+        ],
+        figure: SIDE_FIT,
+      },
+      {
+        heading: "Why not just a beanie shape?",
+        body: [
+          "A beanie is designed to hug your head, which is exactly what you want outdoors in winter when the goal is to keep your own body heat in. In a sauna the room is hotter than you are, so a hat that clings to your skull is just pressing hot fabric onto your scalp with nothing in between.",
+          "The sauna hat shape is the opposite idea: keep the hottest part of the hat away from you, and cover the bits that need covering. That is why [the Smelt hat](/product) is a relaxed bell of felt rather than a fitted cap. If you want the wider picture of how the felt itself works, that's [what a sauna hat does](/articles/what-does-a-sauna-hat-do).",
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: "Why are sauna hats pointy?",
+        a: "The cone or dome shape keeps the felt off the top of your head, leaving a pocket of trapped air between your crown and the hottest part of the hat. That air acts as extra insulation. Taller cones are mostly a banya style choice; the important part is that the top isn't pressed against your scalp.",
+      },
+      {
+        q: "Does the shape of a sauna hat actually matter?",
+        a: "Yes. A hat that rises away from your crown and comes down over your ears will keep you more comfortable than one the same thickness that fits tightly. Tight hats press hot felt onto your scalp and usually stop short of your ears.",
+      },
+      {
+        q: "Is a cone, bell or bucket shape best?",
+        a: "Any of them work, as long as there is room above your crown and the edge reaches down over your ears. The choice between them is mostly about looks and tradition rather than performance.",
+      },
+      {
+        q: "Should my sauna hat touch the top of my head?",
+        a: "Ideally not much. It should rest on your head around the sides and leave some space above your crown. If it is pressed flat on top, it is probably being pulled down too tight.",
+      },
+    ],
+  },
 ];
 
 export const ARTICLES_INDEX = {
