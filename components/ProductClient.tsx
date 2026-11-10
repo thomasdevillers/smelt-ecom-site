@@ -8,6 +8,7 @@ import Faq from "@/components/Faq";
 import ProductReviews from "@/components/ProductReviews";
 import ProductReviewSummary from "@/components/ProductReviewSummary";
 import type { PublishedReviews } from "@/lib/reviews";
+import type { Availability } from "@/lib/preorders";
 import RestockSignup from "@/components/RestockSignup";
 import AskAboutHat from "@/components/AskAboutHat";
 import SectionLabel from "@/components/ui/SectionLabel";
@@ -35,19 +36,24 @@ function ProductLinkSelection({ onSelect }: { onSelect: (colour: Colour, quantit
   return null;
 }
 
-export default function ProductClient({ reviewData }: { reviewData: PublishedReviews | null }) {
+export default function ProductClient({ reviewData, initialStock = null, initialColour = "green", initialQuantity = 1 }: {
+  reviewData: PublishedReviews | null;
+  initialStock?: Availability | null;
+  initialColour?: Colour;
+  initialQuantity?: PurchaseQuantity;
+}) {
   const viewed = useRef(false);
-  const [colour, setColour] = useState<Colour>("green");
-  const [quantity, setQuantity] = useState<number>(1);
+  const [colour, setColour] = useState<Colour>(initialColour);
+  const [quantity, setQuantity] = useState<number>(initialQuantity);
   const [moreOpen, setMoreOpen] = useState(false);
-  const [bundleGreen, setBundleGreen] = useState(1);
+  const [bundleGreen, setBundleGreen] = useState(Math.ceil(initialQuantity / 2));
   const selectFromLink = useCallback((selectedColour: Colour, quantity: PurchaseQuantity) => {
     setMoreOpen(false);
     setColour(selectedColour);
     setQuantity(quantity);
     setBundleGreen(Math.ceil(quantity / 2));
   }, []);
-  const { stock, error: stockError, refresh } = useAvailability();
+  const { stock, error: stockError, refresh } = useAvailability(initialStock);
   const { cart, dispatch, openCart } = useCart();
   const v = PRODUCT.variants[colour];
   const total = bundleSubtotal(quantity);

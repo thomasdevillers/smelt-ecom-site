@@ -1,8 +1,8 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import type { Availability } from './preorders';
-export function useAvailability() {
-  const [stock, setStock] = useState<Availability | null>(null);
+export function useAvailability(initialStock: Availability | null = null) {
+  const [stock, setStock] = useState<Availability | null>(initialStock);
   const [error, setError] = useState('');
   const refresh = useCallback(async () => {
     try {

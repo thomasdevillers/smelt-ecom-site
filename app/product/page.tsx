@@ -1,14 +1,12 @@
-import { PREORDER_MODE } from "@/lib/salesMode";
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import ProductClient from "@/components/ProductClient";
 import { PRODUCT } from "@/lib/product";
-import { BASE_PRICE, SHIPPING_FEE } from "@/lib/pricing";
 import { abs, breadcrumbLd, jsonLdScript } from "@/lib/seo";
 import { getPublishedReviews } from "@/lib/publishedReviews";
-
-// Also retries a failed initial review read instead of preserving the fallback
-// in the full route cache until the next deployment.
-export const revalidate = 60;
+import { getProductAvailability } from "@/lib/productAvailability";
+import { productGroupLd } from "@/lib/productSchema";
+import { reviewNamespace } from "@/lib/reviewNamespace";
 
 export const metadata: Metadata = {
   title: "Smelt Sauna Hat · 100% wool felt, embroidered",
@@ -24,69 +22,31 @@ export const metadata: Metadata = {
   },
 };
 
-// Google requires priceValidUntil for offers; a rolling ~1yr horizon avoids a
-// "past date" warning without needing a real cutoff. Static so the page stays
-// prerendered (no request-time Date()).
-const PRICE_VALID_UNTIL = "2027-12-31";
-
-const productLd = {
-  "@context": "https://schema.org",
-  "@type": "Product",
-  name: PRODUCT.name,
-  description:
-    "100% wool felt sauna hat, embroidered front and back. One size fits most heads.",
-  image: [
-    abs(PRODUCT.variants.green.images.front),
-    abs(PRODUCT.variants.cream.images.front),
-  ],
-  brand: { "@type": "Brand", name: "Smelt" },
-  material: "100% wool felt",
-  offers: {
-    "@type": "Offer",
-    url: abs("/product"),
-    priceCurrency: "ZAR",
-    price: BASE_PRICE,
-    priceValidUntil: PRICE_VALID_UNTIL,
-    ...(PREORDER_MODE ? { availability: "https://schema.org/PreOrder" } : {}),
-    itemCondition: "https://schema.org/NewCondition",
-    hasMerchantReturnPolicy: {
-      "@type": "MerchantReturnPolicy",
-      applicableCountry: "ZA",
-      returnPolicyCategory:
-        "https://schema.org/MerchantReturnFiniteReturnWindow",
-      merchantReturnDays: 7,
-      returnMethod: "https://schema.org/ReturnByMail",
-      returnFees: "https://schema.org/ReturnFeesCustomerResponsibility",
-      itemCondition: "https://schema.org/NewCondition",
-    },
-    shippingDetails: {
-      "@type": "OfferShippingDetails",
-      shippingRate: {
-        "@type": "MonetaryAmount",
-        // The advertised single hat has the standard nationwide delivery fee.
-        value: SHIPPING_FEE,
-        currency: "ZAR",
-      },
-      shippingDestination: {
-        "@type": "DefinedRegion",
-        addressCountry: "ZA",
-      },
-    },
-  },
-};
-
 const crumbsLd = breadcrumbLd([
   ["Home", "/"],
   [PRODUCT.name, "/product"],
 ]);
 
-export default async function ProductPage() {
-  const reviewData = await getPublishedReviews();
+export default async function ProductPage({ searchParams }: {
+  searchParams: Promise<{ colour?: string | string[]; order?: string | string[] }>;
+}) {
+  // Stock must be read per request, not frozen into prerendered HTML. Reviews
+  // retain their independent cache. This also avoids stock seeding at build time.
+  await connection();
+  const params = await searchParams;
+  const colour = Array.isArray(params.colour) ? params.colour[0] : params.colour;
+  const order = Array.isArray(params.order) ? params.order[0] : params.order;
+  const initialColour = colour === "cream" ? "cream" : "green";
+  const initialQuantity = order === "bundle" || order === "2" ? 2 : order === "3" ? 3 : order === "4" ? 4 : 1;
+  const [reviewData, stock] = await Promise.all([getPublishedReviews(), getProductAvailability()]);
+  // Never advertise local sample reviews or test-environment ratings to Google.
+  const ratings = process.env.NODE_ENV === "production" && reviewNamespace() === "live" ? reviewData : null;
+  const productLd = productGroupLd(stock, ratings);
   return (
     <>
       <script {...jsonLdScript(productLd)} />
       <script {...jsonLdScript(crumbsLd)} />
-      <ProductClient reviewData={reviewData} />
+      <ProductClient reviewData={reviewData} initialStock={stock} initialColour={initialColour} initialQuantity={initialQuantity} />
     </>
   );
 }
