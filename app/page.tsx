@@ -1,4 +1,5 @@
 import Image from "next/image";
+import type { Metadata } from "next";
 import Link from "next/link";
 import Hero from "@/components/Hero";
 import FounderStory from "@/components/FounderStory";
@@ -6,17 +7,28 @@ import Button from "@/components/ui/Button";
 import SectionLabel from "@/components/ui/SectionLabel";
 import { COLOURS, PRODUCT } from "@/lib/product";
 import { PREORDER_COPY, PREORDER_MODE } from "@/lib/salesMode";
+import { SITE_URL, jsonLdScript } from "@/lib/seo";
 import styles from "./page.module.css";
 
-export const metadata = {
+export const metadata: Metadata = {
+  title: "Wool Felt Sauna Hats South Africa",
   description:
-    "Wool felt sauna hats for hot rooms and a little headspace. Meet Smelt, explore Forest Green and Natural Cream, and find your next sauna companion.",
+    "Shop Smelt's 100% wool felt sauna hats in Forest Green or Natural Cream. Embroidered, not printed. Nationwide South African delivery from Cape Town.",
   alternates: { canonical: "/" },
+};
+
+const websiteLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "Smelt",
+  alternateName: "Smelt Sauna Hats",
+  url: SITE_URL,
 };
 
 export default function Home() {
   return (
     <main className={styles.page}>
+      <script {...jsonLdScript(websiteLd)} />
       <Hero />
 
       <section id="felt" className={styles.felt} aria-labelledby="felt-title">
