@@ -2,11 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { PublicReview, ReviewSummary } from "@/lib/reviews";
+import type { PublicReview, PublishedReviews } from "@/lib/reviews";
 import styles from "./ProductReviews.module.css";
 import ctaStyles from "./ReviewAccessCta.module.css";
-
-type ReviewsResponse = { reviews: PublicReview[]; summary: ReviewSummary; sort?: "helpful" | "newest" };
 
 function Stars({ rating }: { rating: number }) {
   return <span className={styles.stars} aria-label={`${rating} out of 5 stars`}>{[1, 2, 3, 4, 5].map(star => <span key={star} className={star <= Math.round(rating) ? styles.starOn : ""} aria-hidden="true">★</span>)}</span>;
@@ -16,27 +14,12 @@ const colourLabel = (colours: PublicReview["colours"]) => colours.length === 2
   ? "Forest Green + Natural Cream"
   : colours[0] === "cream" ? "Natural Cream" : "Forest Green";
 
-export default function ProductReviews({ onSummary }: { onSummary?: (summary: ReviewSummary) => void }) {
-  const [data, setData] = useState<ReviewsResponse | null>(null);
+export default function ProductReviews({ data }: { data: PublishedReviews | null }) {
   const [activePhoto, setActivePhoto] = useState<string | null>(null);
   const [sort, setSort] = useState<"helpful" | "newest">("helpful");
   const reviews = sort === "newest" && data
     ? [...data.reviews].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt) || a.id.localeCompare(b.id))
     : data?.reviews ?? [];
-
-  useEffect(() => {
-    let live = true;
-    fetch("/api/reviews", { cache: "no-store" })
-      .then(async response => response.ok ? response.json() as Promise<ReviewsResponse> : null)
-      .then(result => {
-        if (live && result) {
-          setData(result);
-          onSummary?.(result.summary);
-        }
-      })
-      .catch(() => undefined);
-    return () => { live = false; };
-  }, [onSummary]);
 
   useEffect(() => {
     if (!activePhoto) return;
@@ -86,7 +69,7 @@ export default function ProductReviews({ onSummary }: { onSummary?: (summary: Re
         </div>}
         <footer><strong>{review.displayName}</strong><span>{colourLabel(review.colours)}</span></footer>
       </article>)}
-    </div> : data ? <p className={ctaStyles.empty}>No reviews yet. Verified buyers can be the first to share their experience.</p> : <p className={ctaStyles.empty} role="status">Loading reviews…</p>}
+    </div> : data ? <p className={ctaStyles.empty}>No reviews yet. Verified buyers can be the first to share their experience.</p> : <p className={ctaStyles.empty}>Reviews are temporarily unavailable. Please try again later.</p>}
 
     {activePhoto && <div className={styles.lightbox} role="dialog" aria-modal="true" aria-label="Customer review photo" onClick={() => setActivePhoto(null)}>
       <button type="button" onClick={() => setActivePhoto(null)} aria-label="Close photo">Close ×</button>

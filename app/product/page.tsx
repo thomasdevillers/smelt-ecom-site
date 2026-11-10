@@ -4,6 +4,11 @@ import ProductClient from "@/components/ProductClient";
 import { PRODUCT } from "@/lib/product";
 import { BASE_PRICE, SHIPPING_FEE } from "@/lib/pricing";
 import { abs, breadcrumbLd, jsonLdScript } from "@/lib/seo";
+import { getPublishedReviews } from "@/lib/publishedReviews";
+
+// Also retries a failed initial review read instead of preserving the fallback
+// in the full route cache until the next deployment.
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "Smelt Sauna Hat · 100% wool felt, embroidered",
@@ -75,12 +80,13 @@ const crumbsLd = breadcrumbLd([
   [PRODUCT.name, "/product"],
 ]);
 
-export default function ProductPage() {
+export default async function ProductPage() {
+  const reviewData = await getPublishedReviews();
   return (
     <>
       <script {...jsonLdScript(productLd)} />
       <script {...jsonLdScript(crumbsLd)} />
-      <ProductClient />
+      <ProductClient reviewData={reviewData} />
     </>
   );
 }

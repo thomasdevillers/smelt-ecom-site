@@ -5,13 +5,17 @@ import { markReviewMessageSent } from "@/lib/admin/orders";
 import type { ReviewStatus } from "@/lib/reviews";
 import { after } from "next/server";
 import { processReviewRankings } from "@/lib/reviewScoring";
+import { invalidatePublishedReviews } from "@/lib/publishedReviews";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
 function scheduleRanking(id: string) {
   after(async () => {
-    try { await processReviewRankings({ id, limit: 1 }); }
+    try {
+      const result = await processReviewRankings({ id, limit: 1 });
+      if (result.scored) invalidatePublishedReviews();
+    }
     catch { console.error("Review ranking background task failed"); }
   });
 }
@@ -62,11 +66,13 @@ export async function PATCH(request: Request) {
     if (typeof body.id !== "string") throw new AdminError("A review is required.");
     if (body.action === "removePhoto" && typeof body.url === "string") {
       const review = await removeReviewPhoto(body.id, body.url);
+      invalidatePublishedReviews();
       scheduleRanking(body.id);
       return adminJson({ review });
     }
     if (body.status !== "published" && body.status !== "rejected") throw new AdminError("Choose approve or reject.");
     const review = await moderateReview(body.id, body.status);
+    invalidatePublishedReviews();
     if (body.status === "published") scheduleRanking(body.id);
     return adminJson({ review });
   } catch (error) { return adminFailure(error); }

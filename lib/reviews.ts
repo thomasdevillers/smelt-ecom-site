@@ -52,6 +52,12 @@ export interface ReviewSummary {
   distribution: Record<1 | 2 | 3 | 4 | 5, number>;
 }
 
+export interface PublishedReviews {
+  reviews: PublicReview[];
+  summary: ReviewSummary;
+  sort?: "helpful" | "newest";
+}
+
 export interface ReviewSubmission {
   rating: number;
   body: string;

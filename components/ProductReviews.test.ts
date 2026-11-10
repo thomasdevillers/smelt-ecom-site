@@ -18,10 +18,11 @@ const reviews = [helpful, recent];
 
 function render(sort: "helpful" | "newest", serverSort: "helpful" | "newest" = "helpful") {
   vi.mocked(useState)
-    .mockReturnValueOnce([{ reviews, summary: reviewSummary(reviews), sort: serverSort }, vi.fn()])
     .mockReturnValueOnce([null, vi.fn()])
     .mockReturnValueOnce([sort, vi.fn()]);
-  return renderToStaticMarkup(createElement(ProductReviews));
+  return renderToStaticMarkup(createElement(ProductReviews, {
+    data: { reviews, summary: reviewSummary(reviews), sort: serverSort },
+  }));
 }
 
 afterEach(() => vi.resetAllMocks());
@@ -29,7 +30,7 @@ afterEach(() => vi.resetAllMocks());
 describe("review sorting toggle", () => {
   it("defaults to most helpful and preserves the server's score order", () => {
     const html = render("helpful");
-    expect(vi.mocked(useState).mock.calls[2]).toEqual(["helpful"]);
+    expect(vi.mocked(useState).mock.calls[1]).toEqual(["helpful"]);
     expect(html).toContain('aria-pressed="true">Most helpful</button>');
     expect(html).toContain('aria-pressed="false">Most recent</button>');
     expect(html.indexOf("Helpful reviewer")).toBeLessThan(html.indexOf("Recent reviewer"));

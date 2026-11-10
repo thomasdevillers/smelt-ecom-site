@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/reviewScoring", () => ({ processReviewRankings: vi.fn() }));
+vi.mock("@/lib/publishedReviews", () => ({ invalidatePublishedReviews: vi.fn() }));
 import { processReviewRankings } from "@/lib/reviewScoring";
+import { invalidatePublishedReviews } from "@/lib/publishedReviews";
 import { GET } from "./route";
 
 afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks(); });
@@ -21,6 +23,14 @@ describe("review ranking cron", () => {
     const response = await GET(new Request("https://example.com", { headers: { authorization: "Bearer private-secret" } }));
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(await response.json()).toEqual({ enabled: true, scored: 3, failed: 0 });
+    expect(invalidatePublishedReviews).toHaveBeenCalledOnce();
+  });
+  it("does not invalidate reviews when no rankings changed", async () => {
+    vi.stubEnv("CRON_SECRET", "private-secret");
+    vi.mocked(processReviewRankings).mockResolvedValue({ enabled: true, scored: 0, failed: 0 });
+    const response = await GET(new Request("https://example.com", { headers: { authorization: "Bearer private-secret" } }));
+    expect(response.status).toBe(200);
+    expect(invalidatePublishedReviews).not.toHaveBeenCalled();
   });
   it("returns a safe retryable error without internal details", async () => {
     vi.stubEnv("CRON_SECRET", "private-secret");

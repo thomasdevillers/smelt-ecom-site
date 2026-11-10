@@ -280,12 +280,12 @@ export async function getReviewPhoto(id: string, index: number, allowUnpublished
   return review.photos[index] ?? null;
 }
 
-export async function listPublishedReviews(): Promise<{ reviews: PublicReview[]; summary: ReturnType<typeof reviewSummary>; sort: "helpful" | "newest" }> {
-  let records = await listReviewRecords("published");
+export async function listPublishedReviews(namespace: ReviewNamespace = mode()): Promise<{ reviews: PublicReview[]; summary: ReturnType<typeof reviewSummary>; sort: "helpful" | "newest" }> {
+  let records = await listReviewRecords("published", namespace);
   let sort: "helpful" | "newest" = "newest";
   // Serving saved scores does not require the flags used to generate rankings.
   try {
-    const rankings = await adminStore().hgetall<Record<string, ReviewRanking>>(`${reviewRankingPrefix()}:scores`) || {};
+    const rankings = await adminStore().hgetall<Record<string, ReviewRanking>>(`${reviewRankingPrefix(namespace)}:scores`) || {};
     if (records.some(review => currentReviewRanking(review, rankings[review.id]))) {
       records = rankReviewRecords(records, rankings);
       sort = "helpful";
