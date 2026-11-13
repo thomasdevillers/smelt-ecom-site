@@ -120,7 +120,7 @@ export default function ProductClient({ reviewData, initialStock = null, initial
     <main className={styles.page}>
       <Suspense fallback={null}><ProductLinkSelection onSelect={selectFromLink} /></Suspense>
       <div className={styles.grid}>
-        <ProductGallery colour={colour} onColourChange={setColour} />
+        <ProductGallery key={colour} colour={colour} onColourChange={setColour} />
 
         <div className={styles.info}>
           <SectionLabel>The collection (all two of them)</SectionLabel>

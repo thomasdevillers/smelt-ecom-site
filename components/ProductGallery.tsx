@@ -12,8 +12,8 @@ export default function ProductGallery({ colour, onColourChange }: {
   const [selected, setSelected] = useState(0);
   const variant = PRODUCT.variants[colour];
   const media = [
-    { id: "front", label: "Front", src: variant.images.front, alt: `${variant.name} Smelt sauna hat, front embroidery`, width: 520, height: 520, lifestyle: false },
-    { id: "back", label: "Back", src: variant.images.back, alt: `${variant.name} Smelt sauna hat, back embroidery`, width: 520, height: 520, lifestyle: false },
+    { id: "front", label: "Front", src: `/images/product-gallery-${colour}front.png`, alt: `${variant.name} Smelt sauna hat, front embroidery`, width: 1254, height: 1254, lifestyle: false },
+    { id: "back", label: "Back", src: `/images/product-gallery-${colour}back.png`, alt: `${variant.name} Smelt sauna hat, back embroidery`, width: 1254, height: 1254, lifestyle: false },
     { id: "sauna", label: "In the sauna", src: "/images/MarcTomFront.jpg", alt: "Forest Green and Natural Cream Smelt sauna hats being worn in a sauna", width: 800, height: 1000, lifestyle: true },
     { id: "fit", label: "Fit", src: "/images/TomSide.jpeg", alt: "Natural Cream Smelt sauna hat shown from the side while being worn", width: 800, height: 1000, lifestyle: true },
     { id: "worn", label: "Worn", src: "/images/cream-hat-sauna-closeup.webp", alt: "Woman wearing a Natural Cream Smelt sauna hat in a wooden sauna", width: 1086, height: 1448, lifestyle: true, objectPosition: "center top" },
@@ -45,10 +45,7 @@ export default function ProductGallery({ colour, onColourChange }: {
             type="button"
             className={`${styles.colourChoice} ${colour === choice ? styles.colourChoiceOn : ""}`}
             aria-pressed={colour === choice}
-            onClick={() => {
-              onColourChange(choice);
-              setSelected(current => current > 1 ? 0 : current);
-            }}
+            onClick={() => onColourChange(choice)}
           >
             <span className={styles.swatch} style={{ backgroundColor: PRODUCT.variants[choice].swatch }} aria-hidden="true" />
             <span>{PRODUCT.variants[choice].name}</span>

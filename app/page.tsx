@@ -59,10 +59,10 @@ export default function Home() {
               <Link key={colour} href={`/product?colour=${colour}`} className={`${styles.colourway} ${colour === "green" ? styles.green : styles.cream}`}>
                 <div className={styles.hatStage}>
                   <Image
-                    src={variant.images.front}
+                    src={`/images/product-gallery-${colour}front.png`}
                     alt={`${variant.name} Smelt wool felt sauna hat, embroidered with Smelt on the front`}
-                    width={533}
-                    height={533}
+                    width={1254}
+                    height={1254}
                     sizes="400px"
                     className={styles.hat}
                   />
