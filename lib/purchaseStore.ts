@@ -4,6 +4,7 @@ import { getInventory, RESERVATION_TTL_SECONDS } from './inventory';
 import { verifyTransaction } from './paystack';
 import { paidCheckoutTotal, sanitizeCart } from './checkoutShared';
 import { parseVoucherMetadata } from './vouchers';
+import { commitCoupon, releaseCoupon } from './coupons';
 import { localStockTest, stockScope } from './stockEnvironment';
 import { PREORDER_BATCH, LEGACY_PREORDER_BATCH, PREORDER_ARRIVAL, PREORDER_TIMING, parsePreorder, type Availability, type PreorderDetails } from './preorders';
 import type { CartState } from './cartReducer';
@@ -225,9 +226,11 @@ export async function expirePurchaseReservations(now = Date.now()) {
           const voucher = parseVoucherMetadata(payment.metadata?.voucher);
           if (payment.metadata?.inventoryReservation !== reference || cart.green !== order.green || cart.cream !== order.cream || payment.currency !== 'ZAR' || payment.amount !== paidCheckoutTotal(cart, payment.metadata?.shippingMethod, voucher?.amount ?? 0, payment.metadata?.unitPrice, payment.metadata?.pricingVersion) * 100)
             throw new Error('Paid reservation requires reconciliation');
+          if (voucher?.kind === 'coupon' && !await commitCoupon(reference, voucher)) throw new Error('Coupon requires reconciliation');
           if (await commitPurchase(reference, cart)) result.paid++;
           else result.retained++;
         } else if (payment.status === 'abandoned' || payment.status === 'failed') {
+          await releaseCoupon(reference);
           result.released += Number(await adminStore().eval(EXPIRE_PURCHASE,
             [stockKey(), quotaKey(order.batch ?? LEGACY_PREORDER_BATCH), `${prefix()}:orders`, receivedKey(order.batch ?? LEGACY_PREORDER_BATCH)],
             [reference, 'expired', cutoff, new Date(now).toISOString()]));

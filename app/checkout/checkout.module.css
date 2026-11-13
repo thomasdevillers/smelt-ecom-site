@@ -62,3 +62,11 @@
 .discountStatus { margin-top: 16px; font-size: 14px; line-height: 1.5; }
 .discountStatus button { margin: 0 16px 8px 0; padding: 4px 0; border: 0; background: transparent; color: var(--ink); font: inherit; text-decoration: underline; cursor: pointer; }
 .discountStatus button:focus-visible { outline: 3px solid var(--terracotta); outline-offset: 3px; }
+.coupon { display: grid; gap: 8px; margin-top: 24px; padding-bottom: 24px; border-bottom: var(--border-ink-soft); }
+.couponRow { display: flex; gap: 8px; }
+.couponRow input { min-width: 0; flex: 1; }
+.couponRow > button { border: var(--border-ink-soft); border-radius: 14px; background: var(--ink); color: var(--paper); padding: 12px 20px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.couponRow > button:disabled { opacity: .55; cursor: default; }
+.couponRow > button:focus-visible, .couponClear:focus-visible { outline: 3px solid var(--terracotta); outline-offset: 3px; }
+.couponNote { margin: 0; font-size: 13px; color: var(--ink); }
+.couponClear { border: 0; padding: 0; background: transparent; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }

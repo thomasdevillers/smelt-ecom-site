@@ -8,6 +8,7 @@ import WaybillScanner from "./WaybillScanner";
 import RestockPanel from "./RestockPanel";
 import { preorderTiming } from "@/lib/preorders";
 import ReviewsPanel from "./ReviewsPanel";
+import CouponsPanel from "./CouponsPanel";
 import { reviewWhatsAppUrl } from "@/lib/whatsapp";
 import styles from "./admin.module.css";
 import { attributionLabel } from "@/lib/attribution";
@@ -170,7 +171,7 @@ export default function AdminDashboard() {
   const [page, setPage] = useState(1);
   const [view, setView] = useState<"active" | "completed" | "preorders">("active");
   const [completedSort, setCompletedSort] = useState<"newest" | "oldest">("newest");
-  const [section, setSection] = useState<"orders" | "analytics" | "reviews" | "restock" | "conversations">("orders");
+  const [section, setSection] = useState<"orders" | "analytics" | "reviews" | "restock" | "conversations" | "coupons">("orders");
   const [notice, setNotice] = useState("");
   const generation = useRef(0);
   const expire = useCallback(() => { generation.current++; setAuth(false); setData(null); setError("Your session has ended. Sign in again to continue."); }, []);
@@ -227,6 +228,7 @@ export default function AdminDashboard() {
     } finally { setExporting(false); }
   }
   const sectionCopy = {
+    coupons: { eyebrow: "SMELT / COUPON CODES", title: <>A little off<span>.</span></>, description: "Create codes. Keep track of who uses them." },
     orders: { eyebrow: "SMELT / FULFILMENT", title: <>The dispatch desk<span>.</span></>, description: "Paste a waybill. Send the good news." },
     analytics: { eyebrow: "SMELT / COMMERCE", title: <>Store performance<span>.</span></>, description: "Traffic, intent and verified sales in one view." },
     restock: { eyebrow: "SMELT / NEXT BATCH", title: <>Restock requests<span>.</span></>, description: "Pre-orders, waiting-list emails and restock requests." },
@@ -243,6 +245,7 @@ export default function AdminDashboard() {
       </section> : <>
         <section className={styles.heading}><div><span className={styles.eyebrow}>{sectionCopy.eyebrow}</span><h1>{sectionCopy.title}</h1><p>{sectionCopy.description}</p></div>{section === "orders" ? <div className={styles.total}><strong>{data?.total ?? "—"}</strong><span>{view === "completed" ? "COMPLETED ORDERS" : view === "preorders" ? "PAID PRE-ORDERS" : "ACTIVE ORDERS"}</span></div> : section === "analytics" ? <div className={styles.analyticsStamp}><span>VERCEL</span><b>＋</b><span>PAYSTACK</span></div> : section === "conversations" ? <div className={styles.analyticsStamp}><span>VISITOR</span><b>＋</b><span>SMELT AI</span></div> : <div className={styles.analyticsStamp}><span>PAYSTACK</span><b>＋</b><span>BLOB</span></div>}</section>
         <nav className={styles.primarySections} aria-label="Admin sections">
+          <button type="button" aria-pressed={section === "coupons"} onClick={() => setSection("coupons")}>Coupons</button>
           <button type="button" aria-pressed={section === "orders"} onClick={() => setSection("orders")}>Orders</button>
           <button type="button" aria-pressed={section === "analytics"} onClick={() => setSection("analytics")}>Store performance</button>
           <button type="button" aria-pressed={section === "reviews"} onClick={() => setSection("reviews")}>Reviews</button>
@@ -277,8 +280,8 @@ export default function AdminDashboard() {
           <div className={styles.orders}>{data.orders.map(order => <OrderRow key={order.reference} order={order} onExpired={expire} onMoved={() => { setNotice(view !== "completed" ? "Order moved to Completed orders." : "Order moved back to Active orders."); if (data.orders.length === 1 && data.page > 1) setPage(data.page - 1); else void load(); }} onReceipt={receipt => setData(current => current ? { ...current, orders: current.orders.map(o => o.reference === order.reference ? { ...o, receipt } : o) } : null)} onReviewMessageSent={reviewMessageSentAt => setData(current => current ? { ...current, orders: current.orders.map(o => o.reference === order.reference ? { ...o, reviewMessageSentAt } : o) } : null)} />)}</div>
           {!data.orders.length && <div className={styles.empty}><h2>{search ? "No matching orders" : view === "completed" ? "No completed orders yet" : "All caught up"}</h2><p>{search ? "Search using all or part of a customer name, email address or payment reference." : view === "completed" ? "Orders appear here after you mark them complete." : "New paid orders will appear here."}</p></div>}
           <nav className={styles.pagination} aria-label="Order pages"><span>{data.total ? `Page ${data.page} of ${Math.max(1, data.pageCount)}` : "0 orders"}</span><div><button className={styles.secondary} disabled={loading || data.page <= 1} onClick={() => setPage(data.page - 1)}>← Previous</button><button className={styles.secondary} disabled={loading || data.page >= data.pageCount} onClick={() => setPage(data.page + 1)}>Next →</button></div></nav></>}
-        </> : section === "analytics" ? <AnalyticsPanel onExpired={expire} /> : section === "restock" ? <RestockPanel onExpired={expire} /> : section === "conversations" ? <ConversationsPanel onExpired={expire} /> : <ReviewsPanel onExpired={expire} />}
-        <footer className={styles.footnote}>Made with care. Measured with care.<span>{section === "orders" ? "Email delivery status refers to the notification, not the parcel." : section === "analytics" ? "Payment totals come from successful Paystack transactions." : section === "conversations" ? "Conversation logs are visible only to the signed-in team." : "Customer reviews remain private until approved."}</span></footer>
+        </> : section === "coupons" ? <CouponsPanel onExpired={expire} /> : section === "analytics" ? <AnalyticsPanel onExpired={expire} /> : section === "restock" ? <RestockPanel onExpired={expire} /> : section === "conversations" ? <ConversationsPanel onExpired={expire} /> : <ReviewsPanel onExpired={expire} />}
+        <footer className={styles.footnote}>Made with care. Measured with care.<span>{section === "coupons" ? "Coupon usage counts successful payments only." : section === "orders" ? "Email delivery status refers to the notification, not the parcel." : section === "analytics" ? "Payment totals come from successful Paystack transactions." : section === "conversations" ? "Conversation logs are visible only to the signed-in team." : "Customer reviews remain private until approved."}</span></footer>
       </>}
     </main>
   </div>;

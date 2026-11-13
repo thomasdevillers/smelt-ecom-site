@@ -1,6 +1,7 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ hgetall: vi.fn(), hget: vi.fn(), eval: vi.fn(), verify: vi.fn() }));
+const mocks = vi.hoisted(() => ({ hgetall: vi.fn(), hget: vi.fn(), eval: vi.fn(), verify: vi.fn(), releaseCoupon: vi.fn(), commitCoupon: vi.fn() }));
+vi.mock('./coupons', async importOriginal => ({ ...await importOriginal<typeof import('./coupons')>(), releaseCoupon: mocks.releaseCoupon, commitCoupon: mocks.commitCoupon }));
 vi.mock('./admin/store', () => ({ adminStore: () => mocks, AdminError: class extends Error {} }));
 vi.mock('./paystack', () => ({ verifyTransaction: mocks.verify }));
 import { expirePurchaseReservations, purchaseNeedsReview, resolvePurchasePreorder, EXPIRE_PURCHASE, COMMIT_PURCHASE } from './purchaseStore';
@@ -25,6 +26,7 @@ describe('reservation expiry reconciliation', () => {
     mocks.verify.mockResolvedValue({ ...payment, status });
     expect(await expirePurchaseReservations(now)).toEqual({ released: 1, paid: 0, retained: 0 });
     expect(mocks.eval).toHaveBeenCalledWith(EXPIRE_PURCHASE, expect.any(Array), [reference, 'expired', held.createdAt, new Date(now).toISOString()]);
+    expect(mocks.releaseCoupon).toHaveBeenCalledWith(reference);
   });
   it.each(['pending', 'ongoing', 'processing', 'queued', 'reversed', 'unknown'])('retains %s payments', async status => {
     mocks.verify.mockResolvedValue({ ...payment, status });
@@ -40,6 +42,21 @@ describe('reservation expiry reconciliation', () => {
     mocks.verify.mockResolvedValue({ ...payment, status: 'success' });
     expect(await expirePurchaseReservations(now)).toEqual({ released: 0, paid: 1, retained: 0 });
     expect(mocks.eval).toHaveBeenCalledWith(COMMIT_PURCHASE, expect.any(Array), [reference, 1, 0]);
+  });
+  it('reconciles coupon usage for successful payments with delayed webhooks', async () => {
+    const voucher = { kind: 'coupon', id: 'a'.repeat(64), amount: 75 };
+    mocks.verify.mockResolvedValue({ ...payment, status: 'success', amount: 56500, metadata: { ...payment.metadata, unitPrice: 550, pricingVersion: PRICING_VERSION, voucher } });
+    mocks.commitCoupon.mockResolvedValue(true);
+    expect(await expirePurchaseReservations(now)).toEqual({ released: 0, paid: 1, retained: 0 });
+    expect(mocks.commitCoupon).toHaveBeenCalledWith(reference, voucher);
+    expect(mocks.releaseCoupon).not.toHaveBeenCalled();
+  });
+  it('retains allocations when coupon reconciliation fails', async () => {
+    const voucher = { kind: 'coupon', id: 'a'.repeat(64), amount: 75 };
+    mocks.verify.mockResolvedValue({ ...payment, status: 'success', amount: 56500, metadata: { ...payment.metadata, unitPrice: 550, pricingVersion: PRICING_VERSION, voucher } });
+    mocks.commitCoupon.mockResolvedValue(false);
+    expect((await expirePurchaseReservations(now)).retained).toBe(1);
+    expect(mocks.eval).not.toHaveBeenCalled();
   });
   it('commits a paid mixed four-hat bundle during expiry reconciliation', async () => {
     const cart = { green: 2, cream: 2 };

@@ -24,6 +24,14 @@ The official store conversion rate is **successful Paystack orders / Vercel dail
 
 Each order can receive one shipping notification through this dashboard. Accepted sends are locked. Recent uncertain sends can retry the same frozen email and provider idempotency key; attempts older than 23 hours require manual reconciliation. Changed waybills require operator review, not an automatic second email. Completing from customer history requires an accepted previous record and explicit operator confirmation; pending or unconfirmed history cannot bypass the send step. Founder-delivery orders are visible but cannot send an Aramex notification.
 
+## Coupon codes
+
+Open **Coupons** to create a reusable code with a fixed whole-rand discount and a required usage limit. Codes are case-insensitive; the `SMELT-` prefix is reserved for existing personal email vouchers. Customers apply a code below checkout pricing. One code can be applied per order, alongside existing bundle savings, and the discount must be less than the order total.
+
+Each saved code shows its discount, distinct paying customers, remaining uses and any uses held in checkout. Each successful order consumes one use, even if the same customer orders again. Payment retries and duplicate callbacks do not consume extra uses. **Deactivate** stops new checkouts without breaking payments already started.
+
+Uses are reserved atomically before creating a payment, preventing concurrent checkouts from exceeding the limit. Rejected initializations return their use. Closing a popup does not invalidate a payable link: the existing inventory reconciliation cron releases holds only after Paystack confirms an abandoned or failed payment, and reconciles successful payments instead. Provider errors retain holds for review/retry. Keep the inventory cron enabled. Coupon records and usage are persistent in the existing Redis database, separated into live and test namespaces (`smelt:coupons:v1:live` / `test`); no additional service configuration is required.
+
 ## Configuration
 
 Set these **server-side** environment variables in Vercel Production:

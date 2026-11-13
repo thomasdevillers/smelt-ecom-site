@@ -95,7 +95,7 @@ export default function CheckoutPage() {
       if (cancelled) return;
       try {
         const savedCode = sessionStorage.getItem(EMAIL_VOUCHER_STORAGE_KEY);
-        if (savedCode) setVoucherCode(savedCode);
+        if (savedCode) { setVoucherCode(savedCode); setVoucherAttempt(1); }
         const raw = sessionStorage.getItem(CART_RECOVERY_STORAGE_KEY);
         if (!raw) return;
         sessionStorage.removeItem(CART_RECOVERY_STORAGE_KEY);
@@ -107,6 +107,7 @@ export default function CheckoutPage() {
       setEmail(recovered.email);
       setName(typeof recovered.name === "string" ? recovered.name : "");
       setVoucherCode(recovered.voucher.code);
+      setVoucherAttempt(1);
       try { sessionStorage.setItem(EMAIL_VOUCHER_STORAGE_KEY, recovered.voucher.code); } catch { /* Keep the code in memory. */ }
       dispatch({ type: "set", colour: "green", qty: recoveredCart.green });
       dispatch({ type: "set", colour: "cream", qty: recoveredCart.cream });
@@ -160,7 +161,7 @@ export default function CheckoutPage() {
       setError("Review availability before paying."); setStatus("error"); return;
     }
     if (voucherCode.trim() && !activeVoucher) {
-      setError("Your email discount has not been applied yet. Check the message above before paying."); setStatus("error"); return;
+      setError("Apply or remove your coupon before paying."); setStatus("error"); return;
     }
 
     if (!isCompleteAddress(address)) {
@@ -233,13 +234,15 @@ export default function CheckoutPage() {
   }
 
   const normalizedVoucherCode = voucherCode.trim().toUpperCase().replace(/\s+/g, "");
-  const activeVoucher = appliedVoucher && appliedVoucher.email === email.trim().toLowerCase() && appliedVoucher.code === normalizedVoucherCode
+  const voucherEmail = normalizedVoucherCode.startsWith("SMELT-") ? email.trim().toLowerCase() : "";
+  const activeVoucher = appliedVoucher && appliedVoucher.email === voucherEmail && appliedVoucher.code === normalizedVoucherCode && appliedVoucher.amount < grandTotal(subtotal, cart.green + cart.cream, shippingMethod)
     ? appliedVoucher
     : null;
   const totalAmount = grandTotal(subtotal, cart.green + cart.cream, shippingMethod) - (activeVoucher?.amount ?? 0);
 
   useEffect(() => {
-    if (!normalizedVoucherCode || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return;
+    if (!normalizedVoucherCode || !voucherAttempt) return;
+    if (normalizedVoucherCode.startsWith("SMELT-") && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(voucherEmail)) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       setVoucherBusy(true);
@@ -247,28 +250,30 @@ export default function CheckoutPage() {
       try {
         const response = await fetch("/api/vouchers/validate", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code: normalizedVoucherCode, email }),
+          body: JSON.stringify({ code: normalizedVoucherCode, email: voucherEmail }),
         });
         const result = await response.json() as { code?: string; amount?: number; expiresAt?: string; error?: string };
-        if (!response.ok || !result.code || !result.amount || !result.expiresAt) throw new Error(result.error || "We could not apply your email discount.");
-        if (!cancelled) setAppliedVoucher({ code: result.code, amount: result.amount, expiresAt: result.expiresAt, email: email.trim().toLowerCase() });
+        if (!response.ok || !result.code || !result.amount) throw new Error(result.error || "Could not apply this code.");
+        if (result.amount >= grandTotal(subtotal, cart.green + cart.cream, shippingMethod)) throw new Error("This discount must be less than your order total.");
+        if (!cancelled) setAppliedVoucher({ code: result.code, amount: result.amount, expiresAt: result.expiresAt ?? "", email: voucherEmail });
       } catch (caught) {
         if (!cancelled) {
           setAppliedVoucher(null);
-          setVoucherError(caught instanceof Error ? caught.message : "We could not apply your email discount. Please retry.");
+          setVoucherError(caught instanceof Error ? caught.message : "Could not apply this code. Try again.");
         }
       } finally {
         if (!cancelled) setVoucherBusy(false);
       }
-    }, 700);
+    }, 150);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [normalizedVoucherCode, email, voucherAttempt]);
+  }, [normalizedVoucherCode, voucherEmail, voucherAttempt, subtotal, cart.green, cart.cream, shippingMethod]);
 
   function clearEmailDiscount() {
     setVoucherCode("");
     setAppliedVoucher(null);
     setVoucherError("");
     setVoucherBusy(false);
+    setVoucherAttempt(0);
     setError("");
     try { sessionStorage.removeItem(EMAIL_VOUCHER_STORAGE_KEY); } catch { /* Memory fallback. */ }
   }
@@ -329,7 +334,7 @@ export default function CheckoutPage() {
               </span>
             </div>
             {activeVoucher && <div className={`${styles.row} ${styles.discount}`}>
-              <span>Email discount applied</span>
+              <span>Coupon · {activeVoucher.code}</span>
               <span>−{formatMoney(activeVoucher.amount)}</span>
             </div>}
             <div className={styles.total} aria-live="polite" aria-atomic="true">
@@ -341,11 +346,15 @@ export default function CheckoutPage() {
           <p className={styles.empty}>Your bag is empty. Add a hat first.</p>
         )}
 
-        {voucherCode && !activeVoucher && <div role={voucherError ? "alert" : "status"} className={styles.discountStatus}>
-          <p>{voucherError || (voucherBusy ? "Applying your email discount…" : "Your email discount will apply automatically. Use the email address that received the offer.")}</p>
-          {voucherError && <button type="button" onClick={() => setVoucherAttempt(attempt => attempt + 1)}>Retry discount</button>}
-          <button type="button" onClick={clearEmailDiscount}>Continue without discount</button>
-        </div>}
+        {lines.length > 0 && <form className={styles.coupon} onSubmit={event => { event.preventDefault(); setVoucherAttempt(attempt => attempt + 1); }}>
+          <label className={styles.label} htmlFor="coupon-code">Coupon code</label>
+          <div className={styles.couponRow}>
+            <input id="coupon-code" className={styles.input} autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={40} placeholder="Enter code" value={voucherCode} disabled={status === "submitting"} aria-invalid={Boolean(voucherError)} aria-describedby={voucherError ? "coupon-error" : undefined} onChange={event => { setVoucherCode(event.target.value); setVoucherAttempt(0); setAppliedVoucher(null); setVoucherError(""); setVoucherBusy(false); }} />
+            {activeVoucher ? <button type="button" onClick={clearEmailDiscount} disabled={status === "submitting"}>Remove</button> : <button type="submit" disabled={!voucherCode.trim() || voucherBusy || status === "submitting"}>{voucherBusy ? "Applying…" : "Apply"}</button>}
+          </div>
+          {voucherError && <p id="coupon-error" className={styles.err} role="alert">{voucherError} <button className={styles.couponClear} type="button" onClick={clearEmailDiscount}>Remove</button></p>}
+          {voucherAttempt > 0 && normalizedVoucherCode.startsWith("SMELT-") && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) && <p className={styles.couponNote} role="status">Enter the email address that received this voucher.</p>}
+        </form>}
         {stockError && <p role="alert">{stockError} <button onClick={() => void refresh()}>Retry availability</button></p>}
         {stock && !available && <p role="alert">Some quantities exceed available stock and pre-order capacity. <Link href="/cart">Edit your bag</Link>.</p>}
         {lines.length > 0 && (

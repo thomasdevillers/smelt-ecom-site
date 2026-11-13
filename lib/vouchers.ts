@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { AdminError, adminStore, digest } from "./admin/store";
+import { commitCoupon, findCoupon, releaseCoupon, reserveCoupon, validCouponAmount, type CouponMetadata } from "./coupons";
 
 export const REVIEW_VOUCHER_AMOUNT = 50;
 export const REVIEW_VOUCHER_DAYS = 90;
@@ -12,7 +13,7 @@ const reservationKey = (reference: string) => `${prefix()}:reservation:${digest(
 export const rewardKey = (reviewId: string) => `${prefix()}:reward:${reviewId}`;
 export const rewardQueueKey = () => `${prefix()}:reward-queue`;
 
-export interface VoucherMetadata { id: string; amount: number }
+export type VoucherMetadata = { id: string; amount: number; kind?: undefined } | CouponMetadata;
 export interface VoucherReward { code: string; amount: number; expiresAt: string }
 type StoredReward = VoucherReward & { reviewId: string; email: string; createdAt: string };
 type VoucherRecord = {
@@ -86,6 +87,12 @@ async function voucherFor(codeValue: unknown): Promise<{ id: string; record: Vou
 }
 
 export async function validateVoucher(code: unknown, emailValue: unknown): Promise<VoucherReward> {
+  const coupon = await findCoupon(code);
+  if (coupon) {
+    if (!coupon.active) throw new AdminError("This coupon is inactive.", 409);
+    if (coupon.redeemed + coupon.held >= coupon.maxUses) throw new AdminError("This coupon has no uses left.", 409);
+    return { code: coupon.code, amount: coupon.amount, expiresAt: "" };
+  }
   const email = typeof emailValue === "string" ? normalizeEmail(emailValue) : "";
   const found = await voucherFor(code);
   const record = found?.record;
@@ -110,6 +117,7 @@ return voucher.amount`;
 
 export async function reserveVoucher(codeValue: unknown, emailValue: string, reference: string): Promise<VoucherMetadata> {
   const code = normalizeVoucherCode(codeValue);
+  if (!code.startsWith("SMELT-")) return reserveCoupon(code, emailValue, reference);
   if (!validCode(code)) throw new AdminError("This voucher is invalid or has expired.", 409);
   const id = digest(code);
   const amount = await adminStore().eval<unknown[], number>(RESERVE_VOUCHER, [voucherKey(id), reservationKey(reference)], [
@@ -122,6 +130,9 @@ export async function reserveVoucher(codeValue: unknown, emailValue: string, ref
 export function parseVoucherMetadata(value: unknown): VoucherMetadata | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const metadata = value as Record<string, unknown>;
+  if (metadata.kind === "coupon" && typeof metadata.id === "string" && /^[a-f0-9]{64}$/.test(metadata.id) && validCouponAmount(metadata.amount))
+    return { kind: "coupon", id: metadata.id, amount: metadata.amount };
+  if (metadata.kind !== undefined) return null;
   return typeof metadata.id === "string" && /^[a-f0-9]{64}$/.test(metadata.id) && metadata.amount === REVIEW_VOUCHER_AMOUNT
     ? { id: metadata.id, amount: metadata.amount }
     : null;
@@ -142,6 +153,7 @@ return 1`;
 export async function commitVoucher(reference: string, value: unknown): Promise<boolean> {
   const metadata = parseVoucherMetadata(value);
   if (!metadata) return value === undefined || value === null;
+  if (metadata.kind === "coupon") return commitCoupon(reference, metadata);
   const committed = await adminStore().eval<unknown[], number>(COMMIT_VOUCHER, [voucherKey(metadata.id), reservationKey(reference)], [
     reference, String(metadata.amount), new Date().toISOString(),
   ]);
@@ -151,6 +163,7 @@ export async function commitVoucher(reference: string, value: unknown): Promise<
 export async function releaseVoucherReservation(reference: string, value: unknown): Promise<void> {
   const metadata = parseVoucherMetadata(value);
   if (!metadata) return;
+  if (metadata.kind === "coupon") return releaseCoupon(reference);
   await adminStore().eval(`
 local raw = redis.call('GET', KEYS[1])
 if not raw then redis.call('DEL', KEYS[2]); return 0 end
@@ -165,6 +178,7 @@ return 1`, [voucherKey(metadata.id), reservationKey(reference)], [reference]);
 
 export async function releaseVoucherCodeReservation(reference: string, codeValue: unknown): Promise<void> {
   const code = normalizeVoucherCode(codeValue);
+  if (!code.startsWith("SMELT-")) return releaseCoupon(reference);
   if (!validCode(code)) return;
   await releaseVoucherReservation(reference, { id: digest(code), amount: REVIEW_VOUCHER_AMOUNT });
 }
