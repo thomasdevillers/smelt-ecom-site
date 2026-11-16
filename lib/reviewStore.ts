@@ -318,6 +318,18 @@ export async function moderateReview(id: string, status: "published" | "rejected
   return updated;
 }
 
+export async function editReviewText(id: string, body: unknown) {
+  if (!/^[0-9a-f-]{36}$/.test(id)) throw new AdminError("Invalid review.");
+  if (typeof body !== "string" || body.trim().length < 3 || body.trim().length > 1600)
+    throw new AdminError("Review text must be between 3 and 1,600 characters.");
+  const db = adminStore();
+  const review = normalizedRecord(await db.hget<ReviewRecord | string>(recordsKey(), id) as ReviewRecord | string);
+  if (!review) throw new AdminError("Review not found.", 404);
+  const updated: ReviewRecord = { ...review, body: body.trim() };
+  await db.hset(recordsKey(), { [id]: updated });
+  return updated;
+}
+
 export async function removeReviewPhoto(id: string, url: string) {
   const db = adminStore();
   const review = normalizedRecord(await db.hget<ReviewRecord | string>(recordsKey(), id) as ReviewRecord | string);

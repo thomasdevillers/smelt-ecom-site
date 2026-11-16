@@ -1,6 +1,6 @@
 import { requireAdmin } from "@/lib/admin/auth";
 import { AdminError, adminFailure, adminJson, readAdminBody, requireSameOrigin } from "@/lib/admin/store";
-import { createReviewInvitation, hasCurrentReviewInvitation, listReviewRecords, moderateReview, removeReviewPhoto } from "@/lib/reviewStore";
+import { createReviewInvitation, editReviewText, hasCurrentReviewInvitation, listReviewRecords, moderateReview, removeReviewPhoto } from "@/lib/reviewStore";
 import { markReviewMessageSent } from "@/lib/admin/orders";
 import type { ReviewStatus } from "@/lib/reviews";
 import { after } from "next/server";
@@ -64,6 +64,12 @@ export async function PATCH(request: Request) {
       return adminJson({ reviewMessageSentAt: await markReviewMessageSent(body.reference) });
     }
     if (typeof body.id !== "string") throw new AdminError("A review is required.");
+    if (body.action === "editText") {
+      const review = await editReviewText(body.id, body.body);
+      invalidatePublishedReviews();
+      if (review.status === "published") scheduleRanking(body.id);
+      return adminJson({ review });
+    }
     if (body.action === "removePhoto" && typeof body.url === "string") {
       const review = await removeReviewPhoto(body.id, body.url);
       invalidatePublishedReviews();

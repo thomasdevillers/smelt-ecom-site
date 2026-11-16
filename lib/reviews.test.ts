@@ -47,6 +47,7 @@ import {
   getReviewPhoto,
   listPublishedReviews,
   moderateReview,
+  editReviewText,
   reservePhotoUpload,
   submitReview,
   listReviewRecords,
@@ -326,6 +327,32 @@ describe("review photos and moderation", () => {
     await expect(reservePhotoUpload(token, pathname.replace("photo.jpg", "nested/photo.jpg"))).rejects.toThrow("Invalid photo path");
     const submitted = await submitReview(token, { rating: 5, body: "Great hat", displayName: "Tumi", photoUrls: [url], consent: true });
     expect(await getReviewPhoto(submitted.id, 0, true)).toMatchObject({ url, pathname });
+  });
+
+  it("saves review text without approving or changing other fields, then publishes the edited text", async () => {
+    const { token, visible } = await invitation();
+    const submitted = await submitReview(token, { rating: 4, body: "Mixed up text", displayName: "Tumi", photoUrls: [photoUrl(visible.uploadKey!)], consent: true });
+    const original = (await listReviewRecords())[0];
+    const edited = await editReviewText(submitted.id, "  Corrected review text.  ");
+    expect(edited).toEqual({ ...original, body: "Corrected review text." });
+    expect((await listReviewRecords("pending"))[0]).toEqual(edited);
+    expect((await listPublishedReviews()).reviews).toEqual([]);
+    await moderateReview(submitted.id, "published");
+    expect((await listPublishedReviews()).reviews[0].body).toBe("Corrected review text.");
+    const published = (await listReviewRecords())[0];
+    expect(await editReviewText(submitted.id, "Another correction.")).toEqual({ ...published, body: "Another correction." });
+  });
+
+  it("rejects invalid review text and missing reviews without changing stored text", async () => {
+    const { token, visible } = await invitation();
+    const submitted = await submitReview(token, { rating: 5, body: "Original text", displayName: "Tumi", photoUrls: [photoUrl(visible.uploadKey!)], consent: true });
+    for (const body of [undefined, null, 123, "", "  ", "ab", "x".repeat(1601)]) {
+      await expect(editReviewText(submitted.id, body)).rejects.toThrow("between 3 and 1,600 characters");
+    }
+    await expect(editReviewText("bad-id", "Valid text")).rejects.toThrow("Invalid review");
+    await expect(editReviewText("00000000-0000-0000-0000-000000000000", "Valid text")).rejects.toThrow("Review not found");
+    expect((await listReviewRecords())[0].body).toBe("Original text");
+    await expect(editReviewText(submitted.id, "x".repeat(1600))).resolves.toMatchObject({ body: "x".repeat(1600) });
   });
 
   it("publishes approved reviews, calculates aggregates and deletes rejected media", async () => {
