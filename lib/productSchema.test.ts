@@ -39,6 +39,8 @@ describe("product group structured data", () => {
     const group = productGroupLd(stock, null);
     expect(group["@type"]).toBe("ProductGroup");
     expect(group.productGroupID).toBe("smelt-sauna-hat");
+    expect(group.material).toBe("100% merino wool felt");
+    expect(group.description).toContain("100% merino wool felt");
     expect(group.variesBy).toEqual(["https://schema.org/color"]);
     expect(group.hasVariant.map(variant => variant.color)).toEqual(["Forest Green", "Natural Cream"]);
     expect(new Set(group.hasVariant.map(variant => variant.sku)).size).toBe(2);
@@ -46,6 +48,7 @@ describe("product group structured data", () => {
     for (const [index, colour] of ["green", "cream"].entries()) {
       const variant = group.hasVariant[index];
       expect(variant["@type"]).toBe("Product");
+      expect(variant.description).toContain("100% merino wool felt");
       expect(variant.sku).toBe(`smelt-sauna-hat-${colour}`);
       expect(variant.url).toMatch(new RegExp(`/product\\?colour=${colour}$`));
       expect(variant.offers.url).toBe(variant.url);

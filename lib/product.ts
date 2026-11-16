@@ -10,7 +10,7 @@ export interface Variant {
 
 export const PRODUCT = {
   name: "Smelt Sauna Hat",
-  tagline: "100% wool felt. Embroidered, not printed.",
+  tagline: "100% merino wool felt. Embroidered, not printed.",
   variants: {
     green: {
       colour: "green",

@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     template: '%s · Smelt',
   },
   description:
-    'Smelt makes 100% wool felt sauna hats. Embroidered, not printed. Two colourways, shipping nationwide from Cape Town.',
+    'Smelt makes 100% merino wool felt sauna hats. Embroidered, not printed. Two colourways, shipping nationwide from Cape Town.',
   applicationName: 'Smelt',
   keywords: [
     'sauna hat',
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/' },
   openGraph: {
     title: 'Smelt · Sauna hats for people who peak at 90°C',
-    description: '100% wool felt. Embroidered, not printed. Warm regards.',
+    description: '100% merino wool felt. Embroidered, not printed. Warm regards.',
     url: SITE_URL,
     siteName: 'Smelt',
     images: [OG_IMAGE],
@@ -60,7 +60,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Smelt · Sauna hats for people who peak at 90°C',
-    description: '100% wool felt. Embroidered, not printed. Warm regards.',
+    description: '100% merino wool felt. Embroidered, not printed. Warm regards.',
     images: [OG_IMAGE.url],
   },
 }
@@ -72,7 +72,7 @@ const organizationLd = {
   url: SITE_URL,
   logo: abs('/images/hat-green-front.jpeg'),
   description:
-    'Smelt makes 100% wool felt sauna hats, embroidered, never printed. Based in Cape Town, shipping nationwide.',
+    'Smelt makes 100% merino wool felt sauna hats, embroidered, never printed. Based in Cape Town, shipping nationwide.',
   address: {
     '@type': 'PostalAddress',
     addressLocality: 'Cape Town',

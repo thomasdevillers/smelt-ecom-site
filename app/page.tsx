@@ -14,7 +14,7 @@ import styles from "./page.module.css";
 export const metadata: Metadata = {
   title: "Wool Felt Sauna Hats South Africa",
   description:
-    "Shop Smelt's 100% wool felt sauna hats in Forest Green or Natural Cream. Embroidered, not printed. Nationwide South African delivery from Cape Town.",
+    "Shop Smelt's 100% merino wool felt sauna hats in Forest Green or Natural Cream. Embroidered, not printed. Nationwide South African delivery from Cape Town.",
   alternates: { canonical: "/" },
 };
 
@@ -39,7 +39,7 @@ export default function Home() {
         </div>
         <div className={styles.feltCopy}>
           <p>A wool felt hat puts an insulating layer between your head and the hot sauna air. A simple way to make the heat on your head more comfortable.</p>
-          <p>Ours are 100% wool felt, with embroidery on the front and <em>Warm regards</em> on the back. Practical, with a little personality.</p>
+          <p>Ours are 100% merino wool felt, with embroidery on the front and <em>Warm regards</em> on the back. Practical, with a little personality.</p>
           <Link href="/articles/what-does-a-sauna-hat-do" className={styles.textLink}>Why wear a sauna hat? <span aria-hidden="true">→</span></Link>
         </div>
       </section>

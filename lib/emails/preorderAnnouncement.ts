@@ -10,7 +10,7 @@ export function preorderAnnouncementEmail(): { subject: string; html: string; te
       heading: "The wait is over. The heat is on.",
       blocks: [
         "<p>You asked us to let you know when you could get your hands on a Smelt. Here’s your warm invitation: <strong>pre-orders are now open.</strong></p>",
-        "<p>Meet your next sauna companion: 100% wool felt, embroidered, not printed. Choose Forest Green or Cream and make your next sweat a little more Smelt.</p>",
+        "<p>Meet your next sauna companion: 100% merino wool felt, embroidered, not printed. Choose Forest Green or Cream and make your next sweat a little more Smelt.</p>",
         `<p><strong>Pre-order for R${PREORDER_PRICE}</strong> (regular price R${REGULAR_PRICE}).</p>`,
         `<p><strong>Pre-orders ship on ${escapeHtml(PREORDER_DATE_LABEL)}.</strong> Courier transit starts after dispatch — this is not the delivery date.</p>`,
       ],

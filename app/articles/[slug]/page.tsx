@@ -207,7 +207,7 @@ export default async function GuidePage({ params }: Params) {
 
       <section className={styles.cta}>
         <div className={styles.ctaCopy}>
-          One hat, two colourways, 100% wool felt. Embroidered, never printed.
+          One hat, two colourways, 100% merino wool felt. Embroidered, never printed.
         </div>
         <Button href="/product" variant="solid">
           Shop the Smelt hat <span>→</span>

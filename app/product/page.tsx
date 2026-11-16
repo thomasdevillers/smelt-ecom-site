@@ -9,14 +9,14 @@ import { productGroupLd } from "@/lib/productSchema";
 import { reviewNamespace } from "@/lib/reviewNamespace";
 
 export const metadata: Metadata = {
-  title: "Smelt Sauna Hat · 100% wool felt, embroidered",
+  title: "Smelt Sauna Hat · 100% merino wool felt, embroidered",
   description:
-    "The Smelt sauna hat: 100% wool felt, embroidered front and back, one size. Forest Green or Natural Cream. Shipping nationwide from Cape Town. Check colour availability and pre-order options.",
+    "The Smelt sauna hat: 100% merino wool felt, embroidered front and back, one size. Forest Green or Natural Cream. Shipping nationwide from Cape Town. Check colour availability and pre-order options.",
   alternates: { canonical: "/product" },
   openGraph: {
-    title: "Smelt Sauna Hat · 100% wool felt, embroidered",
+    title: "Smelt Sauna Hat · 100% merino wool felt, embroidered",
     description:
-      "100% wool felt, embroidered not printed. Forest Green or Natural Cream. Check colour availability and pre-order options.",
+      "100% merino wool felt, embroidered not printed. Forest Green or Natural Cream. Check colour availability and pre-order options.",
     url: abs("/product"),
     type: "website",
   },

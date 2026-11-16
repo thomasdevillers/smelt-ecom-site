@@ -129,7 +129,7 @@ export default function ProductClient({ reviewData, initialStock = null, initial
           <ul className={styles.benefits} aria-label="Sauna hat benefits" role="list">
             {[
               "Helps protect hair and scalp from direct heat",
-              "Made from 100% wool",
+              "Made from 100% merino wool",
               "Made for regular sauna sessions",
             ].map(benefit => (
               <li key={benefit}>

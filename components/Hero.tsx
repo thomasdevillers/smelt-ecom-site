@@ -9,7 +9,7 @@ export default function Hero() {
         <div className={styles.eyebrow}>Sauna hats · Warm regards from Cape Town</div>
         <h1 className={styles.h1}>A hat for people who peak at 90°C.</h1>
         <p className={styles.sub}>
-          100% wool felt sauna hats in Forest Green or Natural Cream.
+          100% merino wool felt sauna hats in Forest Green or Natural Cream.
           Embroidered, not printed. Shipped nationwide across South Africa from Cape Town.
         </p>
         <div className={styles.ctas}>

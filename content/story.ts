@@ -25,7 +25,7 @@ export const STORY = {
   hat: {
     title: "One hat, considered properly.",
     paragraphs: [
-      "Our focus is simple: a sauna hat in 100% wool felt, with embroidery on the front and \u201cWarm regards\u201d stitched on the back. Forest Green or Natural Cream. A useful piece of kit with a little character.",
+      "Our focus is simple: a sauna hat in 100% merino wool felt, with embroidery on the front and \u201cWarm regards\u201d stitched on the back. Forest Green or Natural Cream. A useful piece of kit with a little character.",
       "Wool felt provides an insulating layer between your head and the hot air. It's the practical reason for the hat, and the starting point for everything else. We care about the felt, the fit, and the details you notice when you pick it up.",
       "We want Smelt to be the hat you reach for as part of your routine. Pack it, wear it, let it air out, and bring it along next time. Simple enough to become familiar.",
     ],

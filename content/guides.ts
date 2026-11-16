@@ -345,7 +345,7 @@ export const GUIDES: Guide[] = [
         heading: "What we learned buying felt",
         body: [
           "We went through a frustrating number of samples. The useful lessons were all about density and honesty.",
-          "Thin felt is the most common problem: it looks the part in photos and gives you almost no delay in the room. Blends are the second: anything with polyester in it to cut cost reintroduces every synthetic problem above, and 'wool blend' on a label can mean almost anything. We ended up specifying 100% wool with nothing else in it, which is why [our hat](/product) says exactly that and nothing vaguer.",
+          "Thin felt is the most common problem: it looks the part in photos and gives you almost no delay in the room. Blends are the second: anything with polyester in it to cut cost reintroduces every synthetic problem above, and 'wool blend' on a label can mean almost anything. We use 100% merino wool felt with no synthetic blend, which is why [our hat](/product) says exactly that and nothing vaguer.",
           "One more: decoration. Early on we looked at printed branding because it is cheaper and faster. Plastisol and vinyl prints crack and peel under repeated sauna heat, because they are plastic films sitting on wool, expanding and contracting at a different rate. Everything on our hats is embroidered thread, front and back, for exactly that reason.",
         ],
       },
@@ -353,7 +353,7 @@ export const GUIDES: Guide[] = [
     faq: [
       {
         q: "Is merino better than regular wool for a sauna hat?",
-        a: "Not for this job. Merino's advantage is fineness and softness against skin, which matters for base layers. A sauna hat wants bulk, density and air pockets, and coarser wool felts into a thicker, more insulating sheet.",
+        a: "Merino is known for its fine, soft fibres, but the wool type alone does not determine how well a sauna hat insulates. Felt thickness, density and fit matter too. Our hats are made from 100% merino wool felt, combining merino's softness with the felt construction we want for the sauna.",
       },
       {
         q: "Can I use a knitted wool beanie instead?",
@@ -472,7 +472,7 @@ export const GUIDES: Guide[] = [
         heading: "What we chose, and why",
         body: [
           "We built [the Smelt hat](/product) after failing to buy a decent one in South Africa, so every decision above is one we had to make ourselves rather than one we're describing from the outside.",
-          "We make one hat, in two colourways: Forest Green and Natural Cream. It is 100% wool felt with no blend. It is a single relaxed one-size shape, because we'd rather one hat genuinely sit right on most heads than offer sizes that are a guess at checkout. Everything on it is embroidered: 'Smelt' on the front, 'Warm regards' on the back. There is no metal on it anywhere.",
+          "We make one hat, in two colourways: Forest Green and Natural Cream. It is 100% merino wool felt with no blend. It is a single relaxed one-size shape, because we'd rather one hat genuinely sit right on most heads than offer sizes that are a guess at checkout. Everything on it is embroidered: 'Smelt' on the front, 'Warm regards' on the back. There is no metal on it anywhere.",
           "We're not going to pretend that's the only correct set of answers. But if you run the checklist at the top over any hat you're considering, including ours, you'll avoid the ones that don't work.",
         ],
         figure: SIDE_FIT,
