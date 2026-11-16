@@ -48,7 +48,7 @@ describe("conversion analytics", () => {
   });
   afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
-  it("logs upstream errors and the failing 90-day range without exposing credentials or response data", async () => {
+  it("logs upstream errors and the failing batch without exposing credentials or response data", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     const original = vi.mocked(fetch).getMockImplementation()!;
     vi.mocked(fetch).mockImplementation((...args) => new URL(String(args[0])).hostname === "api.paystack.co" ? original(...args) : Promise.resolve(json({
@@ -57,10 +57,10 @@ describe("conversion analytics", () => {
     }, 400) as Response));
     await expect(getConversionAnalytics(90, new Date("2026-09-17T10:00:00Z"))).rejects.toThrow("Could not load traffic data from Vercel");
     expect(log).toHaveBeenCalledWith("Vercel analytics request failed", expect.objectContaining({
-      dataset: "visits", since: "2026-06-20", until: "2026-09-17", by: "day",
+      dataset: "visits", since: "2026-06-20", until: "2026-08-20", by: "day",
       status: 400, reason: "upstream_error", errorCode: "invalid_range", errorMessage: "Range rejected for [REDACTED]",
     }));
-    expect(log).toHaveBeenCalledWith("Vercel analytics request failed", expect.objectContaining({ since: "2026-03-22", until: "2026-06-19" }));
+    expect(log).toHaveBeenCalledWith("Vercel analytics request failed", expect.objectContaining({ since: "2026-03-22", until: "2026-05-22" }));
     expect(JSON.stringify(log.mock.calls)).not.toMatch(/vercel-token|Authorization|must not be logged/);
   });
 
@@ -100,6 +100,41 @@ describe("conversion analytics", () => {
     expect(vercelCalls.every(value => new URL(value).searchParams.get("limit") === "100")).toBe(true);
     expect(new Set(vercelCalls.filter(value => !new URL(value).searchParams.get("filter")?.startsWith("requestPath in")).map(value => new URL(value).searchParams.get("since"))).size).toBe(2);
     expect(calls.find(url => url.includes("api.paystack.co"))).toContain("status=success");
+  });
+
+  it.each([7, 28, 90] as const)("loads every day of a %i-day report within Vercel's daily limit", async days => {
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    const dailyQueries: URL[] = [];
+    vi.mocked(fetch).mockImplementation((...args) => {
+      const url = new URL(String(args[0]));
+      if (url.hostname !== "api.vercel.com" || url.searchParams.get("by") !== "day") return original(...args);
+      dailyQueries.push(url);
+      const since = url.searchParams.get("since")!.slice(0, 10);
+      const until = url.searchParams.get("until")!.slice(0, 10);
+      const count = (Date.parse(until) - Date.parse(since)) / 86_400_000 + 1;
+      if (count > 62) return Promise.resolve(json({ error: { code: "invalid_group_by", message: "Can only query up to 62 days of data." } }, 400) as Response);
+      return Promise.resolve(json({ data: Array.from({ length: count }, (_, index) => ({
+        timestamp: new Date(Date.parse(since) + index * 86_400_000).toISOString(),
+        visitors: 1, pageviews: 3,
+      })) }) as Response);
+    });
+
+    const result = await getConversionAnalytics(days, new Date("2026-09-17T10:00:00Z"));
+    for (const period of [result.current, result.previous]) {
+      expect(period).toMatchObject({ visitors: days, productViews: days, addToCarts: days, checkoutStarts: days, paymentOpened: days, paymentCancelled: days, checkoutErrors: days });
+    }
+    expect(result.articlesError).toBeNull();
+    expect(result.articles).toMatchObject({ current: { visitors: days, views: days * 3 }, previous: { visitors: days, views: days * 3 } });
+    expect(dailyQueries).toHaveLength(days > 62 ? 32 : 16);
+    const visitQueries = dailyQueries.filter(url => url.searchParams.get("filter") === "requestPath ne '/admin'");
+    expect(visitQueries.map(url => [url.searchParams.get("since"), url.searchParams.get("until")])).toEqual(days === 90 ? [
+      ["2026-06-20", "2026-08-20"], ["2026-08-21", "2026-09-17"],
+      ["2026-03-22", "2026-05-22"], ["2026-05-23", "2026-06-19"],
+    ] : [[result.current.start, result.current.end], [result.previous.start, result.previous.end]]);
+    for (const url of dailyQueries.filter(query => query.searchParams.get("filter")?.startsWith("requestPath in"))) {
+      expect(url.searchParams.get("since")).toMatch(/T00:00:00\.000Z$/);
+      expect(url.searchParams.get("until")).toMatch(/T23:59:59\.999Z$/);
+    }
   });
 
   it("reports article views and the combined audience without summing per-article readers", async () => {

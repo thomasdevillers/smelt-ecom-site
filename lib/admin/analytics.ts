@@ -5,6 +5,7 @@ import { attributionChannel, type AttributionChannel } from "../attribution";
 import { GUIDES } from "@/content/guides";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const VERCEL_MAX_DAILY_DAYS = 62;
 const JOHANNESBURG_OFFSET_MS = 2 * 60 * 60 * 1000;
 type FunnelEvent = "ViewContent" | "AddToCart" | "InitiateCheckout" | "PaymentOpened" | "PaymentCancelled" | "CheckoutError";
 
@@ -76,9 +77,31 @@ async function vercelData(dataset: "visits" | "events", params: Record<string, s
   return body.data;
 }
 
+async function vercelDailyData(dataset: "visits" | "events", params: Record<string, string>) {
+  // Vercel rejects daily queries longer than 62 days. Split on UTC date
+  // boundaries, preserving explicit time bounds used by article readership.
+  const end = params.until.slice(0, 10);
+  const requests: Promise<unknown[]>[] = [];
+  for (let start = params.since.slice(0, 10); start <= end;) {
+    const startDate = new Date(`${start}T00:00:00.000Z`);
+    const chunkEnd = shiftDays(startDate, VERCEL_MAX_DAILY_DAYS - 1).toISOString().slice(0, 10);
+    const until = chunkEnd < end ? chunkEnd : end;
+    requests.push(vercelData(dataset, {
+      ...params, by: "day",
+      since: start + params.since.slice(10),
+      until: until + params.until.slice(10),
+    }).then(data => {
+      if (!Array.isArray(data)) throw new AdminError("Could not load traffic data from Vercel. Please try again.", 502);
+      return data;
+    }));
+    start = shiftDays(startDate, VERCEL_MAX_DAILY_DAYS).toISOString().slice(0, 10);
+  }
+  return (await Promise.all(requests)).flat();
+}
+
 async function vercelDaily(dataset: "visits" | "events", since: string, until: string, eventName?: FunnelEvent) {
-  const data = await vercelData(dataset, {
-    since, until, by: "day", limit: "100",
+  const data = await vercelDailyData(dataset, {
+    since, until, limit: "100",
     filter: eventName ? `eventName eq '${eventName}'` : "requestPath ne '/admin'",
   });
   if (!Array.isArray(data)) throw new AdminError("Could not load traffic data from Vercel. Please try again.", 502);
@@ -94,7 +117,7 @@ async function articleTraffic(start: string, end: string): Promise<ArticlePeriod
   // for both queries; the count endpoint rounds its end date differently.
   const range = { since: `${start}T00:00:00.000Z`, until: `${end}T23:59:59.999Z`, filter, limit: "100" };
   const [totals, rows] = await Promise.all([
-    vercelData("visits", { ...range, by: "day" }),
+    vercelDailyData("visits", range),
     vercelData("visits", { ...range, by: "requestPath" }),
   ]);
   const metrics = (value: unknown) => {
@@ -118,7 +141,7 @@ async function articleTraffic(start: string, end: string): Promise<ArticlePeriod
   // who opened multiple articles more than once on the same day.
   const total = { views: 0, visitors: 0 };
   for (const row of totals) {
-    if (!row || typeof row.timestamp !== "string") throw new AdminError("Article readership data could not be read. Please try again.", 502);
+    if (!row || typeof row !== "object" || !("timestamp" in row) || typeof row.timestamp !== "string") throw new AdminError("Article readership data could not be read. Please try again.", 502);
     const day = row.timestamp.slice(0, 10);
     if (day < start || day > end) continue;
     const value = metrics(row);
