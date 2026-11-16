@@ -38,16 +38,40 @@ async function vercelData(dataset: "visits" | "events", params: Record<string, s
   const { token, projectId, teamId } = config();
   const query = new URLSearchParams({ projectId, ...params });
   if (teamId) query.set("teamId", teamId);
-  const response = await fetch(`https://api.vercel.com/v1/query/web-analytics/${dataset}/aggregate?${query}`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-    signal: AbortSignal.timeout(15_000),
+  // Log only query context and bounded provider error fields, never credentials
+  // or the response data (which can contain visitor information).
+  const logFailure = (details: Record<string, unknown>) => console.error("Vercel analytics request failed", {
+    dataset, since: params.since, until: params.until, by: params.by, filter: params.filter,
+    ...details,
   });
+  const safeText = (value: unknown) => typeof value === "string" ? value.replaceAll(token, "[REDACTED]").slice(0, 1000) : undefined;
+  let response: Response;
+  try {
+    response = await fetch(`https://api.vercel.com/v1/query/web-analytics/${dataset}/aggregate?${query}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch (error) {
+    logFailure({ reason: "fetch_failed", errorName: error instanceof Error ? safeText(error.name) : "Unknown error" });
+    throw error;
+  }
   let body: unknown;
   try { body = await response.json(); } catch { body = null; }
   if (!response.ok || !body || typeof body !== "object" || !("data" in body)) {
+    const providerError = body && typeof body === "object" && "error" in body ? body.error : undefined;
+    const fields = providerError && typeof providerError === "object" ? providerError as Record<string, unknown> : {};
+    logFailure({
+      status: response.status,
+      reason: response.ok ? "invalid_response" : "upstream_error",
+      errorCode: safeText(fields.code),
+      errorMessage: safeText(fields.message) ?? safeText(providerError),
+    });
     if (response.status === 401 || response.status === 403) throw new AdminError("Vercel rejected the analytics credentials. Check the access token and team ID.", 503);
     throw new AdminError("Could not load traffic data from Vercel. Please try again.", 502);
+  }
+  if (!Array.isArray(body.data)) {
+    logFailure({ status: response.status, reason: "invalid_data_shape" });
   }
   return body.data;
 }

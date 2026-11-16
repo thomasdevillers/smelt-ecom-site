@@ -46,7 +46,40 @@ describe("conversion analytics", () => {
       ] });
     }));
   });
-  afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+
+  it("logs upstream errors and the failing 90-day range without exposing credentials or response data", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation((...args) => new URL(String(args[0])).hostname === "api.paystack.co" ? original(...args) : Promise.resolve(json({
+      error: { code: "invalid_range", message: "Range rejected for vercel-token" },
+      visitors: [{ private: "must not be logged" }],
+    }, 400) as Response));
+    await expect(getConversionAnalytics(90, new Date("2026-09-17T10:00:00Z"))).rejects.toThrow("Could not load traffic data from Vercel");
+    expect(log).toHaveBeenCalledWith("Vercel analytics request failed", expect.objectContaining({
+      dataset: "visits", since: "2026-06-20", until: "2026-09-17", by: "day",
+      status: 400, reason: "upstream_error", errorCode: "invalid_range", errorMessage: "Range rejected for [REDACTED]",
+    }));
+    expect(log).toHaveBeenCalledWith("Vercel analytics request failed", expect.objectContaining({ since: "2026-03-22", until: "2026-06-19" }));
+    expect(JSON.stringify(log.mock.calls)).not.toMatch(/vercel-token|Authorization|must not be logged/);
+  });
+
+  it("logs malformed provider data without logging its contents", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation((...args) => new URL(String(args[0])).hostname === "api.paystack.co" ? original(...args) : Promise.resolve(json({ data: { private: "must not be logged" } }) as Response));
+    await expect(getConversionAnalytics(90)).rejects.toThrow("Could not load traffic data from Vercel");
+    expect(log).toHaveBeenCalledWith("Vercel analytics request failed", expect.objectContaining({ status: 200, reason: "invalid_data_shape" }));
+    expect(JSON.stringify(log.mock.calls)).not.toContain("must not be logged");
+  });
+
+  it("logs network failures without changing error handling", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const error = new DOMException("Request timed out", "TimeoutError");
+    vi.mocked(fetch).mockRejectedValue(error);
+    await expect(getConversionAnalytics(90)).rejects.toBe(error);
+    expect(log).toHaveBeenCalledWith("Vercel analytics request failed", expect.objectContaining({ reason: "fetch_failed", errorName: "TimeoutError" }));
+  });
 
   it("combines daily Vercel visitors with deduplicated successful Paystack orders", async () => {
     const result = await getConversionAnalytics(7, new Date("2026-09-17T10:00:00Z"));
