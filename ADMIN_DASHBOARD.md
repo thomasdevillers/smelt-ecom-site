@@ -32,6 +32,15 @@ Each saved code shows its discount, distinct paying customers, remaining uses an
 
 Uses are reserved atomically before creating a payment, preventing concurrent checkouts from exceeding the limit. Rejected initializations return their use. Closing a popup does not invalidate a payable link: the existing inventory reconciliation cron releases holds only after Paystack confirms an abandoned or failed payment, and reconciles successful payments instead. Provider errors retain holds for review/retry. Keep the inventory cron enabled. Coupon records and usage are persistent in the existing Redis database, separated into live and test namespaces (`smelt:coupons:v1:live` / `test`); no additional service configuration is required.
 
+## Email issues
+
+Open **Email issues** to see paid orders whose customer confirmation or owner "new order" email was never accepted by Resend. The tab shows a count when anything is open. A daily cron (`/api/cron/email-audit`, 06:00 UTC / 08:00 SAST) checks every paid order in the purchase ledger; **Check now** runs it immediately. Orders from the last 2 hours are skipped until the next run, because their confirmation may still be in flight. Owner emails are only expected for orders created after they were introduced (26 Sep 2026).
+
+- **Not sent**: no email attempt was recorded — usually the customer never returned to the success page and no webhook or cleanup sent it.
+- **Not confirmed by Resend**: a send started but Resend's acceptance was never recorded. Check Resend before sending anything manually.
+
+The audit never sends or retries email. Customer email, name and amount are looked up from Paystack for flagged orders only. After you have dealt with an order (for example by emailing the customer yourself), **Mark as handled** hides it permanently; marking twice is harmless. The latest report and handled references are stored under `smelt:email-audit:v1:live` / `test`.
+
 ## Configuration
 
 Set these **server-side** environment variables in Vercel Production:
