@@ -1,9 +1,10 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ hgetall: vi.fn(), hget: vi.fn(), eval: vi.fn(), verify: vi.fn(), releaseCoupon: vi.fn(), commitCoupon: vi.fn() }));
+const mocks = vi.hoisted(() => ({ hgetall: vi.fn(), hget: vi.fn(), eval: vi.fn(), verify: vi.fn(), releaseCoupon: vi.fn(), commitCoupon: vi.fn(), confirm: vi.fn() }));
 vi.mock('./coupons', async importOriginal => ({ ...await importOriginal<typeof import('./coupons')>(), releaseCoupon: mocks.releaseCoupon, commitCoupon: mocks.commitCoupon }));
 vi.mock('./admin/store', () => ({ adminStore: () => mocks, AdminError: class extends Error {} }));
 vi.mock('./paystack', () => ({ verifyTransaction: mocks.verify }));
+vi.mock('./orderConfirmation', () => ({ tryOrderConfirmation: mocks.confirm }));
 import { expirePurchaseReservations, purchaseNeedsReview, resolvePurchasePreorder, EXPIRE_PURCHASE, COMMIT_PURCHASE } from './purchaseStore';
 import { PRICING_VERSION } from './pricing';
 import { GET } from '../app/api/cron/inventory/route';
@@ -43,6 +44,29 @@ describe('reservation expiry reconciliation', () => {
     expect(await expirePurchaseReservations(now)).toEqual({ released: 0, paid: 1, retained: 0 });
     expect(mocks.eval).toHaveBeenCalledWith(COMMIT_PURCHASE, expect.any(Array), [reference, 1, 0]);
   });
+  it('sends the order confirmation from verified payment data after committing a paid order', async () => {
+    const metadata = { ...payment.metadata, customerName: 'Ada', shippingAddress: { line1: '1 Main Rd' }, preorder: { batch: 'b' }, unitPrice: 450, pricingVersion: PRICING_VERSION, attribution: { source: 'ig' } };
+    mocks.verify.mockResolvedValue({ ...payment, status: 'success', customerEmail: 'ada@example.com', paidAt: '2026-09-23T11:00:05.000Z', metadata });
+    expect(await expirePurchaseReservations(now)).toEqual({ released: 0, paid: 1, retained: 0 });
+    expect(mocks.confirm).toHaveBeenCalledTimes(1);
+    expect(mocks.confirm).toHaveBeenCalledWith({
+      reference, email: 'ada@example.com', customerName: 'Ada', paidAt: '2026-09-23T11:00:05.000Z', amount: 54000, currency: 'ZAR',
+      cart: { green: 1, cream: 0 }, address: metadata.shippingAddress, shippingMethod: 'aramex', preorder: metadata.preorder, voucher: undefined,
+      unitPrice: 450, pricingVersion: PRICING_VERSION, attribution: metadata.attribution,
+    });
+    expect(mocks.eval.mock.invocationCallOrder[0]).toBeLessThan(mocks.confirm.mock.invocationCallOrder[0]);
+  });
+  it('does not send a confirmation when the paid commit is rejected', async () => {
+    mocks.verify.mockResolvedValue({ ...payment, status: 'success' });
+    mocks.eval.mockResolvedValue(0);
+    expect(await expirePurchaseReservations(now)).toEqual({ released: 0, paid: 0, retained: 1 });
+    expect(mocks.confirm).not.toHaveBeenCalled();
+  });
+  it.each(['abandoned', 'pending'])('does not send a confirmation for %s payments', async status => {
+    mocks.verify.mockResolvedValue({ ...payment, status });
+    await expirePurchaseReservations(now);
+    expect(mocks.confirm).not.toHaveBeenCalled();
+  });
   it('reconciles coupon usage for successful payments with delayed webhooks', async () => {
     const voucher = { kind: 'coupon', id: 'a'.repeat(64), amount: 75 };
     mocks.verify.mockResolvedValue({ ...payment, status: 'success', amount: 56500, metadata: { ...payment.metadata, unitPrice: 550, pricingVersion: PRICING_VERSION, voucher } });
@@ -78,6 +102,8 @@ describe('reservation expiry reconciliation', () => {
     });
     expect(await expirePurchaseReservations(now)).toEqual({ released: 0, paid: 0, retained: 0 });
     expect(mocks.verify).not.toHaveBeenCalled();
+    // Re-runs never resend: an order already marked paid is not revisited.
+    expect(mocks.confirm).not.toHaveBeenCalled();
   });
   it('flags unallocated new orders for review while allowing paid and legacy orders', async () => {
     mocks.hget.mockResolvedValue({ ...held, status: 'expired' });

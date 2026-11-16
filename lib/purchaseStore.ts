@@ -227,8 +227,23 @@ export async function expirePurchaseReservations(now = Date.now()) {
           if (payment.metadata?.inventoryReservation !== reference || cart.green !== order.green || cart.cream !== order.cream || payment.currency !== 'ZAR' || payment.amount !== paidCheckoutTotal(cart, payment.metadata?.shippingMethod, voucher?.amount ?? 0, payment.metadata?.unitPrice, payment.metadata?.pricingVersion) * 100)
             throw new Error('Paid reservation requires reconciliation');
           if (voucher?.kind === 'coupon' && !await commitCoupon(reference, voucher)) throw new Error('Coupon requires reconciliation');
-          if (await commitPurchase(reference, cart)) result.paid++;
-          else result.retained++;
+          if (await commitPurchase(reference, cart)) {
+            result.paid++;
+            // The customer may never have returned to the success page and the
+            // webhook may be missing, so this can be the only path that learns of
+            // the payment. Safe to repeat: confirmations are deduplicated per
+            // reference (Redis receipt + Resend idempotency key), so a concurrent
+            // webhook or success page never produces a second email. Failures are
+            // logged, never thrown, so a mail problem cannot keep the hold open.
+            // Dynamic import: orderConfirmation imports this module.
+            const { tryOrderConfirmation } = await import('./orderConfirmation');
+            await tryOrderConfirmation({
+              reference, email: payment.customerEmail ?? '', customerName: payment.metadata?.customerName, paidAt: payment.paidAt,
+              amount: payment.amount, currency: payment.currency, cart, address: payment.metadata?.shippingAddress,
+              shippingMethod: payment.metadata?.shippingMethod, preorder: payment.metadata?.preorder, voucher: payment.metadata?.voucher,
+              unitPrice: payment.metadata?.unitPrice, pricingVersion: payment.metadata?.pricingVersion, attribution: payment.metadata?.attribution,
+            });
+          } else result.retained++;
         } else if (payment.status === 'abandoned' || payment.status === 'failed') {
           await releaseCoupon(reference);
           result.released += Number(await adminStore().eval(EXPIRE_PURCHASE,
