@@ -1,6 +1,6 @@
 import { AdminError, adminStore, digest } from "./admin/store";
 
-export interface Coupon { code: string; amount: number; uses: number; maxUses: number; redeemed: number; held: number; active: boolean; createdAt: string }
+export interface Coupon { code: string; amount: number; minHats?: number; uses: number; maxUses: number; redeemed: number; held: number; active: boolean; createdAt: string }
 export interface CouponMetadata { kind: "coupon"; id: string; amount: number }
 const prefix = () => `smelt:coupons:v1:${process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_") ? "live" : "test"}`;
 const key = (id: string) => `${prefix()}:code:${id}`;
@@ -8,12 +8,22 @@ const reservationKey = (reference: string) => `${prefix()}:reservation:${digest(
 const normalize = (value: unknown) => typeof value === "string" ? value.trim().toUpperCase().replace(/\s+/g, "") : "";
 export const validCouponAmount = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value > 0 && value <= 100000;
 
-export async function createCoupon(codeValue: unknown, amount: unknown, maxUses: unknown): Promise<Coupon> {
+function validateMinimum(value: unknown): asserts value is number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0 || value > 198) throw new AdminError("Enter a minimum hat quantity between 0 and 198 (0 means no minimum).");
+}
+
+export function checkCouponMinimum(coupon: Coupon, hatCount: number) {
+  if (!Number.isSafeInteger(hatCount) || hatCount < (coupon.minHats ?? 0))
+    throw new AdminError(`This coupon requires at least ${coupon.minHats ?? 0} hats in your bag.`, 409);
+}
+
+export async function createCoupon(codeValue: unknown, amount: unknown, maxUses: unknown, minHats: unknown = 0): Promise<Coupon> {
   const code = normalize(codeValue);
   if (!/^[A-Z0-9][A-Z0-9_-]{2,39}$/.test(code) || code.startsWith("SMELT-")) throw new AdminError("Use 3–40 letters, numbers, hyphens or underscores. SMELT- is reserved.");
   if (!validCouponAmount(amount)) throw new AdminError("Enter a whole-rand discount between R1 and R100 000.");
   if (typeof maxUses !== "number" || !Number.isSafeInteger(maxUses) || maxUses < 1 || maxUses > 1000000) throw new AdminError("Enter a usage limit between 1 and 1 000 000.");
-  const coupon: Coupon = { code, amount, uses: 0, maxUses, redeemed: 0, held: 0, active: true, createdAt: new Date().toISOString() };
+  validateMinimum(minHats);
+  const coupon: Coupon = { code, amount, minHats, uses: 0, maxUses, redeemed: 0, held: 0, active: true, createdAt: new Date().toISOString() };
   const saved = await adminStore().eval<unknown[], number>(`
 if redis.call('EXISTS', KEYS[1]) == 1 then return 0 end
 redis.call('SET', KEYS[1], ARGV[1])
@@ -43,18 +53,32 @@ return 1`, [key(digest(normalize(codeValue)))], [String(active)]);
   if (!saved) throw new AdminError("Coupon not found.", 404);
 }
 
+export async function setCouponMinimum(codeValue: unknown, minHats: unknown) {
+  validateMinimum(minHats);
+  const saved = await adminStore().eval<unknown[], number>(`
+local raw = redis.call('GET', KEYS[1])
+if not raw then return 0 end
+local coupon = cjson.decode(raw)
+coupon.minHats = tonumber(ARGV[1])
+redis.call('SET', KEYS[1], cjson.encode(coupon))
+return 1`, [key(digest(normalize(codeValue)))], [minHats]);
+  if (!saved) throw new AdminError("Coupon not found.", 404);
+}
+
 export async function findCoupon(codeValue: unknown): Promise<Coupon | null> {
   const code = normalize(codeValue);
   if (!/^[A-Z0-9][A-Z0-9_-]{2,39}$/.test(code) || code.startsWith("SMELT-")) return null;
   return adminStore().get<Coupon>(key(digest(code)));
 }
 
-export async function reserveCoupon(codeValue: unknown, email: string, reference: string): Promise<CouponMetadata> {
+export async function reserveCoupon(codeValue: unknown, email: string, reference: string, hatCount = 0): Promise<CouponMetadata> {
+  if (!Number.isSafeInteger(hatCount) || hatCount < 0 || hatCount > 198) throw new AdminError("Invalid hat quantity.");
   const id = digest(normalize(codeValue));
   const amount = await adminStore().eval<unknown[], number>(`
 local raw = redis.call('GET', KEYS[1])
 if not raw then return -1 end
 local coupon = cjson.decode(raw)
+if tonumber(ARGV[3]) < (coupon.minHats or 0) then return -2 end
 local existing = redis.call('GET', KEYS[2])
 if existing then
   local reservation = cjson.decode(existing)
@@ -65,7 +89,8 @@ if not coupon.active or coupon.redeemed + coupon.held >= coupon.maxUses then ret
 coupon.held = coupon.held + 1
 redis.call('SET', KEYS[1], cjson.encode(coupon))
 redis.call('SET', KEYS[2], cjson.encode({id=ARGV[1], amount=coupon.amount, email=ARGV[2], status='held'}))
-return coupon.amount`, [key(id), reservationKey(reference)], [id, email.trim().toLowerCase()]);
+return coupon.amount`, [key(id), reservationKey(reference)], [id, email.trim().toLowerCase(), hatCount]);
+  if (amount === -2) throw new AdminError("Your bag does not meet this coupon's minimum hat quantity.", 409);
   if (!validCouponAmount(amount)) throw new AdminError("This coupon is invalid, inactive, or has no uses left.", 409);
   return { kind: "coupon", id, amount };
 }

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ auth: vi.fn(), create: vi.fn(), list: vi.fn(), update: vi.fn() }));
+const mocks = vi.hoisted(() => ({ auth: vi.fn(), create: vi.fn(), list: vi.fn(), update: vi.fn(), minimum: vi.fn() }));
 vi.mock("@/lib/admin/auth", () => ({ requireAdmin: mocks.auth }));
-vi.mock("@/lib/coupons", () => ({ createCoupon: mocks.create, listCoupons: mocks.list, setCouponActive: mocks.update }));
+vi.mock("@/lib/coupons", () => ({ createCoupon: mocks.create, listCoupons: mocks.list, setCouponActive: mocks.update, setCouponMinimum: mocks.minimum }));
 import { AdminError } from "@/lib/admin/store";
 import { GET, PATCH, POST } from "./route";
 const request = (method: string, body: unknown, origin = "https://saunahat.co.za") => new Request("https://saunahat.co.za/api/admin/coupons", {
@@ -23,13 +23,18 @@ describe("admin coupons API", () => {
   });
   it("persists the chosen discount and usage limit and keeps responses private", async () => {
     mocks.create.mockResolvedValue({ code: "WARM", amount: 50, maxUses: 10 });
-    const result = await POST(request("POST", { code: "WARM", amount: 50, maxUses: 10 }));
+    const result = await POST(request("POST", { code: "WARM", amount: 50, maxUses: 10, minHats: 2 }));
     expect(result.status).toBe(201);
-    expect(mocks.create).toHaveBeenCalledWith("WARM", 50, 10);
+    expect(mocks.create).toHaveBeenCalledWith("WARM", 50, 10, 2);
     expect(result.headers.get("Cache-Control")).toBe("private, no-store");
     expect(await (await GET()).json()).toEqual({ coupons: [] });
     expect((await PATCH(request("PATCH", { code: "WARM", active: false }))).status).toBe(200);
     expect(mocks.update).toHaveBeenCalledWith("WARM", false);
+  });
+  it("updates the minimum independently of activation", async () => {
+    expect((await PATCH(request("PATCH", { code: "WARM", minHats: 2 }))).status).toBe(200);
+    expect(mocks.minimum).toHaveBeenCalledWith("WARM", 2);
+    expect(mocks.update).not.toHaveBeenCalled();
   });
   it("returns validation and duplicate-code errors", async () => {
     mocks.create.mockRejectedValue(new AdminError("This coupon code already exists.", 409));

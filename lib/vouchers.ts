@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { AdminError, adminStore, digest } from "./admin/store";
-import { commitCoupon, findCoupon, releaseCoupon, reserveCoupon, validCouponAmount, type CouponMetadata } from "./coupons";
+import { checkCouponMinimum, commitCoupon, findCoupon, releaseCoupon, reserveCoupon, validCouponAmount, type CouponMetadata } from "./coupons";
 
 export const REVIEW_VOUCHER_AMOUNT = 50;
 export const REVIEW_VOUCHER_DAYS = 90;
@@ -86,11 +86,12 @@ async function voucherFor(codeValue: unknown): Promise<{ id: string; record: Vou
   return record ? { id, record } : null;
 }
 
-export async function validateVoucher(code: unknown, emailValue: unknown): Promise<VoucherReward> {
+export async function validateVoucher(code: unknown, emailValue: unknown, hatCount = 0): Promise<VoucherReward> {
   const coupon = await findCoupon(code);
   if (coupon) {
     if (!coupon.active) throw new AdminError("This coupon is inactive.", 409);
     if (coupon.redeemed + coupon.held >= coupon.maxUses) throw new AdminError("This coupon has no uses left.", 409);
+    checkCouponMinimum(coupon, hatCount);
     return { code: coupon.code, amount: coupon.amount, expiresAt: "" };
   }
   const email = typeof emailValue === "string" ? normalizeEmail(emailValue) : "";
@@ -115,9 +116,9 @@ redis.call('SET', KEYS[1], cjson.encode(voucher), 'KEEPTTL')
 redis.call('SET', KEYS[2], ARGV[4], 'EX', 7776000)
 return voucher.amount`;
 
-export async function reserveVoucher(codeValue: unknown, emailValue: string, reference: string): Promise<VoucherMetadata> {
+export async function reserveVoucher(codeValue: unknown, emailValue: string, reference: string, hatCount = 0): Promise<VoucherMetadata> {
   const code = normalizeVoucherCode(codeValue);
-  if (!code.startsWith("SMELT-")) return reserveCoupon(code, emailValue, reference);
+  if (!code.startsWith("SMELT-")) return reserveCoupon(code, emailValue, reference, hatCount);
   if (!validCode(code)) throw new AdminError("This voucher is invalid or has expired.", 409);
   const id = digest(code);
   const amount = await adminStore().eval<unknown[], number>(RESERVE_VOUCHER, [voucherKey(id), reservationKey(reference)], [

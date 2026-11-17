@@ -9,6 +9,8 @@ export default function CouponsPanel({ onExpired }: { onExpired: () => void }) {
   const [code, setCode] = useState("");
   const [amount, setAmount] = useState("");
   const [maxUses, setMaxUses] = useState("");
+  const [minHats, setMinHats] = useState("0");
+  const [minimums, setMinimums] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -27,8 +29,8 @@ export default function CouponsPanel({ onExpired }: { onExpired: () => void }) {
   async function create(event: FormEvent) {
     event.preventDefault(); setBusy(true); setError(""); setMessage("");
     try {
-      const result = await request({ method: "POST", body: JSON.stringify({ code, amount: Number(amount), maxUses: Number(maxUses) }) });
-      setCode(""); setAmount(""); setMaxUses(""); setMessage(`${result.coupon.code} created.`); await load();
+      const result = await request({ method: "POST", body: JSON.stringify({ code, amount: Number(amount), maxUses: Number(maxUses), minHats: Number(minHats) }) });
+      setCode(""); setAmount(""); setMaxUses(""); setMinHats("0"); setMessage(`${result.coupon.code} created.`); await load();
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not create coupon."); }
     finally { setBusy(false); }
   }
@@ -38,19 +40,35 @@ export default function CouponsPanel({ onExpired }: { onExpired: () => void }) {
     catch (caught) { setError(caught instanceof Error ? caught.message : "Could not update coupon."); }
     finally { setBusy(false); }
   }
+  async function saveMinimum(event: FormEvent, coupon: Coupon) {
+    event.preventDefault(); setBusy(true); setError(""); setMessage("");
+    try {
+      await request({ method: "PATCH", body: JSON.stringify({ code: coupon.code, minHats: Number(minimums[coupon.code] ?? coupon.minHats ?? 0) }) });
+      setMessage(`${coupon.code} minimum updated. Existing payment links keep their original discount.`);
+      await load();
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not update coupon minimum."); }
+    finally { setBusy(false); }
+  }
   return <section aria-label="Coupon codes">
     <form className={styles.couponForm} onSubmit={create}>
       <label>Coupon code<input required minLength={3} maxLength={40} pattern="[A-Za-z0-9][A-Za-z0-9_-]{2,39}" autoCapitalize="characters" autoComplete="off" spellCheck={false} placeholder="WARM50" value={code} onChange={event => setCode(event.target.value.toUpperCase())} disabled={busy} /></label>
       <label>Amount off (R)<input type="number" min={1} max={100000} step={1} required placeholder="50" value={amount} onChange={event => setAmount(event.target.value)} disabled={busy} /></label>
       <label>Usage limit<input type="number" min={1} max={1000000} step={1} required placeholder="100" value={maxUses} onChange={event => setMaxUses(event.target.value)} disabled={busy} /></label>
+      <label>Minimum hats (0 = no minimum)<input type="number" min={0} max={198} step={1} required value={minHats} onChange={event => setMinHats(event.target.value)} disabled={busy} /></label>
       <button disabled={busy}>{busy ? "Saving…" : "Create coupon"}</button>
     </form>
     {error && <p className={styles.error} role="alert">{error}</p>}
     {message && <p className={styles.note} role="status">{message}</p>}
-    <div className={styles.conversationToolbar}><p className={styles.help}>Fixed-rand discounts. Usage counts customers with successful payments.</p><button className={styles.refresh} disabled={busy} onClick={() => void load()}>Refresh coupons ↻</button></div>
+    <div className={styles.conversationToolbar}><p className={styles.help}>Fixed-rand discounts. Minimum hats counts both colours together. Usage counts customers with successful payments.</p><button className={styles.refresh} disabled={busy} onClick={() => void load()}>Refresh coupons ↻</button></div>
     {coupons === null ? !error && <p role="status">Loading coupons…</p> : !coupons.length ? <p>No coupon codes yet.</p> : <div className={styles.couponList}>{coupons.map(coupon => <article key={coupon.code} className={styles.couponCard}>
       <div><strong>{coupon.code}</strong><span className={styles.date}>{coupon.active ? "Active" : "Inactive"}</span></div>
       <dl><div><dt>Amount off</dt><dd>{formatMoney(coupon.amount)}</dd></div><div><dt>Customers used</dt><dd>{coupon.uses}</dd></div><div><dt>Uses left</dt><dd>{Math.max(0, coupon.maxUses - coupon.redeemed - coupon.held)} / {coupon.maxUses}</dd>{coupon.held > 0 && <span className={styles.date}>{coupon.held} in checkout</span>}</div></dl>
+      <form className={styles.couponMinimum} onSubmit={event => void saveMinimum(event, coupon)}>
+        <label htmlFor={`minimum-${coupon.code}`}>Minimum hats</label>
+        <input id={`minimum-${coupon.code}`} type="number" min={0} max={198} step={1} required value={minimums[coupon.code] ?? String(coupon.minHats ?? 0)} onChange={event => setMinimums(current => ({ ...current, [coupon.code]: event.target.value }))} disabled={busy} />
+        <span className={styles.date}>0 = no minimum</span>
+        <button type="submit" className={styles.secondary} disabled={busy || minimums[coupon.code] === undefined || Number(minimums[coupon.code]) === (coupon.minHats ?? 0)}>Save minimum</button>
+      </form>
       <button type="button" className={styles.secondary} disabled={busy} onClick={() => void toggle(coupon)} aria-label={`${coupon.active ? "Deactivate" : "Activate"} ${coupon.code}`}>{coupon.active ? "Deactivate" : "Activate"}</button>
     </article>)}</div>}
   </section>;

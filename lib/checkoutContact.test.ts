@@ -67,11 +67,16 @@ it("refuses checkout before Paystack when the requested colour is unavailable", 
 it("reserves a personal review voucher and sends only the discounted amount to Paystack", async () => {
   const response = await POST(request({ phone: "0837875826" }, { voucherCode: "SMELT-ABCDEFGHIJKL" }));
   expect(response.status).toBe(200);
-  expect(reserveVoucher).toHaveBeenCalledWith("SMELT-ABCDEFGHIJKL", "buyer@example.com", "smeltp-00000000-0000-4000-8000-000000000000");
+  expect(reserveVoucher).toHaveBeenCalledWith("SMELT-ABCDEFGHIJKL", "buyer@example.com", "smeltp-00000000-0000-4000-8000-000000000000", 1);
   expect(initializeTransaction).toHaveBeenCalledWith(expect.objectContaining({
     amount: 490,
     metadata: expect.objectContaining({ voucher: { id: "a".repeat(64), amount: 50 } }),
   }));
+});
+it("uses the server-sanitized combined hat count when reserving a coupon", async () => {
+  const response = await POST(request({ phone: "0837875826" }, { voucherCode: "SMELT100", cart: { green: 1, cream: 1 }, hatCount: 999 }));
+  expect(response.status).toBe(200);
+  expect(reserveVoucher).toHaveBeenCalledWith("SMELT100", "buyer@example.com", expect.any(String), 2);
 });
 it("rejects cross-origin attempts before holding stock", async () => {
   const response = await POST(new Request("https://saunahat.co.za/api/checkout", {

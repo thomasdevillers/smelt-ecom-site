@@ -76,7 +76,7 @@ export async function POST(request: Request) {
   }
   let voucher: VoucherMetadata | undefined;
   if (typeof body.voucherCode === "string" && body.voucherCode.trim()) {
-    try { voucher = await reserveVoucher(body.voucherCode, email, reservationId); }
+    try { voucher = await reserveVoucher(body.voucherCode, email, reservationId, cart.green + cart.cream); }
     catch (error) {
       await releaseRejectedPurchase(reservationId).catch(releaseError => console.error("Unused stock allocation needs review", releaseError));
       await releaseVoucherCodeReservation(reservationId, body.voucherCode).catch(releaseError => console.error("Ambiguous voucher allocation needs review", releaseError));

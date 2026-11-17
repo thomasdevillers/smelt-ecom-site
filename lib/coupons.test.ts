@@ -19,8 +19,12 @@ const state = vi.hoisted(() => {
       if (script.includes("coupon.active =")) {
         coupon.active = args[0] === "true"; values.set(keys[0], coupon); return 1;
       }
+      if (script.includes("coupon.minHats =")) {
+        coupon.minHats = Number(args[0]); values.set(keys[0], coupon); return 1;
+      }
       const reservation = read(keys[1]);
       if (script.includes("coupon.held = coupon.held + 1")) {
+        if (Number(args[2]) < Number(coupon.minHats ?? 0)) return -2;
         if (reservation) return reservation.id === args[0] && reservation.email === args[1] && reservation.status === "held" ? reservation.amount : -1;
         if (!coupon.active || Number(coupon.redeemed) + Number(coupon.held) >= Number(coupon.maxUses)) return -1;
         coupon.held = Number(coupon.held) + 1;
@@ -45,7 +49,7 @@ const state = vi.hoisted(() => {
   return { values, sets, db };
 });
 vi.mock("@upstash/redis", () => ({ Redis: class { constructor() { return state.db; } } }));
-import { commitCoupon, createCoupon, findCoupon, listCoupons, releaseCoupon, reserveCoupon, setCouponActive } from "./coupons";
+import { commitCoupon, createCoupon, findCoupon, listCoupons, releaseCoupon, reserveCoupon, setCouponActive, setCouponMinimum } from "./coupons";
 import { commitVoucher, parseVoucherMetadata, releaseVoucherReservation, reserveVoucher, validateVoucher } from "./vouchers";
 import { paidCheckoutTotal } from "./checkoutShared";
 import { PRICING_VERSION } from "./pricing";
@@ -57,6 +61,39 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("limited-use coupons", () => {
+  it("enforces the minimum on validation and payment reservation, including retries", async () => {
+    await createCoupon("SMELT100", 100, 100, 2);
+    await expect(validateVoucher("SMELT100", "", 1)).rejects.toThrow("at least 2 hats");
+    await expect(validateVoucher("SMELT100", "")).rejects.toThrow("at least 2 hats");
+    await expect(reserveVoucher("SMELT100", "buyer@example.com", "short", 1)).rejects.toThrow("minimum hat quantity");
+    expect(await findCoupon("SMELT100")).toMatchObject({ held: 0, minHats: 2 });
+    await expect(validateVoucher("SMELT100", "", 2)).resolves.toMatchObject({ amount: 100 });
+    const metadata = await reserveVoucher("SMELT100", "buyer@example.com", "enough", 2);
+    await expect(reserveVoucher("SMELT100", "buyer@example.com", "enough", 1)).rejects.toThrow("minimum hat quantity");
+    expect(await findCoupon("SMELT100")).toMatchObject({ held: 1 });
+    await expect(commitVoucher("enough", metadata)).resolves.toBe(true);
+  });
+  it.each([-1, 1.5, 199, "2", null, NaN])("rejects invalid minimum %j on creation and update", async minimum => {
+    await expect(createCoupon("MINIMUM", 100, 100, minimum)).rejects.toThrow("minimum hat quantity");
+    await expect(setCouponMinimum("MINIMUM", minimum)).rejects.toThrow("minimum hat quantity");
+    expect(state.db.eval).not.toHaveBeenCalled();
+  });
+  it("updates minimums without breaking already initialized payments", async () => {
+    await createCoupon("MINIMUM", 100, 100, 2);
+    const metadata = await reserveCoupon("MINIMUM", "buyer@example.com", "held", 2);
+    await setCouponMinimum("MINIMUM", 3);
+    await expect(validateVoucher("MINIMUM", "", 2)).rejects.toThrow("at least 3 hats");
+    expect(await commitCoupon("held", metadata)).toBe(true);
+    await setCouponMinimum("MINIMUM", 0);
+    await expect(validateVoucher("MINIMUM", "", 1)).resolves.toMatchObject({ amount: 100 });
+    await expect(setCouponMinimum("MISSING", 2)).rejects.toThrow("not found");
+  });
+  it("treats older coupons without minHats as unrestricted", async () => {
+    await createCoupon("LEGACY", 50, 10);
+    for (const value of state.values.values()) delete value.minHats;
+    await expect(validateVoucher("LEGACY", "", 1)).resolves.toMatchObject({ amount: 50 });
+    await expect(reserveCoupon("LEGACY", "buyer@example.com", "legacy", 1)).resolves.toMatchObject({ amount: 50 });
+  });
   it("stores normalized codes, their amount and usage limit", async () => {
     await expect(createCoupon(" warm75 ", 75, 10)).resolves.toMatchObject({ code: "WARM75", amount: 75, maxUses: 10, uses: 0, held: 0, redeemed: 0 });
     expect(await listCoupons()).toHaveLength(1);

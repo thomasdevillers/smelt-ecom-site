@@ -26,7 +26,7 @@ Each order can receive one shipping notification through this dashboard. Accepte
 
 ## Coupon codes
 
-Open **Coupons** to create a reusable code with a fixed whole-rand discount and a required usage limit. Codes are case-insensitive; the `SMELT-` prefix is reserved for existing personal email vouchers. Customers apply a code below checkout pricing. One code can be applied per order, alongside existing bundle savings, and the discount must be less than the order total.
+Open **Coupons** to create a reusable code with a fixed whole-rand discount, a required usage limit and an optional **Minimum hats** quantity (0 means no minimum). Both colours count toward the minimum. You can also change the minimum on an existing coupon with **Save minimum**. Existing coupons without this setting have no minimum. The server checks the minimum when applying a code and again when reserving it for payment; already initialized payments keep their agreed discount. Codes are case-insensitive; the `SMELT-` prefix is reserved for existing personal email vouchers. Customers apply a code below checkout pricing. One code can be applied per order, alongside existing bundle savings, and the discount must be less than the order total.
 
 Each saved code shows its discount, distinct paying customers, remaining uses and any uses held in checkout. Each successful order consumes one use, even if the same customer orders again. Payment retries and duplicate callbacks do not consume extra uses. **Deactivate** stops new checkouts without breaking payments already started.
 
@@ -86,6 +86,14 @@ Use **Create review link (photos required)** for the standard invitation, or **C
 - `smelt:shipping:history:v1:*`: previous notifications per customer.
 
 Payment records remain in Paystack. Shipping receipts have no TTL: keep this database and its backups. A pending receipt is written atomically before contacting Resend. Accepted receipts remove the frozen email content and retain the message ID and shipment details. If provider acceptance occurs but Redis persistence fails, a retry inside 23 hours uses the identical Resend idempotency key and message; after that window, check Resend manually before changing any receipt.
+
+## Past-customer SMELT100 campaign
+
+`scripts/send-customer-thank-you.ts` prepares the approved plain-looking thank-you email audience from **every live Completed orders page**, deduplicated by normalized email. A buyer with a completed order remains eligible even if they also have active orders. Existing cart-email opt-outs and Resend-recorded bounces, complaints and suppressions are excluded.
+
+Run a dry preparation with `npx tsx --env-file=.env.local scripts/send-customer-thank-you.ts`. The script expects production Redis configuration in `.local/customer-thank-you/production.env`, plus the existing sender, Resend key and admin login locally. It authenticates to the production dashboard for live orders instead of using a local test Paystack key. Add `--send` only when authorized to send a batch. Live `SMELT100` must be active, R100 off and require at least two hats (configured as minimum 2); deploy minimum-hat support before sending.
+
+The campaign has a hard maximum of 75 attempts per UTC day and checks account-wide sends over the last 24 hours, retaining at least five sends for normal store emails. Do not run more tests or other campaigns during the batch. Each recipient gets a durable pending record **before** Resend is contacted, then an accepted message ID afterward. Records have no TTL in production Redis at `smelt:customer-thank-you:v1:live:smelt100:recipients`; daily attempts are retained at the same prefix with `:attempts:YYYY-MM-DD`. The script also saves private `audience.json` and `send-log.json` files under `.local/customer-thank-you/`. Never delete/reset the campaign keys or use a new campaign ID to resume tomorrow. Rerunning skips all previously recorded recipients, including uncertain/rejected sends that require manual reconciliation. Nothing is automatically scheduled. Monitor unsubscribe replies and suppress those buyers before any further marketing.
 
 ## Validation
 

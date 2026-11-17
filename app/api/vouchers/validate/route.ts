@@ -1,5 +1,6 @@
 import { AdminError, adminStore, digest, requireSameOrigin } from "@/lib/admin/store";
 import { validateVoucher } from "@/lib/vouchers";
+import { sanitizeCart } from "@/lib/checkoutShared";
 
 export const runtime = "nodejs";
 
@@ -22,7 +23,8 @@ local count = redis.call('INCR', KEYS[1])
 if count == 1 then redis.call('EXPIRE', KEYS[1], 3600) end
 return count <= 30 and 1 or 0`, [key], []);
     if (!allowed) throw new AdminError("Too many voucher attempts. Please try again later.", 429);
-    return Response.json(await validateVoucher(body.code, body.email), { headers: { "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex, nofollow" } });
+    const cart = sanitizeCart(body.cart);
+    return Response.json(await validateVoucher(body.code, body.email, cart.green + cart.cream), { headers: { "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex, nofollow" } });
   } catch (error) {
     if (error instanceof AdminError) return Response.json({ error: error.message }, { status: error.status, headers: { "Cache-Control": "no-store" } });
     console.error("Voucher validation failed", error instanceof Error ? error.name : "Unknown error");

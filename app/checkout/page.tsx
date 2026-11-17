@@ -21,7 +21,7 @@ import { sanitizeCart } from "@/lib/checkoutShared";
 import { getCheckoutAttribution } from "@/lib/attributionClient";
 
 type Status = "idle" | "submitting" | "error";
-type AppliedVoucher = { code: string; amount: number; expiresAt: string; email: string };
+type AppliedVoucher = { code: string; amount: number; expiresAt: string; email: string; hatCount: number };
 type PendingPayment = { orderKey: string; accessCode?: string; authorizationUrl: string; startedAt: number };
 // Stay well inside the server's one-hour stock reservation before reusing a transaction.
 const PAYMENT_REUSE_MS = 30 * 60 * 1000;
@@ -235,7 +235,7 @@ export default function CheckoutPage() {
 
   const normalizedVoucherCode = voucherCode.trim().toUpperCase().replace(/\s+/g, "");
   const voucherEmail = normalizedVoucherCode.startsWith("SMELT-") ? email.trim().toLowerCase() : "";
-  const activeVoucher = appliedVoucher && appliedVoucher.email === voucherEmail && appliedVoucher.code === normalizedVoucherCode && appliedVoucher.amount < grandTotal(subtotal, cart.green + cart.cream, shippingMethod)
+  const activeVoucher = appliedVoucher && appliedVoucher.hatCount === cart.green + cart.cream && appliedVoucher.email === voucherEmail && appliedVoucher.code === normalizedVoucherCode && appliedVoucher.amount < grandTotal(subtotal, cart.green + cart.cream, shippingMethod)
     ? appliedVoucher
     : null;
   const totalAmount = grandTotal(subtotal, cart.green + cart.cream, shippingMethod) - (activeVoucher?.amount ?? 0);
@@ -250,12 +250,12 @@ export default function CheckoutPage() {
       try {
         const response = await fetch("/api/vouchers/validate", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code: normalizedVoucherCode, email: voucherEmail }),
+          body: JSON.stringify({ code: normalizedVoucherCode, email: voucherEmail, cart: { green: cart.green, cream: cart.cream } }),
         });
         const result = await response.json() as { code?: string; amount?: number; expiresAt?: string; error?: string };
         if (!response.ok || !result.code || !result.amount) throw new Error(result.error || "Could not apply this code.");
         if (result.amount >= grandTotal(subtotal, cart.green + cart.cream, shippingMethod)) throw new Error("This discount must be less than your order total.");
-        if (!cancelled) setAppliedVoucher({ code: result.code, amount: result.amount, expiresAt: result.expiresAt ?? "", email: voucherEmail });
+        if (!cancelled) setAppliedVoucher({ code: result.code, amount: result.amount, expiresAt: result.expiresAt ?? "", email: voucherEmail, hatCount: cart.green + cart.cream });
       } catch (caught) {
         if (!cancelled) {
           setAppliedVoucher(null);
