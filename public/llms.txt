@@ -1,0 +1,36 @@
+# Smelt
+
+> Smelt is a Cape Town, South Africa-based sauna hat brand. Its online store sells 100% merino wool felt sauna hats and publishes guides on sauna hats, fit, materials, and care.
+
+The official website is https://saunahat.co.za. Smelt sauna hats are embroidered front and back, come in Forest Green and Natural Cream, and have a one-size fit. The store ships nationwide in South Africa from Cape Town.
+
+For current pricing, colour availability, and pre-order options, consult the live product page. For shipping, returns, and guarantees, consult the store policies rather than assuming terms from this summary. Sauna guides provide general information, not personalised medical advice.
+
+## Store and brand
+
+- [Home](https://saunahat.co.za/): Introduction to Smelt and its sauna hats.
+- [Smelt sauna hat](https://saunahat.co.za/product): Product specifications, colours, current prices, availability, and purchasing options.
+- [Our story](https://saunahat.co.za/our-story): The founders, the meaning of the name Smelt, and the story behind the hats.
+
+## Customer support
+
+- [Care and cleaning](https://saunahat.co.za/care): How to clean, dry, and look after a wool felt sauna hat, including cleaning FAQs.
+- [Store policies](https://saunahat.co.za/policies): Shipping, delivery, returns, and defect guarantee terms.
+- [Contact](https://saunahat.co.za/contact): Questions about products, orders, and returns.
+
+## Sauna hat guides
+
+- [All articles](https://saunahat.co.za/articles): Index of Smelt's sauna hat guides.
+- [What does a sauna hat do?](https://saunahat.co.za/articles/what-does-a-sauna-hat-do): How sauna hats work and why people wear them.
+- [Why is wool used for sauna hats?](https://saunahat.co.za/articles/why-is-wool-used-for-sauna-hats): Wool felt as a sauna hat material.
+- [How to choose a sauna hat](https://saunahat.co.za/articles/how-to-choose-a-sauna-hat): Material, fit, and care considerations.
+- [Sauna hat sizing](https://saunahat.co.za/articles/sauna-hat-size-and-fit): One-size fit and how a sauna hat should sit.
+- [Should you wet your sauna hat?](https://saunahat.co.za/articles/should-you-wet-your-sauna-hat): Guidance on wearing a sauna hat wet or dry.
+- [Common sauna mistakes](https://saunahat.co.za/articles/common-sauna-mistakes): Common mistakes and practical sauna guidance.
+- [Where do sauna hats come from?](https://saunahat.co.za/articles/where-do-sauna-hats-come-from): The history and origins of sauna hats.
+- [Why are sauna hats shaped like that?](https://saunahat.co.za/articles/why-are-sauna-hats-shaped-like-that): Sauna hat shape and design.
+
+## Optional
+
+- [Sitemap](https://saunahat.co.za/sitemap.xml): Machine-readable index of public pages.
+- [Robots.txt](https://saunahat.co.za/robots.txt): Crawler directives; this llms.txt file does not replace or override them.
