@@ -10,6 +10,7 @@ import { preorderTiming } from "@/lib/preorders";
 import ReviewsPanel from "./ReviewsPanel";
 import CouponsPanel from "./CouponsPanel";
 import EmailAuditPanel from "./EmailAuditPanel";
+import CustomHatsPanel from "./CustomHatsPanel";
 import { reviewWhatsAppUrl } from "@/lib/whatsapp";
 import styles from "./admin.module.css";
 import { attributionLabel } from "@/lib/attribution";
@@ -172,7 +173,7 @@ export default function AdminDashboard() {
   const [page, setPage] = useState(1);
   const [view, setView] = useState<"active" | "completed" | "preorders">("active");
   const [completedSort, setCompletedSort] = useState<"newest" | "oldest">("newest");
-  const [section, setSection] = useState<"orders" | "analytics" | "reviews" | "restock" | "conversations" | "coupons" | "emails">("orders");
+  const [section, setSection] = useState<"orders" | "analytics" | "reviews" | "restock" | "conversations" | "coupons" | "emails" | "custom">("orders");
   const [emailIssues, setEmailIssues] = useState<number | null>(null);
   const [notice, setNotice] = useState("");
   const generation = useRef(0);
@@ -243,6 +244,7 @@ export default function AdminDashboard() {
     restock: { eyebrow: "SMELT / NEXT BATCH", title: <>Restock requests<span>.</span></>, description: "Pre-orders, waiting-list emails and restock requests." },
     conversations: { eyebrow: "SMELT / PRODUCT QUESTIONS", title: <>AI conversations<span>.</span></>, description: "See what customers ask and how the assistant answers." },
     emails: { eyebrow: "SMELT / ORDER EMAILS", title: <>Nothing left unsaid<span>.</span></>, description: "Paid orders whose confirmation or owner email did not go out." },
+    custom: { eyebrow: "SMELT / CUSTOM HATS", title: <>Their logo, our felt<span>.</span></>, description: "Make a personal design link. See every hat they dream up." },
     reviews: { eyebrow: "SMELT / CUSTOMER PROOF", title: <>Reviews, reviewed<span>.</span></>, description: "Approve the real thing. Publish only what customers sent." },
   }[section];
   return <div className={styles.shell}>
@@ -253,7 +255,7 @@ export default function AdminDashboard() {
         <form onSubmit={signIn}><label htmlFor="admin-password">Admin password</label><input id="admin-password" type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required disabled={busy} /><button disabled={busy}>{busy ? "Signing in…" : "Open dispatch desk ↗"}</button></form>
         {error && <p role="alert" className={styles.error}>{error}</p>}
       </section> : <>
-        <section className={styles.heading}><div><span className={styles.eyebrow}>{sectionCopy.eyebrow}</span><h1>{sectionCopy.title}</h1><p>{sectionCopy.description}</p></div>{section === "orders" ? <div className={styles.total}><strong>{data?.total ?? "—"}</strong><span>{view === "completed" ? "COMPLETED ORDERS" : view === "preorders" ? "PAID PRE-ORDERS" : "ACTIVE ORDERS"}</span></div> : section === "analytics" ? <div className={styles.analyticsStamp}><span>VERCEL</span><b>＋</b><span>PAYSTACK</span></div> : section === "conversations" ? <div className={styles.analyticsStamp}><span>VISITOR</span><b>＋</b><span>SMELT AI</span></div> : section === "emails" ? <div className={styles.analyticsStamp}><span>REDIS</span><b>＋</b><span>RESEND</span></div> : <div className={styles.analyticsStamp}><span>PAYSTACK</span><b>＋</b><span>BLOB</span></div>}</section>
+        <section className={styles.heading}><div><span className={styles.eyebrow}>{sectionCopy.eyebrow}</span><h1>{sectionCopy.title}</h1><p>{sectionCopy.description}</p></div>{section === "orders" ? <div className={styles.total}><strong>{data?.total ?? "—"}</strong><span>{view === "completed" ? "COMPLETED ORDERS" : view === "preorders" ? "PAID PRE-ORDERS" : "ACTIVE ORDERS"}</span></div> : section === "analytics" ? <div className={styles.analyticsStamp}><span>VERCEL</span><b>＋</b><span>PAYSTACK</span></div> : section === "conversations" ? <div className={styles.analyticsStamp}><span>VISITOR</span><b>＋</b><span>SMELT AI</span></div> : section === "emails" ? <div className={styles.analyticsStamp}><span>REDIS</span><b>＋</b><span>RESEND</span></div> : section === "custom" ? <div className={styles.analyticsStamp}><span>REDIS</span><b>＋</b><span>R2</span></div> : <div className={styles.analyticsStamp}><span>PAYSTACK</span><b>＋</b><span>BLOB</span></div>}</section>
         <nav className={styles.primarySections} aria-label="Admin sections">
           <button type="button" aria-pressed={section === "coupons"} onClick={() => setSection("coupons")}>Coupons</button>
           <button type="button" aria-pressed={section === "orders"} onClick={() => setSection("orders")}>Orders</button>
@@ -261,6 +263,7 @@ export default function AdminDashboard() {
           <button type="button" aria-pressed={section === "reviews"} onClick={() => setSection("reviews")}>Reviews</button>
           <button type="button" aria-pressed={section === "restock"} onClick={() => setSection("restock")}>Restock requests</button>
           <button type="button" aria-pressed={section === "conversations"} onClick={() => setSection("conversations")}>AI conversations</button>
+          <button type="button" aria-pressed={section === "custom"} onClick={() => setSection("custom")}>Custom hats</button>
           <button type="button" aria-pressed={section === "emails"} onClick={() => setSection("emails")}>Email issues{!!emailIssues && <span className={styles.issueCount} aria-label={`${emailIssues} open`}>{emailIssues}</span>}</button>
         </nav>
         {section === "orders" ? <>
@@ -291,8 +294,8 @@ export default function AdminDashboard() {
           <div className={styles.orders}>{data.orders.map(order => <OrderRow key={order.reference} order={order} onExpired={expire} onMoved={() => { setNotice(view !== "completed" ? "Order moved to Completed orders." : "Order moved back to Active orders."); if (data.orders.length === 1 && data.page > 1) setPage(data.page - 1); else void load(); }} onReceipt={receipt => setData(current => current ? { ...current, orders: current.orders.map(o => o.reference === order.reference ? { ...o, receipt } : o) } : null)} onReviewMessageSent={reviewMessageSentAt => setData(current => current ? { ...current, orders: current.orders.map(o => o.reference === order.reference ? { ...o, reviewMessageSentAt } : o) } : null)} />)}</div>
           {!data.orders.length && <div className={styles.empty}><h2>{search ? "No matching orders" : view === "completed" ? "No completed orders yet" : "All caught up"}</h2><p>{search ? "Search using all or part of a customer name, email address or payment reference." : view === "completed" ? "Orders appear here after you mark them complete." : "New paid orders will appear here."}</p></div>}
           <nav className={styles.pagination} aria-label="Order pages"><span>{data.total ? `Page ${data.page} of ${Math.max(1, data.pageCount)}` : "0 orders"}</span><div><button className={styles.secondary} disabled={loading || data.page <= 1} onClick={() => setPage(data.page - 1)}>← Previous</button><button className={styles.secondary} disabled={loading || data.page >= data.pageCount} onClick={() => setPage(data.page + 1)}>Next →</button></div></nav></>}
-        </> : section === "coupons" ? <CouponsPanel onExpired={expire} /> : section === "analytics" ? <AnalyticsPanel onExpired={expire} /> : section === "restock" ? <RestockPanel onExpired={expire} /> : section === "conversations" ? <ConversationsPanel onExpired={expire} /> : section === "emails" ? <EmailAuditPanel onExpired={expire} onCount={setEmailIssues} /> : <ReviewsPanel onExpired={expire} />}
-        <footer className={styles.footnote}>Made with care. Measured with care.<span>{section === "coupons" ? "Coupon usage counts successful payments only." : section === "orders" ? "Email delivery status refers to the notification, not the parcel." : section === "analytics" ? "Payment totals come from successful Paystack transactions." : section === "conversations" ? "Conversation logs are visible only to the signed-in team." : section === "emails" ? "Accepted means Resend took the email; inbox delivery is not tracked here." : "Customer reviews remain private until approved."}</span></footer>
+        </> : section === "coupons" ? <CouponsPanel onExpired={expire} /> : section === "analytics" ? <AnalyticsPanel onExpired={expire} /> : section === "restock" ? <RestockPanel onExpired={expire} /> : section === "conversations" ? <ConversationsPanel onExpired={expire} /> : section === "emails" ? <EmailAuditPanel onExpired={expire} onCount={setEmailIssues} /> : section === "custom" ? <CustomHatsPanel onExpired={expire} /> : <ReviewsPanel onExpired={expire} />}
+        <footer className={styles.footnote}>Made with care. Measured with care.<span>{section === "coupons" ? "Coupon usage counts successful payments only." : section === "orders" ? "Email delivery status refers to the notification, not the parcel." : section === "analytics" ? "Payment totals come from successful Paystack transactions." : section === "conversations" ? "Conversation logs are visible only to the signed-in team." : section === "emails" ? "Accepted means Resend took the email; inbox delivery is not tracked here." : section === "custom" ? "Logo files stay private in R2; preview links expire after an hour." : "Customer reviews remain private until approved."}</span></footer>
       </>}
     </main>
   </div>;
