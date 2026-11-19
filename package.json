@@ -11,7 +11,15 @@
     "email:shipping": "tsx --env-file-if-exists=.env.local scripts/send-shipping.ts",
     "admin:setup": "tsx scripts/setup-admin.ts",
     "reviews:rank": "tsx --env-file-if-exists=.env.local scripts/rank-reviews.ts",
-    "admin:import-shipping": "tsx --env-file-if-exists=.env.local scripts/import-shipping-receipts.ts"
+    "admin:import-shipping": "tsx --env-file-if-exists=.env.local scripts/import-shipping-receipts.ts",
+    "migration:capture": "tsx --env-file-if-exists=.env.local scripts/migration/capture.ts",
+    "migration:audit": "tsx scripts/migration/audit.ts",
+    "migration:restore-test": "tsx scripts/migration/restore-test.ts",
+    "migration:finalize": "tsx scripts/migration/finalize.ts",
+    "migration:triage": "tsx scripts/migration/triage.ts",
+    "migration:benchmark": "tsx --env-file-if-exists=.env.local scripts/migration/benchmark.ts",
+    "migration:package": "tsx scripts/migration/package.ts",
+    "migration:reconcile-provider": "tsx --env-file-if-exists=.env.local scripts/migration/reconcile-provider.ts"
   },
   "dependencies": {
     "@paystack/inline-js": "^2.26.0",
