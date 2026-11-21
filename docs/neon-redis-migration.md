@@ -54,9 +54,9 @@ Phase 1 implementation, source register, private-artifact handling and remaining
 
 - Choose a Neon PostgreSQL region close to the Vercel execution region. Reconfirm availability and pricing before provisioning; Object Storage availability is not a requirement for this migration.
 - Configure a paid production project, recovery history, monitoring and billing alerts.
-- Use separate development/staging environments.
+- **Simplified setup approved 20 November 2026:** use one Neon project/database and the existing login, configured through `NEON_CONNECTION_STRING`. Use disposable local PostgreSQL for synthetic tests; no additional Neon development/staging projects are required.
 - Keep production customer data out of ordinary preview branches; use synthetic or sanitised fixtures. Ensure previews cannot use copied file references or production storage credentials to access or delete customer files.
-- Separate runtime credentials from schema-migration credentials.
+- Use the same login for runtime/schema setup for now, accepting its broader schema-owner permissions. Keep the connection secret out of browsers and previews; introducing restricted roles later remains optional.
 - Retain existing Vercel Blob and R2 configuration, bucket access controls and CORS settings. Do not provision Neon Object Storage for this migration.
 
 ### Application structure
@@ -78,9 +78,13 @@ Before implementation, read the installed Next.js guides required by `AGENTS.md`
 - Add explicit expiry timestamps and cleanup jobs instead of relying on Redis TTLs.
 - Preserve live/test separation through explicit environment ownership and constraints.
 
-**Deliverable:** tested schema, adapters and repeatable import tooling, with no production behaviour change.
+**Deliverable (simplified scope):** tested initial review/custom-hat schema and data-access foundation, with no production behaviour change. Build repeatable domain import tooling in Phase 3 and add later-domain schemas as needed rather than provisioning the whole migration upfront.
+
+Phase 2 implementation scope, local runbook and remaining infrastructure/schema gates: [PostgreSQL data-access foundation](neon-redis-phase-2.md).
 
 ## 4. Phase 3 — Build safe import and cutover tooling
+
+Review/custom-hat importer, offline capture comparison, read-only destination verification and the manual cutover runbook: [Phase 3 import tooling](neon-redis-phase-3.md). The owner-approved **291-entity bulk import is completed and verified** in Neon, with recovery risk explicitly accepted for that import. Redis remains authoritative; final paused reconciliation and production cutover remain separate steps.
 
 Every importer must be:
 
@@ -109,6 +113,8 @@ Read-only shadow comparisons can run beforehand, but must never trigger external
 ## 5. Phase 4 — Migrate review and custom-design records
 
 These provide a lower-risk first production slice.
+
+Opt-in application paths, local tests and outstanding production gates: [Phase 4 review/custom-design paths](neon-redis-phase-4.md). Redis remains active by default; implementation is not production cutover approval.
 
 ### Business records
 
