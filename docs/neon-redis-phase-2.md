@@ -1,6 +1,6 @@
 # Phase 2 — simple Neon foundation
 
-**Current status — 20 November 2026:** both versioned migrations are now applied (zero pending); the separately owner-approved review/custom-hat bulk import has **291 SQL-verified entities**, 142 minimal order-reference stubs and 291 checkpoints. The app remains on Redis. The zero-row observations below describe the original foundation setup, before that import; see [actual import outcome](neon-redis-phase-3.md#owner-approved-neon-bulk-import--20-november-2026).
+**Current status — 21 November 2026:** both migrations are applied; the initial 291-entity copy was finally reconciled to **293 matching entities**, and review/custom-design reads/writes are now live on Neon. Other domains remain on Redis. The zero-row observations below describe the original setup before import; see [import history](neon-redis-phase-3.md#owner-approved-neon-bulk-import--20-november-2026) and [completed cutover/rollback log](neon-redis-cutover.md).
 
 ## Current setup
 
@@ -55,7 +55,7 @@ Migration commands load `.env` then `.env.local`; existing shell variables take 
 
 The **review/custom-hat bulk import is completed and verified**: [Phase 3 outcome and remaining gates](neon-redis-phase-3.md). Its checkpoint schema is applied. The owner approved keeping only the published member of the three-review conflict; the imported plan excludes the two rejected duplicates and has zero quarantines. Preserve Blob URLs/R2 keys and reconcile final changes/in-flight ownership before a later domain cutover. Add order/automation/inventory schemas only when those domains are next.
 
-The user confirmed Neon's recovery window is set to **7 days**, then deferred restore troubleshooting and explicitly accepted unverified recovery for the completed bulk import. The outstanding Phase 1 provider billing/recovery exports remain recorded there; they do not block local development. No production behaviour switch, file migration, automatic cleanup or recovery-settings change is authorised by the schema/import approval.
+The user confirmed Neon's recovery window is set to **7 days**, then deferred restore troubleshooting and explicitly accepted unverified recovery for the bulk import and, separately, the completed production cutover. The outstanding Phase 1 provider billing/recovery exports remain recorded there. No file migration, automatic source-key cleanup or recovery-settings change was authorised or performed.
 
 ## Validation — 20 November 2026
 

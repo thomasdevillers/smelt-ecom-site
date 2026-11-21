@@ -1,6 +1,6 @@
 # Phase 3 — review/custom-hat import tooling
 
-Status: **owner-approved review/custom-hat bulk import completed in Neon and verified: 291 matching entities, no missing/changed/unexpected rows. Both schema migrations are applied. The app remains on Redis; no production read/write cutover occurred.**
+Status: **initial bulk import completed and verified on 20 November (291 entities); final paused reconciliation and production cutover completed on 21 November (293 matching entities).** Review/custom-design reads and writes now use Neon. Both schema migrations are applied. See the [cutover and rollback log](neon-redis-cutover.md); bulk-import observations below remain historical evidence, not the current application-store selection.
 
 Continuation: offline capture comparison and read-only destination verification are implemented and tested locally. Automatic changed-record/deletion reconciliation and the actual domain switch remain deferred; these tools deliberately report drift rather than resolve it silently.
 
@@ -143,7 +143,7 @@ Capture used allowlisted Redis reads only. Planning/comparison authenticated and
 - Private successful verification: `.local/migration/2026-11-20T07-26-52-062Z/review-custom-1795160529256/verification.private.json`.
 - The **66 targeted importer/foundation/domain tests** passed before application. No code/deployment/environment changes, Redis writes, email/payment/AI calls or Blob/R2 operations occurred during the import/verification.
 
-**Next:** Redis is still authoritative and may receive new writes. Final domain pause/drain, a new capture, reconciliation against this imported checkpoint baseline, verification and explicit cutover approval are still required before switching the app. Changed/deleted source records must not be forced through the insert-only importer by clearing checkpoints.
+**At bulk-import completion:** Redis remained authoritative. The subsequent pause/drain, final captures, exact one-submission reconciliation, SQL verification and separately approved cutover were completed on 21 November; see the [cutover log](neon-redis-cutover.md). Changed/deleted source records were not forced through by clearing checkpoints.
 
 ### Earlier local validation
 
@@ -155,4 +155,4 @@ Capture used allowlisted Redis reads only. Planning/comparison authenticated and
 - TypeScript remains blocked only by the existing duplicate `.next/types` generated declarations; no importer-file type errors remain.
 - No customer-data import, Neon schema modification, source mutation, provider call or external-file operation occurred during the earlier dry runs. The later explicitly approved Neon import is recorded separately above; the working database is no longer empty.
 
-Neon recovery history is confirmed by the user as **7 days**. Recovery troubleshooting is **deferred at the owner's request**; the attempted restore remains unverified, not passed. See [recovery-test status](neon-redis-recovery-test.md). The owner separately accepted this risk for the bulk import above; production cutover remains a separate decision.
+Neon recovery history is confirmed by the user as **7 days**. Recovery troubleshooting is **deferred at the owner's request**; the attempted restore remains unverified, not passed. The owner separately accepted that risk for the bulk import and the later production cutover. See [recovery-test status](neon-redis-recovery-test.md) and [cutover evidence](neon-redis-cutover.md).

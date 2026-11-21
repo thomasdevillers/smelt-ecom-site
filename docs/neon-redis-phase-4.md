@@ -1,8 +1,8 @@
 # Phase 4 — review/custom-design application paths
 
-Status: **application paths implemented and tested locally, not activated in production**. Redis is still authoritative. The separately approved **291-entity bulk import is now completed and verified** in Neon, and both schema migrations are applied. No deployment, application read/write switch or provider-file operation occurred. See [import outcome and evidence](neon-redis-phase-3.md#owner-approved-neon-bulk-import--20-november-2026).
+Status: **review/custom-design reads and writes are live on Neon as of 21 November 2026**. Both schema migrations are applied. The initial 291-entity copy was reconciled to **293 matching entities** under a production domain pause, then the SQL-backed app was deployed and resumed. Existing Blob/R2 locations are unchanged. See the [actual cutover, commits, smoke results and rollback rules](neon-redis-cutover.md). Recovery remains unverified/accepted; full real-provider write-lifecycle smoke checks remain follow-up work.
 
-**21 November:** the owner approved proceeding with the production cutover despite unverified recovery, requesting clean commits first. Scoped migration commits and an annotated pre-cutover code tag are now recorded in the [cutover/rollback runbook](neon-redis-cutover.md). Approval does not bypass final pause, drift or access checks; actual production actions are recorded there as performed.
+**21 November:** the owner approved proceeding despite unverified recovery and requested clean commits first. Three scoped commits plus the annotated pre-cutover tag were created and pushed before resume. Final pause, drift reconciliation, SQL verification and live read/privacy/link checks were performed; none of the provider files were migrated or deleted.
 
 ## Small configuration surface
 
@@ -16,7 +16,7 @@ REVIEW_CUSTOM_PAUSED=false
 - `REVIEW_CUSTOM_PAUSED=true` rejects review/custom-design mutations, upload reservations, outreach/reward workers, ranking jobs and temporary-state cleanup before they start work. Reads remain available. Invalid nonempty pause values block mutations too.
 - These settings are **deployment/process scoped**, not a distributed lock. Drain old deployments, requests, running jobs, manually launched scripts and authorised uploads before the final capture. Deploying a pause does not cancel work already running or revoke already-issued provider URLs. Include custom-submission notification sends in that drain.
 
-Leave the store set to `redis` until the cutover gates below pass. Merely setting a connection string does not activate PostgreSQL.
+The actual Production/operator settings are now `postgres` / `false`; the example above remains the safe default for an unconfigured deployment. Do not copy production credentials to previews. Merely setting a connection string does not activate PostgreSQL.
 
 ## Implemented behaviour
 
@@ -56,7 +56,9 @@ The importer now gives a missing/replaced current-invitation pointer precedence 
 
 This changes semantic checksums/digests for affected invitations. The corrected importer was dry-run, compared against a current capture, explicitly approved and bulk-imported using its exact reviewed digest. No earlier imported rows needed updating because the destination was empty before that import. For future captures, treat changed-source checkpoints as a reconciliation gate, not permission to clear them.
 
-## Cutover gates — still outstanding
+## Cutover procedure and remaining acceptance work
+
+The production pause/reconciliation/switch/resume steps below were executed on 21 November; the [cutover log](neon-redis-cutover.md) is the current status. Recovery, full real-provider upload/submission/moderation/deletion smoke checks, extended monitoring and a tested post-write recovery/reconciliation exercise are not yet complete. No automatic Redis cleanup is authorised.
 
 ### Cutover preflight — 20 November 2026
 
@@ -69,14 +71,14 @@ This changes semantic checksums/digests for affected invitations. The corrected 
 
 Use the [Phase 3 manual runbook](neon-redis-phase-3.md#minimal-reviewcustom-hat-cutover-runbook-not-yet-executed), with the pause/switch controls above:
 
-1. Recovery remains unverified/deferred; seven-day history alone is not a tested restore. The owner explicitly accepted that risk for the completed schema application/bulk import, **not** an application cutover. Obtain a separate cutover decision without representing recovery as passed.
+1. Recovery remains unverified/deferred; seven-day history alone is not a tested restore. The owner accepted that risk for the bulk import, then separately approved the production cutover on 21 November. Neither approval represents recovery as passed.
 2. Prepare a paused deployment on Redis; stop/drain all affected writers/jobs, including `/api/cron/review-cleanup` and in-flight custom alerts/uploads. Verify no old process can mutate these records. Do not interrupt unrelated checkout/payment ingestion.
 3. Capture final paused state, review its fresh plan/digest and compare against the baseline. Resolve changed/deleted records and in-flight ownership. The insert-only importer still **does not update/delete an earlier bulk import**; separately reviewed reconciliation remains necessary if drift exists.
 4. Both schema migrations and the approved bulk import are now applied; do not rewrite/reapply schema to force reconciliation. Reconcile final changes against the imported baseline. Require zero quarantines and matching read-only verification counts/checksums for the final capture; unchanged/new entities can use the existing checkpointed importer, while edits/deletions need reviewed reconciliation.
 5. While still paused, select `postgres` for both domain reads and writes across the web app/jobs/manual tools. Check imported original links, admin views, rankings, pending/rejected photo privacy and unchanged file references. Confirm all old Redis writers have stopped.
 6. Resume, then perform controlled upload/submission/moderation/removal smoke checks against the existing Blob/R2 integrations. Monitor SQL/provider errors and workers; do not replay historical messages/rewards. Retain old Redis business keys read-only for the agreed validation period.
 
-**Rollback:** before SQL application writes, leave/revert the selection to Redis and keep the imported copy inactive. After SQL accepts application writes, freeze this domain and reconcile/roll forward; simply switching the environment variable back is unsafe. Bulk import is complete, but recovery verification, paused final reconciliation, provider smoke checks and the post-application-write rollback exercise remain unexecuted. The Phase 4 completion gate is therefore **not yet met**.
+**Rollback:** the app is now resumed on SQL. Freeze this domain and reconcile/roll forward; simply switching the environment variable or promoting the old Redis deployment is unsafe. Final reconciliation and live read/privacy checks passed, but the deferred recovery/full provider write-lifecycle/post-write rollback exercises must not be represented as passed. Operational cutover is complete; the remaining acceptance checks are tracked separately.
 
 ## Validation
 

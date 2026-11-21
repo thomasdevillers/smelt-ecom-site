@@ -84,7 +84,7 @@ Phase 2 implementation scope, local runbook and remaining infrastructure/schema 
 
 ## 4. Phase 3 — Build safe import and cutover tooling
 
-Review/custom-hat importer, offline capture comparison, read-only destination verification and the manual cutover runbook: [Phase 3 import tooling](neon-redis-phase-3.md). The owner-approved **291-entity bulk import is completed and verified** in Neon, with recovery risk explicitly accepted for that import. Redis remains authoritative; final paused reconciliation and production cutover remain separate steps.
+Review/custom-hat importer, offline capture comparison and read-only verification: [Phase 3 tooling](neon-redis-phase-3.md). The 291-entity bulk copy was reconciled to **293 matching entities under a domain pause**, then the separately approved production cutover completed on 21 November. Review/custom-design reads/writes now use Neon; see [cutover and rollback evidence](neon-redis-cutover.md). Recovery remains unverified with risk explicitly accepted; other domains are not switched by this slice.
 
 Every importer must be:
 
@@ -114,7 +114,7 @@ Read-only shadow comparisons can run beforehand, but must never trigger external
 
 These provide a lower-risk first production slice.
 
-Opt-in application paths, local tests and outstanding production gates: [Phase 4 review/custom-design paths](neon-redis-phase-4.md). Redis remains active by default; implementation is not production cutover approval.
+Review/custom-design paths are **live on Neon after the approved 21 November cutover**: [Phase 4 status](neon-redis-phase-4.md), [actual cutover and rollback log](neon-redis-cutover.md). Final paused reconciliation matched 293 entities; live read/privacy checks passed. Other domains remain on Redis. Recovery and full real-provider write-lifecycle acceptance remain explicitly tracked, not inferred from deployment success.
 
 ### Business records
 
