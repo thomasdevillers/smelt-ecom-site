@@ -6,6 +6,7 @@ import { reviewRequestEmail } from "./emails/reviewRequest";
 import { reviewRewardEmail } from "./emails/reviewReward";
 import { createReviewInvitation, hasCurrentReviewInvitation, hasReviewForOrder } from "./reviewStore";
 import { getStoredReward, publicVoucherReward, rewardQueueKey } from "./vouchers";
+import { assertReviewCustomWritable } from "./reviewCustomPersistence";
 
 export const REVIEW_REQUEST_DELAY_DAYS = 10;
 const SEND_WINDOW = 23 * 60 * 60 * 1000;
@@ -25,6 +26,7 @@ function configuration() {
 }
 
 async function deliver(key: string, idempotencyKey: string, proposed: Extract<Receipt, { status: "pending" }>): Promise<Receipt> {
+  assertReviewCustomWritable();
   const db = adminStore();
   const receipt = await db.eval<unknown[], Receipt>(
     "redis.call('SET', KEYS[1], ARGV[1], 'NX'); return redis.call('GET', KEYS[1])",
@@ -56,6 +58,7 @@ export function reviewRewardsConfigured() {
 }
 
 export async function processReviewRequests(now = Date.now()) {
+  assertReviewCustomWritable();
   const db = adminStore();
   const lock = randomUUID();
   const lockKey = `${prefix()}:request-lock`;
@@ -115,6 +118,7 @@ export async function processReviewRequests(now = Date.now()) {
 }
 
 export async function sendReviewReward(reviewId: string) {
+  assertReviewCustomWritable();
   const reward = await getStoredReward(reviewId);
   if (!reward) throw new Error("review_reward_not_found");
   const message = { from: configuration().from, to: reward.email, ...reviewRewardEmail({ voucher: publicVoucherReward(reward) }) };
@@ -124,6 +128,7 @@ export async function sendReviewReward(reviewId: string) {
 }
 
 export async function processReviewRewards() {
+  assertReviewCustomWritable();
   const db = adminStore();
   const ids = await db.zrange<string[]>(rewardQueueKey(), 0, Date.now(), { byScore: true, offset: 0, count: 10 });
   const counts = { sent: 0, errors: 0 };

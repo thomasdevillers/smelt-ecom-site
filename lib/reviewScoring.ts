@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import { adminStore } from "./admin/store";
 import { listReviewRecords } from "./reviewStore";
 import { reviewNamespace, type ReviewNamespace } from "./reviewNamespace";
+import { assertReviewCustomWritable, reviewCustomDatabase, reviewCustomStore } from "./reviewCustomPersistence";
+import { reviewDomain } from "./db/review-domain";
 import { REVIEW_MAX_PHOTO_BYTES, REVIEW_MAX_PHOTOS, type ReviewRecord } from "./reviews";
 import {
   currentReviewRanking, parseReviewScores, reviewFingerprint, reviewRankingEnabled,
@@ -124,12 +126,14 @@ export function reviewScoringFailure(error: unknown): string {
 }
 
 export async function processReviewRankings(options: { id?: string; limit?: number; mode?: ReviewNamespace; ignoreRetryBackoff?: boolean } = {}) {
+  assertReviewCustomWritable();
   if (!reviewRankingEnabled() || !process.env.OPENAI_API_KEY) return { enabled: false, scored: 0, failed: 0 };
   const db = adminStore();
   const mode = options.mode ?? reviewNamespace();
+  const pg = reviewCustomStore() === "postgres" ? reviewDomain(await reviewCustomDatabase(), mode) : null;
   const prefix = reviewRankingPrefix(mode);
   const reviews = (await listReviewRecords("published", mode)).filter(review => !options.id || review.id === options.id);
-  const rankings = await db.hgetall<Record<string, ReviewRanking>>(`${prefix}:scores`) || {};
+  const rankings = pg ? await pg.rankings() : await db.hgetall<Record<string, ReviewRanking>>(`${prefix}:scores`) || {};
   let scored = 0;
   let failed = 0;
   let attempted = 0;
@@ -137,7 +141,7 @@ export async function processReviewRankings(options: { id?: string; limit?: numb
   for (const review of reviews.filter(item => !currentReviewRanking(item, rankings[item.id]))) {
     if (attempted >= Math.min(options.limit ?? 3, 3)) break;
     const retryKey = `${prefix}:retry:${review.id}`;
-    const retry = await db.get<{ fingerprint: string; attempts: number; nextAttemptAt: number }>(retryKey);
+    const retry = pg ? await pg.retry(review.id) : await db.get<{ fingerprint: string; attempts: number; nextAttemptAt: number }>(retryKey);
     const sameInput = retry?.fingerprint === reviewFingerprint(review);
     if (!options.ignoreRetryBackoff && sameInput && retry.nextAttemptAt > Date.now()) continue;
     const lock = `${prefix}:lock:${review.id}`;
@@ -145,21 +149,27 @@ export async function processReviewRankings(options: { id?: string; limit?: numb
     if (!await db.set(lock, token, { nx: true, ex: 180 })) continue;
     try {
       // Recheck after acquiring the lease; another worker may have just finished.
-      const existing = await db.hget<ReviewRanking>(`${prefix}:scores`, review.id);
+      const existing = pg ? (await pg.rankings())[review.id] : await db.hget<ReviewRanking>(`${prefix}:scores`, review.id);
       if (currentReviewRanking(review, existing ?? undefined)) continue;
       attempted++;
       const ranking = await scoreReview(review);
       // Separate scores never overwrite moderation or photo changes. Fingerprints
       // prevent a result from being used if the source changed during scoring.
-      await db.hset(`${prefix}:scores`, { [review.id]: ranking });
-      await db.del(retryKey);
+      if (pg) {
+        await pg.saveRanking(review.id, ranking);
+      } else {
+        await db.hset(`${prefix}:scores`, { [review.id]: ranking });
+        await db.del(retryKey);
+      }
       scored++;
     } catch (error) {
       failed++;
       console.error("Review helpfulness scoring failed", { reviewId: review.id, reason: reviewScoringFailure(error) });
       const attempts = sameInput ? retry.attempts + 1 : 1;
-      await db.set(retryKey, { fingerprint: reviewFingerprint(review), attempts,
-        nextAttemptAt: Date.now() + Math.min(24, 2 ** Math.min(attempts - 1, 5)) * 3_600_000 }, { ex: 7 * 86400 });
+      const nextRetry = { fingerprint: reviewFingerprint(review), attempts,
+        nextAttemptAt: Date.now() + Math.min(24, 2 ** Math.min(attempts - 1, 5)) * 3_600_000 };
+      if (pg) await pg.saveRetry(review.id, { ...nextRetry, sourceExpiresAt: new Date(Date.now() + 7 * 86400_000).toISOString() });
+      else await db.set(retryKey, nextRetry, { ex: 7 * 86400 });
     } finally { await db.eval(RELEASE_LOCK, [lock], [token]); }
   }
   return { enabled: true, scored, failed };

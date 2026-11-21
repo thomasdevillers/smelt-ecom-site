@@ -1,11 +1,12 @@
-import { adminStore } from "../lib/admin/store";
-import { listReviewRecords } from "../lib/reviewStore";
-import { currentReviewRanking, rankReviewRecords, reviewRankingPrefix, type ReviewRanking } from "../lib/reviewRanking";
+import { listReviewRecords, listSavedReviewRankings } from "../lib/reviewStore";
+import { currentReviewRanking, rankReviewRecords } from "../lib/reviewRanking";
+import { assertReviewCustomWritable, reviewCustomStore } from "../lib/reviewCustomPersistence";
 import { processReviewRankings } from "../lib/reviewScoring";
 import { reviewRankingCredentialIssues, reviewRankingOptions } from "./review-ranking-options";
 
 async function main() {
   const options = reviewRankingOptions(process.argv.slice(2));
+  if (options.score) assertReviewCustomWritable();
   const reviews = await listReviewRecords(undefined, options.mode);
   const published = reviews.filter(review => review.status === "published");
   console.log(`Mode: ${options.mode.toUpperCase()}. Published reviews: ${published.length}. Pending: ${reviews.filter(review => review.status === "pending").length}. Rejected: ${reviews.filter(review => review.status === "rejected").length}.`);
@@ -19,9 +20,9 @@ async function main() {
   if (!published.length) {
     const otherMode = options.mode === "live" ? "test" : "live";
     const other = await listReviewRecords("published", otherMode);
-    console.log(`No published reviews in ${options.mode.toUpperCase()}. ${otherMode.toUpperCase()} has ${other.length} published reviews in the configured Redis database.`);
+    console.log(`No published reviews in ${options.mode.toUpperCase()}. ${otherMode.toUpperCase()} has ${other.length} published reviews in the configured ${reviewCustomStore()} database.`);
     if (other.length) console.log(`Use: npm run reviews:rank -- --${otherMode}${options.score ? " --score" : " --check"}`);
-    else console.log("Check that .env.local points to the same Upstash database as the live site, and that the reviews are published.");
+    else console.log("Check that .env.local uses the same review store as the live site, and that the reviews are published.");
     if (options.score) process.exitCode = 1;
     return;
   }
@@ -36,7 +37,7 @@ async function main() {
     }
     // Explicit paid backfill, independent of the storefront rollout flag.
     process.env.REVIEW_RANKING_ENABLED = "true";
-    const existing = await adminStore().hgetall<Record<string, ReviewRanking>>(`${reviewRankingPrefix(options.mode)}:scores`) || {};
+    const existing = await listSavedReviewRankings(options.mode);
     // A manual rerun retries immediately, but only once per review per command.
     // Keep background-job backoff and concurrency locks intact.
     for (const review of published.filter(review => !currentReviewRanking(review, existing[review.id]))) {
@@ -44,7 +45,7 @@ async function main() {
       console.log("Scoring batch:", result);
     }
   }
-  const rankings = await adminStore().hgetall<Record<string, ReviewRanking>>(`${reviewRankingPrefix(options.mode)}:scores`) || {};
+  const rankings = await listSavedReviewRankings(options.mode);
   const remaining = published.filter(review => !currentReviewRanking(review, rankings[review.id])).length;
   if (options.score && remaining) {
     console.error(`${remaining} published review(s) still need scores. They failed or are locked by another worker. Check the failure codes above; rerun this command to retry immediately.`);
@@ -63,6 +64,6 @@ main().catch(error => {
   // Only display our own configuration/argument errors; provider/Redis errors
   // can contain credentials, request details or upstream response bodies.
   const safe = error instanceof Error && /^(Use --|Choose either|Scoring requires)/.test(error.message);
-  console.error(safe ? error.message : "Review ranking failed. Check Redis, OpenAI and Blob configuration; no secrets were logged.");
+  console.error(safe ? error.message : "Review ranking failed. Check the review store, pause setting, OpenAI and Blob configuration; no secrets were logged.");
   process.exitCode = 1;
 });

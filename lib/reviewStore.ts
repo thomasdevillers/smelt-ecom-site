@@ -4,6 +4,8 @@ import { AdminError, adminStore, digest } from "./admin/store";
 import { completionKey, findPaidOrdersByEmail, getPaidOrder } from "./admin/orders";
 import { PRODUCT, type Colour } from "./product";
 import { reviewNamespace, type ReviewNamespace } from "./reviewNamespace";
+import { assertReviewCustomWritable, reviewCustomDatabase, reviewCustomStore } from "./reviewCustomPersistence";
+import { reviewDomain } from "./db/review-domain";
 import { currentReviewRanking, rankReviewRecords, reviewRankingPrefix, type ReviewRanking } from "./reviewRanking";
 import {
   REVIEW_INVITATION_DAYS,
@@ -29,6 +31,7 @@ const claimKey = (tokenDigest: string) => `${prefix()}:claim:${tokenDigest}`;
 const orderClaimKey = (reference: string) => `${prefix()}:order:${digest(reference)}:review`;
 const uploadPathsKey = (tokenDigest: string) => `${prefix()}:upload-paths:${tokenDigest}`;
 const accessRateKey = (value: string) => `${prefix()}:access-rate:${digest(value)}`;
+const pgReviews = async (namespace = mode()) => reviewDomain(await reviewCustomDatabase(), namespace);
 
 // New Vercel Blob connections use short-lived OIDC credentials at runtime and
 // expose the connected store through BLOB_STORE_ID. Older connections can
@@ -72,6 +75,7 @@ function coloursFromOrder(items: Array<{ colour: string }>): Colour[] {
 }
 
 export async function createReviewInvitation(reference: string, options: { photosRequired?: boolean } = {}) {
+  assertReviewCustomWritable();
   const order = await getPaidOrder(reference);
   const db = adminStore();
   if (!await db.hget<string>(completionKey(), reference))
@@ -93,20 +97,27 @@ export async function createReviewInvitation(reference: string, options: { photo
     photosRequired: options.photosRequired !== false,
   };
   const ttl = REVIEW_INVITATION_DAYS * 24 * 60 * 60;
-  await db.set(inviteKey(tokenDigest), invitation, { ex: ttl });
-  await db.set(currentInviteKey(reference), tokenDigest, { ex: ttl });
+  if (reviewCustomStore() === "postgres") {
+    await (await pgReviews()).createInvitation(tokenDigest, invitation);
+  } else {
+    await db.set(inviteKey(tokenDigest), invitation, { ex: ttl });
+    await db.set(currentInviteKey(reference), tokenDigest, { ex: ttl });
+  }
   return { token, expiresAt: invitation.expiresAt, email: invitation.email, suggestedName: invitation.suggestedName, photosRequired: invitation.photosRequired };
 }
 
 export async function hasCurrentReviewInvitation(reference: string): Promise<boolean> {
+  if (reviewCustomStore() === "postgres") return (await pgReviews()).hasInvitation(reference);
   return Boolean(await adminStore().get<string>(currentInviteKey(reference)));
 }
 
 export async function hasReviewForOrder(reference: string): Promise<boolean> {
+  if (reviewCustomStore() === "postgres") return (await pgReviews()).hasReview(reference);
   return (await listReviewRecords()).some(review => review.orderReference === reference);
 }
 
 export async function createReviewInvitationForEmail(input: unknown, ip: string) {
+  assertReviewCustomWritable();
   const email = typeof input === "string" ? input.trim().toLowerCase() : "";
   if (email.length > 254 || !/^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(email))
     throw new AdminError("Enter the email address used at checkout.");
@@ -130,9 +141,9 @@ return 1`, [accessRateKey(`ip:${ip}`), accessRateKey(`email:${email}`)], []);
   }
   const [completed, stored] = await Promise.all([
     db.hgetall<Record<string, string>>(completionKey()),
-    db.hgetall<Record<string, ReviewRecord | string>>(recordsKey()),
+    listReviewRecords(),
   ]);
-  const reviewed = new Set(Object.values(stored || {}).map(normalizedRecord).filter(Boolean).map(review => review!.orderReference));
+  const reviewed = new Set(stored.map(review => review.orderReference));
   const order = orders.find(candidate => completed?.[candidate.reference] && !reviewed.has(candidate.reference));
   if (!order) {
     if (orders.some(candidate => reviewed.has(candidate.reference)))
@@ -145,6 +156,7 @@ return 1`, [accessRateKey(`ip:${ip}`), accessRateKey(`email:${email}`)], []);
 async function invitationForToken(token: string): Promise<{ invitation: ReviewInvitation; tokenDigest: string; used: boolean } | null> {
   if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
   const tokenDigest = digest(token);
+  if (reviewCustomStore() === "postgres") return (await pgReviews()).invitation(tokenDigest);
   const db = adminStore();
   const invitation = parseStored(await db.get<ReviewInvitation>(inviteKey(tokenDigest)));
   if (!invitation || Date.parse(invitation.expiresAt) <= Date.now()) return null;
@@ -176,6 +188,11 @@ export async function getPublicInvitation(token: string): Promise<PublicInvitati
 }
 
 export async function reservePhotoUpload(token: string, pathname: string) {
+  assertReviewCustomWritable();
+  if (reviewCustomStore() === "postgres") {
+    if (!/^[A-Za-z0-9_-]{43}$/.test(token)) throw new AdminError("This review link is invalid or has expired.", 404);
+    return (await pgReviews()).reserveUpload(digest(token), pathname);
+  }
   const found = await invitationForToken(token);
   if (!found) throw new AdminError("This review link is invalid or has expired.", 404);
   if (found.used) throw new AdminError("This review link has already been used.", 409);
@@ -204,6 +221,7 @@ redis.call('ZADD', KEYS[5], ARGV[4], ARGV[2])
 return 1`;
 
 export async function submitReview(token: string, input: unknown) {
+  assertReviewCustomWritable();
   const found = await invitationForToken(token);
   if (!found) throw new AdminError("This review link is invalid or has expired.", 404);
   if (found.used)
@@ -249,14 +267,18 @@ export async function submitReview(token: string, input: unknown) {
     publishedAt: null,
     consentVersion: "2026-09-17",
   };
-  const db = adminStore();
-  const result = await db.eval(
-    SUBMIT_REVIEW,
-    [inviteKey(found.tokenDigest), currentInviteKey(order.reference), claimKey(found.tokenDigest), recordsKey(), statusKey("pending"), orderClaimKey(order.reference)],
-    [found.tokenDigest, id, JSON.stringify(review), String(Date.parse(submittedAt))],
-  );
-  if (result === 0) throw new AdminError("This review link has already been used.", 409);
-  if (result !== 1) throw new AdminError("This review link is invalid or has expired.", 404);
+  if (reviewCustomStore() === "postgres") {
+    await (await pgReviews()).submit(found.tokenDigest, review);
+  } else {
+    const db = adminStore();
+    const result = await db.eval(
+      SUBMIT_REVIEW,
+      [inviteKey(found.tokenDigest), currentInviteKey(order.reference), claimKey(found.tokenDigest), recordsKey(), statusKey("pending"), orderClaimKey(order.reference)],
+      [found.tokenDigest, id, JSON.stringify(review), String(Date.parse(submittedAt))],
+    );
+    if (result === 0) throw new AdminError("This review link has already been used.", 409);
+    if (result !== 1) throw new AdminError("This review link is invalid or has expired.", 404);
+  }
   return { id, status: "pending" as const };
 }
 
@@ -266,6 +288,7 @@ function normalizedRecord(value: ReviewRecord | string): ReviewRecord | null {
 }
 
 export async function listReviewRecords(status?: ReviewStatus, namespace: ReviewNamespace = mode()): Promise<ReviewRecord[]> {
+  if (reviewCustomStore() === "postgres") return (await pgReviews(namespace)).list(status);
   const stored = await adminStore().hgetall<Record<string, ReviewRecord | string>>(`smelt:reviews:v1:${namespace}:records`) || {};
   return Object.values(stored)
     .map(normalizedRecord)
@@ -275,7 +298,8 @@ export async function listReviewRecords(status?: ReviewStatus, namespace: Review
 
 export async function getReviewPhoto(id: string, index: number, allowUnpublished = false) {
   if (!/^[0-9a-f-]{36}$/.test(id) || !Number.isSafeInteger(index) || index < 0) return null;
-  const review = normalizedRecord(await adminStore().hget<ReviewRecord | string>(recordsKey(), id) as ReviewRecord | string);
+  const review = reviewCustomStore() === "postgres" ? await (await pgReviews()).find(id)
+    : normalizedRecord(await adminStore().hget<ReviewRecord | string>(recordsKey(), id) as ReviewRecord | string);
   if (!review || (review.status !== "published" && !allowUnpublished)) return null;
   return review.photos[index] ?? null;
 }
@@ -285,7 +309,7 @@ export async function listPublishedReviews(namespace: ReviewNamespace = mode()):
   let sort: "helpful" | "newest" = "newest";
   // Serving saved scores does not require the flags used to generate rankings.
   try {
-    const rankings = await adminStore().hgetall<Record<string, ReviewRanking>>(`${reviewRankingPrefix(namespace)}:scores`) || {};
+    const rankings = await listSavedReviewRankings(namespace);
     if (records.some(review => currentReviewRanking(review, rankings[review.id]))) {
       records = rankReviewRecords(records, rankings);
       sort = "helpful";
@@ -298,7 +322,19 @@ export async function listPublishedReviews(namespace: ReviewNamespace = mode()):
 }
 
 export async function moderateReview(id: string, status: "published" | "rejected") {
+  assertReviewCustomWritable();
   if (!/^[0-9a-f-]{36}$/.test(id)) throw new AdminError("Invalid review.");
+  if (reviewCustomStore() === "postgres") {
+    const repo = await pgReviews();
+    const updated = await repo.update(id, review => ({ ...review, status, publishedAt: status === "published" ? review.publishedAt || new Date().toISOString() : null }));
+    if (status !== "rejected" || !updated.photos.length || !blobUploadMode()) return updated;
+    // Rejection is committed before deleting files, so public access is closed.
+    return repo.update(id, async review => {
+      if (review.status !== "rejected" || !review.photos.length) return review;
+      await del(review.photos.map(photo => photo.url));
+      return { ...review, photos: [] };
+    });
+  }
   const db = adminStore();
   const review = normalizedRecord(await db.hget<ReviewRecord | string>(recordsKey(), id) as ReviewRecord | string);
   if (!review) throw new AdminError("Review not found.", 404);
@@ -319,9 +355,11 @@ export async function moderateReview(id: string, status: "published" | "rejected
 }
 
 export async function editReviewText(id: string, body: unknown) {
+  assertReviewCustomWritable();
   if (!/^[0-9a-f-]{36}$/.test(id)) throw new AdminError("Invalid review.");
   if (typeof body !== "string" || body.trim().length < 3 || body.trim().length > 1600)
     throw new AdminError("Review text must be between 3 and 1,600 characters.");
+  if (reviewCustomStore() === "postgres") return (await pgReviews()).update(id, review => ({ ...review, body: body.trim() }));
   const db = adminStore();
   const review = normalizedRecord(await db.hget<ReviewRecord | string>(recordsKey(), id) as ReviewRecord | string);
   if (!review) throw new AdminError("Review not found.", 404);
@@ -331,6 +369,13 @@ export async function editReviewText(id: string, body: unknown) {
 }
 
 export async function removeReviewPhoto(id: string, url: string) {
+  assertReviewCustomWritable();
+  if (reviewCustomStore() === "postgres") return (await pgReviews()).update(id, async review => {
+    const photo = review.photos.find(item => item.url === url);
+    if (!photo) throw new AdminError("Photo not found.", 404);
+    if (blobUploadMode()) await del(photo.url);
+    return { ...review, photos: review.photos.filter(item => item.url !== url) };
+  });
   const db = adminStore();
   const review = normalizedRecord(await db.hget<ReviewRecord | string>(recordsKey(), id) as ReviewRecord | string);
   if (!review) throw new AdminError("Review not found.", 404);
@@ -343,3 +388,8 @@ export async function removeReviewPhoto(id: string, url: string) {
 }
 
 export function productName() { return PRODUCT.name; }
+
+export async function listSavedReviewRankings(namespace: ReviewNamespace = mode()): Promise<Record<string, ReviewRanking>> {
+  if (reviewCustomStore() === "postgres") return (await pgReviews(namespace)).rankings();
+  return await adminStore().hgetall<Record<string, ReviewRanking>>(`${reviewRankingPrefix(namespace)}:scores`) || {};
+}

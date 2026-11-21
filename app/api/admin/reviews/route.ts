@@ -6,6 +6,7 @@ import type { ReviewStatus } from "@/lib/reviews";
 import { after } from "next/server";
 import { processReviewRankings } from "@/lib/reviewScoring";
 import { invalidatePublishedReviews } from "@/lib/publishedReviews";
+import { assertReviewCustomWritable } from "@/lib/reviewCustomPersistence";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -57,6 +58,7 @@ export async function PATCH(request: Request) {
   try {
     requireSameOrigin(request);
     await requireAdmin();
+    assertReviewCustomWritable();
     const body = await readAdminBody(request);
     if (body.action === "markMessageSent") {
       if (typeof body.reference !== "string" || !/^[a-zA-Z0-9_.=\-]{1,200}$/.test(body.reference)) throw new AdminError("A valid order reference is required.");

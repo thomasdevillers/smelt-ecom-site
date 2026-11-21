@@ -3,9 +3,11 @@ import { renderEmail } from "../emails/layout";
 import { absoluteUrl, escapeHtml } from "../emails/theme";
 import { feltColour } from "./palette";
 import { totalHats, type CustomHatSubmission } from "./shared";
+import { assertReviewCustomWritable } from "../reviewCustomPersistence";
 
-/** Best-effort alert to our own inbox. Never throws. */
+/** Best-effort alert to our own inbox; the cutover pause rejects before sending. */
 export async function notifyCustomHatSubmission(submission: CustomHatSubmission, revision: number) {
+  assertReviewCustomWritable();
   const to = process.env.CUSTOM_HATS_NOTIFY_TO || "hello@saunahat.co.za";
   if (!process.env.RESEND_API_KEY || !process.env.ORDER_FROM_EMAIL) return;
   const { contact } = submission;
