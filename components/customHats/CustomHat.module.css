@@ -39,12 +39,9 @@
 /* ---------- Designer ---------- */
 .designer{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:28px;align-items:start}
 .stage{position:sticky;top:20px;display:grid;justify-items:center;gap:14px;padding:30px 24px 26px;border-radius:var(--radius-card);background:radial-gradient(120% 90% at 50% 30%,#fffdf7 0%,#efe8d6 100%);border:1px solid rgba(14,59,42,.12)}
+.stageNote{margin:-6px 0 0;max-width:300px;text-align:center;font-size:12px;line-height:1.5;color:rgba(14,59,42,.6)}
 .stageCaption{margin:0;font-family:var(--font-bricolage),sans-serif;font-size:22px;font-weight:700;letter-spacing:-.02em}
 .stageCaption span{font-family:var(--font-space),sans-serif;font-size:12px;font-weight:600;letter-spacing:.06em;color:rgba(14,59,42,.55);margin-left:6px}
-.stageTag{margin:-6px 0 0;font-size:13px;color:rgba(14,59,42,.7)}
-.viewToggle{display:inline-flex;padding:4px;border-radius:999px;background:rgba(14,59,42,.08)}
-.viewToggle button{min-width:84px;min-height:36px;border:0;border-radius:999px;background:transparent;color:var(--ink);font:inherit;font-size:13px;font-weight:700;cursor:pointer}
-.viewToggle button[aria-pressed=true]{background:var(--ink);color:var(--paper)}
 .options{display:grid;gap:26px;min-width:0}
 .hatHead{display:flex;align-items:baseline;justify-content:space-between;gap:16px}
 .hatHead h2{margin:0;font-size:34px}
@@ -133,14 +130,6 @@ label.option,.optionToggle{display:flex;align-items:flex-start;gap:14px;cursor:p
 .hatColour{position:absolute;inset:0;background:var(--felt);-webkit-mask:var(--shade) center/contain no-repeat;mask:var(--shade) center/contain no-repeat;transition:background-color .35s ease}
 .hatShade{position:absolute;inset:0;width:100%;height:100%;mix-blend-mode:multiply;pointer-events:none;user-select:none}
 .hat:not(.hatSmall){filter:drop-shadow(0 24px 30px rgba(10,44,32,.25))}
-.hatLogo{position:absolute;left:46%;top:61%;width:34%;height:20%;transform:translate(-50%,-50%);display:grid;place-items:center}
-.hatLogoBack{left:48%;top:70%;width:36%;height:15%}
-.hatLogo img{max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 1px 0 rgba(0,0,0,.25))}
-.hatLogo span{padding:6px 10px;border:1.5px dashed rgba(255,253,247,.85);border-radius:8px;color:#fffdf7;font-size:max(9px,3.4cqw);font-weight:700;letter-spacing:.06em;text-transform:uppercase;mix-blend-mode:difference}
-.hatTag{position:absolute;left:14.4%;top:79%;width:7.6%;height:11.5%;display:grid;place-items:center;background:#f7f3e8;border-radius:1px;box-shadow:0 1px 2px rgba(0,0,0,.25);transform:rotate(-3deg);overflow:hidden}
-.hatTagBack{left:auto;right:12%;transform:rotate(3deg)}
-.hatTag span{writing-mode:vertical-rl;transform:rotate(180deg);font-size:max(4px,1.6cqw);font-weight:700;line-height:1;color:#0e3b2a;white-space:nowrap;overflow:hidden;max-height:92%}
-.hatSmall .hatTag span{display:none}
 
 @media (max-width:860px){
   .designer{grid-template-columns:1fr}

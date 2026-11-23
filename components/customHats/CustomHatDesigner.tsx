@@ -1,5 +1,5 @@
 "use client";
-/* eslint-disable @next/next/no-img-element -- swatch-book photos and uploaded artwork previews. */
+/* eslint-disable @next/next/no-img-element -- swatch-book photos and uploaded artwork thumbnails. */
 import Link from "next/link";
 import { useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { feltColour, SWATCH_BOOK_PHOTOS } from "@/lib/customHats/palette";
@@ -20,7 +20,8 @@ import {
   type LogoSide,
 } from "@/lib/customHats/shared";
 import FeltPicker from "./FeltPicker";
-import HatPreview, { type PreviewLogo } from "./HatPreview";
+import HatPreview from "./HatPreview";
+import { prepareLogoFile } from "./prepareLogo";
 import styles from "./CustomHat.module.css";
 
 const BLANK_HEX = "#d9d2c3";
@@ -30,6 +31,7 @@ const SIDE_COPY: Record<LogoSide, { title: string; detail: string }> = {
   front: { title: "Logo on the front", detail: "Embroidered on the front panel, where Smelt sits on ours." },
   back: { title: "Logo on the back", detail: "A second mark on the back, just above the brim." },
 };
+const UPLOAD_ACCEPT = `${CUSTOM_HAT_FILE_ACCEPT},image/heic,image/heif,.heic,.heif`;
 
 interface Draft { savedAt: string; contact: CustomHatContact; hats: HatDesign[]; notes: string }
 
@@ -43,7 +45,6 @@ export default function CustomHatDesigner({ token }: { token: string }) {
   const [hats, setHats] = useState<HatDesign[]>([]);
   const [notes, setNotes] = useState("");
   const [active, setActive] = useState(0);
-  const [view, setView] = useState<LogoSide>("front");
   const [localFiles, setLocalFiles] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<{ at: string; message: string } | null>(null);
@@ -89,11 +90,6 @@ export default function CustomHatDesigner({ token }: { token: string }) {
   const hat = hats[Math.min(active, hats.length - 1)];
   const fileSrc = (placement: LogoPlacement) =>
     placement.fileKey && isImage(placement.fileType) ? localFiles[placement.fileKey] || invite?.files?.[placement.fileKey] || null : null;
-  const previewLogo = (placement: LogoPlacement): PreviewLogo => ({
-    enabled: placement.enabled,
-    src: fileSrc(placement),
-    label: placement.fileKey ? (placement.fileType === "application/pdf" ? "PDF logo" : "Logo") : "Your logo",
-  });
 
   function updateHat(id: string, change: (hat: HatDesign) => HatDesign) {
     setHats(current => current.map(h => h.id === id ? change(h) : h));
@@ -104,7 +100,7 @@ export default function CustomHatDesigner({ token }: { token: string }) {
   function addHat() {
     if (hats.length >= CUSTOM_HAT_MAX_DESIGNS) return;
     setHats(current => [...current, newHatDesign(uid())]);
-    setActive(hats.length); setView("front"); setError("");
+    setActive(hats.length); setError("");
   }
   function duplicateHat(source: HatDesign) {
     if (hats.length >= CUSTOM_HAT_MAX_DESIGNS) return;
@@ -119,14 +115,18 @@ export default function CustomHatDesigner({ token }: { token: string }) {
     setActive(Math.max(0, index - 1));
   }
 
-  async function uploadLogo(id: string, side: LogoSide, file: File | undefined) {
-    if (!file) return;
+  async function uploadLogo(id: string, side: LogoSide, original: File | undefined) {
+    if (!original) return;
     const at = `${id}:${side}`;
     setUploadError(null);
-    if (!(file.type in CUSTOM_HAT_FILE_TYPES)) return setUploadError({ at, message: "Logos must be PNG, JPEG, WebP, SVG or PDF files." });
-    if (file.size > CUSTOM_HAT_MAX_FILE_BYTES) return setUploadError({ at, message: "That file is over 15 MB. Try a smaller export." });
     setUploading(at);
     try {
+      // Same approach as review photos: phone photos (HEIC, oversized or
+      // unlabelled files) are redrawn in the browser and saved as WebP/JPEG
+      // with a content type that matches the bytes.
+      const file = await prepareLogoFile(original);
+      if (!(file.type in CUSTOM_HAT_FILE_TYPES)) throw new Error("Logos must be PNG, JPEG, WebP, SVG or PDF files.");
+      if (file.size > CUSTOM_HAT_MAX_FILE_BYTES) throw new Error("That file is over 15 MB. Try a smaller export.");
       const response = await fetch(`/api/custom-hats/${encodeURIComponent(token)}/upload`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contentType: file.type, size: file.size }),
       });
@@ -134,7 +134,7 @@ export default function CustomHatDesigner({ token }: { token: string }) {
       if (!response.ok || !grant.key || !grant.url) throw new Error(grant.error || "Could not start the upload.");
       let put: Response;
       try { put = await fetch(grant.url, { method: "PUT", headers: grant.headers, body: file }); }
-      catch { throw new Error("The upload was blocked by the network. Please try again."); }
+      catch { throw new Error("We couldn’t reach our file storage. Please try again, or describe the logo in the notes and we’ll ask for the file."); }
       if (!put.ok) throw new Error("The upload did not finish. Please try again.");
       if (isImage(file.type)) {
         const src = URL.createObjectURL(file);
@@ -188,13 +188,13 @@ export default function CustomHatDesigner({ token }: { token: string }) {
     <section className={styles.message}>
       <span>SMELT / CUSTOM HATS</span>
       <h1>Designs received.</h1>
-      <p>Thanks {firstName}. We&rsquo;ll look over your {hats.length === 1 ? "design" : `${hats.length} designs`} and come back to you with a mock-up and quote{contact.email ? ` at ${contact.email}` : ""}.</p>
+      <p>Thanks {firstName}. We&rsquo;ll go through your {hats.length === 1 ? "hat" : `${hats.length} hats`} and logo files, design the mock-ups ourselves and send them to you{contact.email ? ` at ${contact.email}` : ""} with a quote. If we need a better file or more detail, we&rsquo;ll ask.</p>
       {submittedAt && <p className={styles.hint}>Sent {new Intl.DateTimeFormat("en-ZA", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Johannesburg" }).format(new Date(submittedAt))}. You can still make changes with this link.</p>}
     </section>
     <div className={styles.receivedGrid}>{hats.map((h, i) => {
       const colour = feltColour(h.colour);
       return <article key={h.id} className={styles.receivedCard}>
-        <HatPreview size="small" hex={colour?.hex || BLANK_HEX} side={!h.front.enabled && h.back.enabled ? "back" : "front"} front={previewLogo(h.front)} back={previewLogo(h.back)} tag={h.tag.enabled ? h.tag.text : null} />
+        <HatPreview size="small" hex={colour?.hex || BLANK_HEX} />
         <div><strong>Hat {i + 1} · {h.quantity}×</strong><span>{colour ? `${colour.name} · ${colour.code}` : "No colour"}</span>
           <span>{[h.front.enabled && "Front logo", h.back.enabled && "Back logo", h.tag.enabled && `Tag “${h.tag.text}”`].filter(Boolean).join(" · ") || "Plain felt"}</span></div>
       </article>;
@@ -208,7 +208,7 @@ export default function CustomHatDesigner({ token }: { token: string }) {
     <header className={styles.intro}>
       <span>SMELT / CUSTOM HATS</span>
       <h1>Make it <em>yours</em>.</h1>
-      <p>Hi {firstName}. Pick a felt, add your logo front or back, and put your words on the tag. Design as many hats as you like, then send them over. We&rsquo;ll reply with a mock-up and quote.</p>
+      <p>Hi {firstName}. Pick a felt colour, tell us where your logo goes and what the tag should say, and send us your files. Add as many hats as you like. You don&rsquo;t need to design anything: once we have everything, we&rsquo;ll make the mock-ups and send them to you to approve.</p>
     </header>
 
     <form onSubmit={submit} className={styles.form}>
@@ -226,8 +226,8 @@ export default function CustomHatDesigner({ token }: { token: string }) {
       <nav className={styles.hatTabs} aria-label="Your hat designs">
         {hats.map((h, i) => {
           const c = feltColour(h.colour);
-          return <button type="button" key={h.id} aria-current={i === active ? "true" : undefined} onClick={() => { setActive(i); setView("front"); }}>
-            <HatPreview size="small" hex={c?.hex || BLANK_HEX} side="front" front={previewLogo(h.front)} back={previewLogo(h.back)} tag={h.tag.enabled ? h.tag.text : null} />
+          return <button type="button" key={h.id} aria-current={i === active ? "true" : undefined} onClick={() => setActive(i)}>
+            <HatPreview size="small" hex={c?.hex || BLANK_HEX} />
             <span><strong>Hat {i + 1}</strong>{c ? `${c.name} · ${h.quantity}×` : "Choose a colour"}</span>
           </button>;
         })}
@@ -236,13 +236,9 @@ export default function CustomHatDesigner({ token }: { token: string }) {
 
       <section className={styles.designer} aria-label={`Hat ${active + 1}`}>
         <div className={styles.stage}>
-          <HatPreview hex={colour?.hex || BLANK_HEX} side={view} front={previewLogo(hat.front)} back={previewLogo(hat.back)} tag={hat.tag.enabled ? hat.tag.text : null} />
-          <div className={styles.viewToggle} role="group" aria-label="Preview side">
-            <button type="button" aria-pressed={view === "front"} onClick={() => setView("front")}>Front</button>
-            <button type="button" aria-pressed={view === "back"} onClick={() => setView("back")}>Back</button>
-          </div>
+          <HatPreview hex={colour?.hex || BLANK_HEX} />
           <p className={styles.stageCaption}>{colour ? <>{colour.name} <span>{colour.code}</span></> : "Pick a felt to see it here"}</p>
-          {hat.tag.enabled && <p className={styles.stageTag}>Tag reads <strong>&ldquo;{hat.tag.text || "…"}&rdquo;</strong></p>}
+          <p className={styles.stageNote}>Colour preview only. We&rsquo;ll place your logo and tag in the mock-up we design for you.</p>
         </div>
 
         <div className={styles.options}>
@@ -267,10 +263,11 @@ export default function CustomHatDesigner({ token }: { token: string }) {
 
           <fieldset className={styles.group}>
             <legend className={styles.stepLabel}><b>2</b>Logos</legend>
+            <p className={styles.hint}>Send whatever you have. A vector file (SVG or PDF) is best, but a clear PNG or photo works too. We&rsquo;ll prepare it for embroidery and show you the result before anything is made.</p>
             {(["front", "back"] as const).map(side => <LogoOption key={side} side={side} placement={hat[side]} previewSrc={fileSrc(hat[side])}
               uploading={uploading === `${hat.id}:${side}`} error={uploadError?.at === `${hat.id}:${side}` ? uploadError.message : ""} uploadsEnabled={!!invite.uploadsEnabled}
-              onToggle={enabled => { updatePlacement(hat.id, side, enabled ? { enabled } : emptyPlacement()); if (enabled) setView(side); }}
-              onFile={file => { setView(side); void uploadLogo(hat.id, side, file); }}
+              onToggle={enabled => updatePlacement(hat.id, side, enabled ? { enabled } : emptyPlacement())}
+              onFile={file => void uploadLogo(hat.id, side, file)}
               onClear={() => updatePlacement(hat.id, side, { fileKey: null, fileName: null, fileType: null })}
               onNotes={value => updatePlacement(hat.id, side, { notes: value })} />)}
           </fieldset>
@@ -307,7 +304,7 @@ export default function CustomHatDesigner({ token }: { token: string }) {
         </label>
         {error && <p className={styles.error} role="alert">{error}</p>}
         <button className={styles.submit} disabled={busy || !!uploading}>{busy ? "Sending…" : uploading ? "Waiting for upload…" : `Send ${hats.length === 1 ? "my design" : `${hats.length} designs`} · ${totals} hats →`}</button>
-        <p className={styles.hint}>{submittedAt ? "Sending again replaces your previous designs." : "No payment now. We’ll confirm everything with you first."}</p>
+        <p className={styles.hint}>{submittedAt ? "Sending again replaces your previous designs." : "No payment now. We’ll design your mock-ups and confirm everything with you first."}</p>
       </section>
     </form>
     {swatchBook}
@@ -338,13 +335,13 @@ function LogoOption({ side, placement, previewSrc, uploading, error, uploadsEnab
       {placement.fileKey ? <div className={styles.logoFile}>
         <div className={styles.logoThumb}>{previewSrc ? <img src={previewSrc} alt="" /> : <span>{placement.fileType === "application/pdf" ? "PDF" : "FILE"}</span>}</div>
         <span>{placement.fileName}</span>
-        <label className={styles.textButton}>Replace<input type="file" hidden accept={CUSTOM_HAT_FILE_ACCEPT} disabled={uploading} onChange={e => { onFile(e.target.files?.[0]); e.target.value = ""; }} /></label>
+        <label className={styles.textButton}>Replace<input type="file" hidden accept={UPLOAD_ACCEPT} disabled={uploading} onChange={e => { onFile(e.target.files?.[0]); e.target.value = ""; }} /></label>
         <button type="button" className={styles.textButton} onClick={onClear}>Remove</button>
       </div> : uploadsEnabled ? <label htmlFor={inputId} className={`${styles.dropzone} ${dragging ? styles.dropzoneOn : ""}`}
         onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={drop}>
         <strong>{uploading ? "Uploading…" : "Upload your logo"}</strong>
-        <span>Drop a file or tap to choose · PNG, JPEG, SVG or PDF · up to 15 MB</span>
-        <input id={inputId} type="file" hidden accept={CUSTOM_HAT_FILE_ACCEPT} disabled={uploading} onChange={e => { onFile(e.target.files?.[0]); e.target.value = ""; }} />
+        <span>Drop a file or tap to choose · SVG, PDF, PNG, JPEG or a photo · up to 15 MB</span>
+        <input id={inputId} type="file" hidden accept={UPLOAD_ACCEPT} disabled={uploading} onChange={e => { onFile(e.target.files?.[0]); e.target.value = ""; }} />
       </label> : <p className={styles.hint}>Uploads are unavailable right now. Describe the logo below and we&rsquo;ll ask for the file.</p>}
       {error && <p className={styles.error} role="alert">{error}</p>}
       <label className={styles.inlineField}><span>Notes <small>Optional</small></span>
