@@ -1,4 +1,5 @@
 import { PGlite } from "@electric-sql/pglite";
+import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -26,7 +27,7 @@ vi.mock("../admin/orders", () => ({ completionKey: () => "orders:completed", get
 vi.mock("@vercel/blob", () => ({ head: mocks.head, del: mocks.del, get: vi.fn(), BlobError: class extends Error {} }));
 vi.mock("../customHats/storage", () => ({ isR2Configured: () => true, r2: () => ({ uploadUrl: mocks.upload, downloadUrl: mocks.download, exists: mocks.exists, remove: mocks.remove }) }));
 
-const pg = new PGlite(), db = drizzle(pg, { schema });
+const pg = new PGlite({ extensions: { pg_trgm } }), db = drizzle(pg, { schema });
 const reviews = reviewDomain(db, "test"), requests = customHatDomain(db, "test");
 const order = { reference: "synthetic-order", email: "synthetic@example.invalid", name: "Synthetic Customer", items: [{ colour: "green" }] };
 const input = { rating: 5, body: "Original experience", displayName: "Synthetic", anonymous: false, photoUrls: [] as string[], consent: true };

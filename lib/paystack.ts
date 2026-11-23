@@ -6,6 +6,7 @@
 // Set PAYSTACK_SECRET_KEY in .env.local to accept live payments.
 
 const PAYSTACK_BASE = "https://api.paystack.co";
+import { paystackEventConfig } from "./paystackEventConfig";
 export class PaystackInitializationRejected extends Error {}
 
 /** True once a secret key is configured. Gate all live-payment UI on this. */
@@ -81,6 +82,7 @@ export interface VerifyResult {
 
 /** Verify a transaction by reference after the customer returns from Paystack. */
 export async function verifyTransaction(reference: string): Promise<VerifyResult> {
+  if (!/^[a-zA-Z0-9_.=\-]{1,200}$/.test(reference)) throw new Error("Invalid payment reference.");
   const res = await fetch(
     `${PAYSTACK_BASE}/transaction/verify/${encodeURIComponent(reference)}`,
     { headers: { Authorization: `Bearer ${secretKey()}` }, cache: "no-store", signal: AbortSignal.timeout(10_000) },
@@ -91,6 +93,11 @@ export async function verifyTransaction(reference: string): Promise<VerifyResult
     throw new Error(json?.message || "Paystack verify failed");
   }
   const d = json.data;
+  if (d?.reference !== reference) throw new Error("Payment reference mismatch.");
+  if (paystackEventConfig().store === "postgres" && d.status === "success") {
+    const { persistVerifiedPayment } = await import("./paystackEventWorker");
+    await persistVerifiedPayment(d);
+  }
   return {
     status: d.status,
     reference: d.reference,

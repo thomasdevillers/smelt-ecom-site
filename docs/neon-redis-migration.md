@@ -141,6 +141,8 @@ Preserve:
 
 ## 6. Phase 5 — Migrate order records and fulfilment
 
+**Ready for commit/review; production cutover pending:** local backfill/final reconciliation tooling, SQL order/fulfilment adapters and admin queries, shared durable payment handling, and provider/refund/dispute reconciliation are implemented and tested. The approved 22 November read-only preflight captured 327 live transactions and 164 distinct shipments. Shipping ownership decisions, the production write/cutover decision and final acceptance checks remain gates; no production migration or switch has occurred. See [Phase 5 handoff, evidence and resume runbook](neon-redis-phase-5.md).
+
 Backfill Paystack history into local order/payment tables, then migrate completion dates, review-message dates and shipping receipts.
 
 Add durable webhook ingestion:

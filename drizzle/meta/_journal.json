@@ -15,6 +15,27 @@
       "when": 1795155630701,
       "tag": "0001_review_custom_import_checkpoints",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795253604332,
+      "tag": "0002_order_fulfilment_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795254498143,
+      "tag": "0003_paystack_durable_inbox",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795274153969,
+      "tag": "0004_order_runtime_and_reconciliation",
+      "breakpoints": true
     }
   ]
 }

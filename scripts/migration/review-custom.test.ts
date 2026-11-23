@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
 import { PGlite } from "@electric-sql/pglite";
+import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { eq } from "drizzle-orm";
@@ -233,7 +234,7 @@ describe("authenticated archive input", () => {
 });
 
 describe("resumable insert-only import in isolated PostgreSQL", () => {
-  const pg = new PGlite(), db = drizzle(pg, { schema });
+  const pg = new PGlite({ extensions: { pg_trgm } }), db = drizzle(pg, { schema });
   const plan = planReviewCustomImport(fixture());
   beforeAll(async () => { await migrate(db, { migrationsFolder: "./drizzle" }); }, 30_000);
   afterAll(async () => { await pg.close(); });
@@ -315,7 +316,7 @@ describe("resumable insert-only import in isolated PostgreSQL", () => {
     expect(await db.select().from(schema.migrationImports)).toHaveLength(before);
   });
   it("imports and resumes the approved published-only plan without inserting excluded IDs or claims", async () => {
-    const isolated = new PGlite(), isolatedDb = drizzle(isolated, { schema });
+    const isolated = new PGlite({ extensions: { pg_trgm } }), isolatedDb = drizzle(isolated, { schema });
     try {
       await migrate(isolatedDb, { migrationsFolder: "./drizzle" });
       const source = duplicateFixture(), approved = planReviewCustomImport(source, singlePublishedOnlyResolution(source));

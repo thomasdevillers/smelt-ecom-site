@@ -15,7 +15,7 @@ export const environments = pgTable("environments", {
 
 export const customers = pgTable("customers", {
   environment: env(), id: text("id").notNull(), email: text("email").notNull(),
-  details: jsonb("details").$type<Record<string, unknown>>().notNull(), createdAt: date("created_at").notNull(),
+  details: jsonb("details").$type<Record<string, unknown>>().notNull(), createdAt: date("created_at"), observedAt: date("observed_at"),
 }, t => [primaryKey({ columns: [t.environment, t.id] }), index("customers_email").on(t.environment, t.email)]);
 
 // An order-reference stub is enough to preserve review ownership. Historical
@@ -26,15 +26,26 @@ export const orders = pgTable("orders", {
   paymentStatus: text("payment_status", { enum: ["unknown", "pending", "success", "failed", "reversed"] }).notNull(),
   snapshot: jsonb("snapshot").$type<Record<string, unknown>>().notNull(),
   createdAt: date("created_at"), completedAt: date("completed_at"), reviewMessageSentAt: date("review_message_sent_at"),
+  providerId: text("provider_id"), paidAt: date("paid_at"), observedAt: date("observed_at"),
+  reconcileAfter: date("reconcile_after"),
+  customerEmail: text("customer_email").notNull().default(""), customerName: text("customer_name").notNull().default(""),
+  searchText: text("search_text").notNull().default(""), preorder: jsonb("preorder").$type<import("../preorders").PreorderDetails>(),
+  paymentReview: text("payment_review").notNull().default("clear"),
 }, t => [primaryKey({ columns: [t.environment, t.reference] }),
   foreignKey({ columns: [t.environment, t.customerId], foreignColumns: [customers.environment, customers.id] }),
   check("order_payment_status", sql`${t.paymentStatus} in ('unknown','pending','success','failed','reversed')`),
   check("order_money", sql`(${t.amountMinor} is null and ${t.currency} is null) or (${t.amountMinor} is not null and ${t.currency} is not null and ${t.amountMinor} >= 0 and ${t.currency} ~ '^[A-Z]{3}$')`),
-  index("orders_completed").on(t.environment, t.completedAt, t.reference)]);
+  index("orders_completed").on(t.environment, t.completedAt, t.reference),
+  uniqueIndex("orders_provider_id").on(t.environment, t.providerId),
+  index("orders_payment_paid").on(t.environment, t.paymentStatus, t.paidAt, t.reference),
+  index("orders_reconcile_due").on(t.environment, t.reconcileAfter, t.reference),
+  index("orders_email_paid").on(t.environment, t.customerEmail, t.paymentStatus, t.paidAt),
+  index("orders_search").using("gin", sql`${t.searchText} gin_trgm_ops`),
+  check("orders_payment_review", sql`${t.paymentReview} in ('clear','refund','dispute')`)]);
 
 export const orderItems = pgTable("order_items", {
   environment: env(), reference: text("reference").notNull(), position: integer("position").notNull(),
-  quantity: integer("quantity").notNull(), unitPriceMinor: integer("unit_price_minor").notNull(), currency: text("currency").notNull(), snapshot: payload(),
+  quantity: integer("quantity").notNull(), unitPriceMinor: integer("unit_price_minor"), currency: text("currency").notNull(), snapshot: payload(),
 }, t => [primaryKey({ columns: [t.environment, t.reference, t.position] }),
   foreignKey({ columns: [t.environment, t.reference], foreignColumns: [orders.environment, orders.reference] }),
   check("item_values", sql`${t.quantity} > 0 and ${t.position} >= 0 and ${t.unitPriceMinor} >= 0 and ${t.currency} ~ '^[A-Z]{3}$'`)]);
@@ -109,3 +120,66 @@ export const migrationImports = pgTable("migration_imports", {
   archiveChecksum: text("archive_checksum").notNull(), targetTable: text("target_table").notNull(),
   importedAt: date("imported_at").notNull(),
 });
+
+// Immutable provider observations; imports never enqueue notifications or stock work.
+export const paymentSnapshots = pgTable("payment_snapshots", {
+  environment: env(), id: text("id").notNull(), orderReference: text("order_reference").notNull(),
+  observedAt: date("observed_at").notNull(), source: text("source").notNull(), payload: payload(),
+}, t => [primaryKey({ columns: [t.environment, t.id] }),
+  foreignKey({ columns: [t.environment, t.orderReference], foreignColumns: [orders.environment, orders.reference] }),
+  check("payment_snapshot_source", sql`${t.source} in ('backfill','verification','webhook')`),
+  index("payment_snapshot_order").on(t.environment, t.orderReference, t.observedAt)]);
+
+// An email/waybill receipt can exist without an order. Keep the frozen original
+// payload (including pending message and retry start) and exact source aliases.
+export const shipments = pgTable("shipments", {
+  environment: env(), id: text("id").notNull(), orderReference: text("order_reference"),
+  email: text("email").notNull(), trackingNumber: text("tracking_number").notNull(),
+  status: text("status", { enum: ["pending", "accepted"] }).notNull(),
+  startedAt: date("started_at").notNull(), payload: payload(),
+}, t => [primaryKey({ columns: [t.environment, t.id] }),
+  foreignKey({ columns: [t.environment, t.orderReference], foreignColumns: [orders.environment, orders.reference] }),
+  uniqueIndex("shipment_pair").on(t.environment, t.email, t.trackingNumber),
+  uniqueIndex("shipment_order").on(t.environment, t.orderReference),
+  check("shipment_status", sql`${t.status} in ('pending','accepted')`),
+  index("shipment_history").on(t.environment, t.email, t.startedAt)]);
+
+export const shipmentSources = pgTable("shipment_sources", {
+  environment: env(), sourceKey: text("source_key").notNull(), sourceField: text("source_field").notNull(), shipmentId: text("shipment_id").notNull(),
+}, t => [primaryKey({ columns: [t.environment, t.sourceKey, t.sourceField] }),
+  foreignKey({ columns: [t.environment, t.shipmentId], foreignColumns: [shipments.environment, shipments.id] })]);
+
+// Raw signed deliveries are retained independently of financial/email processing.
+export const paystackEvents = pgTable("paystack_events", {
+  environment: env(), id: text("id").notNull(), eventType: text("event_type").notNull(), reference: text("reference"),
+  raw: text("raw").notNull(), state: text("state").notNull().default("pending"),
+  receivedAt: date("received_at").notNull(), availableAt: date("available_at").notNull(),
+  attempts: integer("attempts").notNull().default(0), leaseToken: text("lease_token"), leaseUntil: date("lease_until"),
+  finishedAt: date("finished_at"), reason: text("reason"),
+  origin: text("origin").notNull().default("webhook"), resolution: jsonb("resolution").$type<Record<string, unknown>>(),
+}, t => [primaryKey({ columns: [t.environment, t.id] }),
+  check("paystack_event_state", sql`${t.state} in ('pending','processing','done','ignored','manual_review')`),
+  check("paystack_event_attempts", sql`${t.attempts} >= 0`),
+  index("paystack_event_due").on(t.environment, t.state, t.availableAt),
+  index("paystack_event_reference").on(t.environment, t.reference)]);
+
+// This is an automatic-attempt guard, NOT an email receipt. Ambiguous external
+// outcomes require reconciliation rather than automatically repeating the call.
+export const paystackEffects = pgTable("paystack_effects", {
+  environment: env(), reference: text("reference").notNull(), eventId: text("event_id").notNull(),
+  state: text("state").notNull(), startedAt: date("started_at").notNull(), finishedAt: date("finished_at"),
+}, t => [primaryKey({ columns: [t.environment, t.reference] }),
+  foreignKey({ columns: [t.environment, t.eventId], foreignColumns: [paystackEvents.environment, paystackEvents.id] }),
+  check("paystack_effect_state", sql`${t.state} in ('started','done','manual_review')`)]);
+
+export const paymentAdjustments = pgTable("payment_adjustments", {
+  environment: env(), kind: text("kind").notNull(), id: text("id").notNull(), reference: text("reference"),
+  status: text("status").notNull(), amountMinor: integer("amount_minor"), currency: text("currency"),
+  observedAt: date("observed_at").notNull(), payload: payload(),
+}, t => [primaryKey({ columns: [t.environment, t.kind, t.id] }),
+  check("adjustment_kind", sql`${t.kind} in ('refund','dispute')`), index("adjustment_reference").on(t.environment, t.reference)]);
+
+export const providerSync = pgTable("provider_sync", {
+  environment: env(), stream: text("stream").notNull(), page: integer("page").notNull().default(1),
+  windowEnd: date("window_end").notNull(), completedAt: date("completed_at"), leaseToken: text("lease_token"), leaseUntil: date("lease_until"),
+}, t => [primaryKey({ columns: [t.environment, t.stream] }), check("provider_sync_page", sql`${t.page} > 0`)]);

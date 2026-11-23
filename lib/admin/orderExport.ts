@@ -1,5 +1,6 @@
-import { completionKey, listPaidTransactions, normalizeOrder } from "./orders";
-import { AdminError, adminStore } from "./store";
+import { listPaidTransactions, normalizeOrder } from "./orders";
+import { AdminError } from "./store";
+import { completedOrderDates } from "../orderFulfilment";
 
 const HEADERS = [
   "Order reference", "Paid date (SAST)", "Paid time (SAST)", "Customer name", "Customer email",
@@ -30,7 +31,7 @@ function paidDateTime(value: string | null) {
  */
 export async function exportOrdersCsv() {
   const transactions = await listPaidTransactions();
-  const completed = await adminStore().hgetall<Record<string, string>>(completionKey());
+  const completed = await completedOrderDates();
   const seen = new Set<string>();
   const orders = transactions.map(raw => {
     const data = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Resend } from "resend";
-import { completionKey } from "./admin/orders";
+import { completedOrderDates } from "./orderFulfilment";
+import { assertOrdersWritable } from "./orderPersistence";
 import { adminStore, digest } from "./admin/store";
 import { reviewRequestEmail } from "./emails/reviewRequest";
 import { reviewRewardEmail } from "./emails/reviewReward";
@@ -58,6 +59,7 @@ export function reviewRewardsConfigured() {
 }
 
 export async function processReviewRequests(now = Date.now()) {
+  assertOrdersWritable();
   assertReviewCustomWritable();
   const db = adminStore();
   const lock = randomUUID();
@@ -65,7 +67,7 @@ export async function processReviewRequests(now = Date.now()) {
   if (!await db.set(lockKey, lock, { nx: true, ex: 240 })) return { busy: true };
   const counts = { sent: 0, skipped: 0, errors: 0 };
   try {
-    const completed = await db.hgetall<Record<string, string>>(completionKey()) || {};
+    const completed = await completedOrderDates();
     const cutoff = now - REVIEW_REQUEST_DELAY_DAYS * 24 * 60 * 60 * 1000;
     const due = Object.entries(completed)
       .filter(([, completedAt]) => Number.isFinite(Date.parse(completedAt)) && Date.parse(completedAt) <= cutoff)

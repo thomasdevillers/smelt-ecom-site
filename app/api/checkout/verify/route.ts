@@ -12,6 +12,7 @@ import type { MetaClientContext } from "@/lib/meta";
 import { commitInventory } from "@/lib/inventory";
 import { commitVoucher, parseVoucherMetadata } from "@/lib/vouchers";
 import { getDeliveryAddress } from "@/lib/deliveryMap";
+import { paystackEventConfig } from "@/lib/paystackEventConfig";
 
 async function commitReservedStock(reservation: unknown, cart: CartState, reference: string): Promise<boolean> {
   if (reference.startsWith("smeltp-") && reservation !== reference) return false;
@@ -89,6 +90,7 @@ export async function POST(request: Request) {
       );
     }
 
+    if (paystackEventConfig().store === "legacy") {
     if (!await commitReservedStock(meta?.inventoryReservation, cart, verified.reference)) {
       console.error(`Inventory reservation mismatch for paid transaction ${reference}`);
       return Response.json(
@@ -116,6 +118,7 @@ export async function POST(request: Request) {
       request,
       client: body.metaClient,
     });
+    }
 
     return Response.json({ success: true });
   } catch (err) {
@@ -154,6 +157,7 @@ export async function GET(request: Request) {
     if (expectedAmount * 100 !== verified.amount || expectedAmount <= 0 || verified.currency !== "ZAR") {
       return Response.json({ error: "Payment total does not match the order." }, { status: 409 });
     }
+    if (paystackEventConfig().store === "legacy") {
     if (!await commitReservedStock(meta?.inventoryReservation, cart, verified.reference)) {
       console.error(`Inventory reservation mismatch for paid transaction ${reference}`);
       return Response.json({ error: "Payment received, but stock needs manual review. Please contact support with your reference." }, { status: 409 });
@@ -166,6 +170,7 @@ export async function GET(request: Request) {
       reference: verified.reference, email: verified.customerEmail ?? "", customerName: meta?.customerName, paidAt: verified.paidAt,
       amount: verified.amount, currency: verified.currency, cart, address: meta?.shippingAddress, shippingMethod: meta?.shippingMethod, preorder: meta?.preorder, voucher: meta?.voucher, unitPrice: meta?.unitPrice, pricingVersion: meta?.pricingVersion, attribution: meta?.attribution,
     }));
+    }
     return Response.json({
       paid: true,
       preorder: await resolvePurchasePreorder(verified.reference, meta?.preorder),

@@ -1,7 +1,9 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { del, head } from "@vercel/blob";
 import { AdminError, adminStore, digest } from "./admin/store";
-import { completionKey, findPaidOrdersByEmail, getPaidOrder } from "./admin/orders";
+import { findPaidOrdersByEmail, getPaidOrder } from "./admin/orders";
+import { completedOrderDates, orderCompletedAt } from "./orderFulfilment";
+import { assertOrdersWritable } from "./orderPersistence";
 import { PRODUCT, type Colour } from "./product";
 import { reviewNamespace, type ReviewNamespace } from "./reviewNamespace";
 import { assertReviewCustomWritable, reviewCustomDatabase, reviewCustomStore } from "./reviewCustomPersistence";
@@ -75,10 +77,11 @@ function coloursFromOrder(items: Array<{ colour: string }>): Colour[] {
 }
 
 export async function createReviewInvitation(reference: string, options: { photosRequired?: boolean } = {}) {
+  assertOrdersWritable();
   assertReviewCustomWritable();
   const order = await getPaidOrder(reference);
   const db = adminStore();
-  if (!await db.hget<string>(completionKey(), reference))
+  if (!await orderCompletedAt(reference))
     throw new AdminError("Mark this order complete before creating a review link.", 409);
   if (await hasReviewForOrder(reference))
     throw new AdminError("A review has already been submitted for this order.", 409);
@@ -140,7 +143,7 @@ return 1`, [accessRateKey(`ip:${ip}`), accessRateKey(`email:${email}`)], []);
     throw error;
   }
   const [completed, stored] = await Promise.all([
-    db.hgetall<Record<string, string>>(completionKey()),
+    completedOrderDates(),
     listReviewRecords(),
   ]);
   const reviewed = new Set(stored.map(review => review.orderReference));

@@ -1,0 +1,1787 @@
+{
+  "id": "c4528e4c-5647-4a41-bc07-41ef7654b8f3",
+  "prevId": "5c407366-b348-47f7-b094-baa03fe3a43c",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.custom_files": {
+      "name": "custom_files",
+      "schema": "",
+      "columns": {
+        "environment": {
+          "name": "environment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "file_key": {
+          "name": "file_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_id": {
+          "name": "request_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "custom_files_environment_environments_id_fk": {
+          "name": "custom_files_environment_environments_id_fk",
+          "tableFrom": "custom_files",
+          "tableTo": "environments",
+          "columnsFrom": [
+            "environment"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "custom_files_environment_request_id_custom_requests_environment_id_fk": {
+          "name": "custom_files_environment_request_id_custom_requests_environment_id_fk",
+          "tableFrom": "custom_files",
+          "tableTo": "custom_requests",
+          "columnsFrom": [
+            "environment",
+            "request_id"
+          ],
+          "columnsTo": [
+            "environment",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "custom_files_environment_file_key_pk": {
+          "name": "custom_files_environment_file_key_pk",
+          "columns": [
+            "environment",
+            "file_key"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.custom_requests": {
+      "name": "custom_requests",
+      "schema": "",
+      "columns": {
+        "environment": {
+          "name": "environment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_digest": {
+          "name": "token_digest",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_ciphertext": {
+          "name": "token_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "token": {
+          "name": "token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payload": {
+          "name": "payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "submitted_at": {
+          "name": "submitted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revision": {
+          "name": "revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "custom_token": {
+          "name": "custom_token",
+          "columns": [
+            {
+              "expression": "environment",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "token_digest",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "custom_requests_environment_environments_id_fk": {
+          "name": "custom_requests_environment_environments_id_fk",
+          "tableFrom": "custom_requests",
+          "tableTo": "environments",
+          "columnsFrom": [
+            "environment"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "custom_requests_environment_id_pk": {
+          "name": "custom_requests_environment_id_pk",
+          "columns": [
+            "environment",
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "custom_revision": {
+          "name": "custom_revision",
+          "value": "\"custom_requests\".\"revision\" >= 0"
+        },
+        "custom_digest": {
+          "name": "custom_digest",
+          "value": "\"custom_requests\".\"token_digest\" ~ '^[a-f0-9]{64}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.custom_revisions": {
+      "name": "custom_revisions",
+      "schema": "",
+      "columns": {
+        "environment": {
+          "name": "environment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_id": {
+          "name": "request_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "revision": {
+          "name": "revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "submission": {
+          "name": "submission",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "submitted_at": {
+          "name": "submitted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "custom_revisions_environment_environments_id_fk": {
+          "name": "custom_revisions_environment_environments_id_fk",
+          "tableFrom": "custom_revisions",
+          "tableTo": "environments",
+          "columnsFrom": [
+            "environment"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "custom_revisions_environment_request_id_custom_requests_environment_id_fk": {
+          "name": "custom_revisions_environment_request_id_custom_requests_environment_id_fk",
+          "tableFrom": "custom_revisions",
+          "tableTo": "custom_requests",
+          "columnsFrom": [
+            "environment",
+            "request_id"
+          ],
+          "columnsTo": [
+            "environment",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "custom_revisions_environment_request_id_revision_pk": {
+          "name": "custom_revisions_environment_request_id_revision_pk",
+          "columns": [
+            "environment",
+            "request_id",
+            "revision"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "custom_revision_positive": {
+          "name": "custom_revision_positive",
+          "value": "\"custom_revisions\".\"revision\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.customers": {
+      "name": "customers",
+      "schema": "",
+      "columns": {
+        "environment": {
+          "name": "environment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "details": {
+          "name": "details",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "customers_email": {
+          "name": "customers_email",
+          "columns": [
+            {
+              "expression": "environment",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "email",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "customers_environment_environments_id_fk": {
+          "name": "customers_environment_environments_id_fk",
+          "tableFrom": "customers",
+          "tableTo": "environments",
+          "columnsFrom": [
+            "environment"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "customers_environment_id_pk": {
+          "name": "customers_environment_id_pk",
+          "columns": [
+            "environment",
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.environments": {
+      "name": "environments",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "payment_mode": {
+          "name": "payment_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "environment_payment_mode": {
+          "name": "environment_payment_mode",
+          "value": "\"environments\".\"payment_mode\" in ('live', 'test', 'none')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.migration_imports": {
+      "name": "migration_imports",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "source_hash": {
+          "name": "source_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "archive_checksum": {
+          "name": "archive_checksum",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_table": {
+          "name": "target_table",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "imported_at": {
+          "name": "imported_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.order_items": {
+      "name": "order_items",
+      "schema": "",
+      "columns": {
+        "environment": {
+          "name": "environment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_price_minor": {
+          "name": "unit_price_minor",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payload": {
+          "name": "payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "order_items_environment_environments_id_fk": {
+          "name": "order_items_environment_environments_id_fk",
+          "tableFrom": "order_items",
+          "tableTo": "environments",
+          "columnsFrom": [
+            "environment"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "order_items_environment_reference_orders_environment_reference_fk": {
+          "name": "order_items_environment_reference_orders_environment_reference_fk",
+          "tableFrom": "order_items",
+          "tableTo": "orders",
+          "columnsFrom": [
+            "environment",
+            "reference"
+          ],
+          "columnsTo": [
+            "environment",
+            "reference"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "order_items_environment_reference_position_pk": {
+          "name": "order_items_environment_reference_position_pk",
+          "columns": [
+            "environment",
+            "reference",
+            "position"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "item_values": {
+          "name": "item_values",
+          "value": "\"order_items\".\"quantity\" > 0 and \"order_items\".\"position\" >= 0 and \"order_items\".\"unit_price_minor\" >= 0 and \"order_items\".\"currency\" ~ '^[A-Z]{3}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.orders": {
+      "name": "orders",
+      "schema": "",
+      "columns": {
+        "environment": {
+          "name": "environment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "customer_id": {
+          "name": "customer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amount_minor": {
+          "name": "amount_minor",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payment_status": {
+          "name": "payment_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "snapshot": {
+          "name": "snapshot",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "review_message_sent_at": {
+          "name": "review_message_sent_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_id": {
+          "name": "provider_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "paid_at": {
+          "name": "paid_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "observed_at": {
+          "name": "observed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "orders_completed": {
+          "name": "orders_completed",
+          "columns": [
+            {
+              "expression": "environment",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "completed_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "reference",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "orders_provider_id": {
+          "name": "orders_provider_id",
+          "columns": [
+            {
+              "expression": "environment",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "provider_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "orders_payment_paid": {
+          "name": "orders_payment_paid",
+          "columns": [
+            {
+              "expression": "environment",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "payment_status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "paid_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "reference",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "orders_environment_environments_id_fk": {
+          "name": "orders_environment_environments_id_fk",
+          "tableFrom": "orders",
+          "tableTo": "environments",
+          "columnsFrom": [
+            "environment"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "orders_environment_customer_id_customers_environment_id_fk": {
+          "name": "orders_environment_customer_id_customers_environment_id_fk",
+          "tableFrom": "orders",
+          "tableTo": "customers",
+          "columnsFrom": [
+            "environment",
+            "customer_id"
+          ],
+          "columnsTo": [
+            "environment",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "orders_environment_reference_pk": {
+          "name": "orders_environment_reference_pk",
+          "columns": [
+            "environment",
+            "reference"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "order_payment_status": {
+          "name": "order_payment_status",
+          "value": "\"orders\".\"payment_status\" in ('unknown','pending','success','failed','reversed')"
+        },
+        "order_money": {
+          "name": "order_money",
+          "value": "(\"orders\".\"amount_minor\" is null and \"orders\".\"currency\" is null) or (\"orders\".\"amount_minor\" is not null and \"orders\".\"currency\" is not null and \"orders\".\"amount_minor\" >= 0 and \"orders\".\"currency\" ~ '^[A-Z]{3}$')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.payment_snapshots": {
+      "name": "payment_snapshots",
+      "schema": "",
+      "columns": {
+        "environment": {
+          "name": "environment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "order_reference": {
+          "name": "order_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "observed_at": {
+          "name": "observed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payload": {
+          "name": "payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "payment_snapshot_order": {
+          "name": "payment_snapshot_order",
+          "columns": [
+            {
+              "expression": "environment",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "order_reference",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "observed_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "payment_snapshots_environment_environments_id_fk": {
+          "name": "payment_snapshots_environment_environments_id_fk",
+          "tableFrom": "payment_snapshots",
+          "tableTo": "environments",
+          "columnsFrom": [
+            "environment"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "payment_snapshots_environment_order_reference_orders_environment_reference_fk": {
+          "name": "payment_snapshots_environment_order_reference_orders_environment_reference_fk",
+          "tableFrom": "payment_snapshots",
+          "tableTo": "orders",
+          "columnsFrom": [
+            "environment",
+            "order_reference"
+          ],
+          "columnsTo": [
+            "environment",
+            "reference"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "payment_snapshots_environment_id_pk": {
+          "name": "payment_snapshots_environment_id_pk",
+          "columns": [
+            "environment",
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "payment_snapshot_source": {
+          "name": "payment_snapshot_source",
+          "value": "\"payment_snapshots\".\"source\" in ('backfill','verification','webhook')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.review_claims": {
+      "name": "review_claims",
+      "schema": "",
+      "columns": {
+        "environment": {
+          "name": "environment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_digest": {
+          "name": "token_digest",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "order_reference": {
+          "name": "order_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "review_id": {
+          "name": "review_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "claimed_at": {
+          "name": "claimed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payload": {
+          "name": "payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "claim_one_per_order": {
+          "name": "claim_one_per_order",
+          "columns": [
+            {
+              "expression": "environment",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "order_reference",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "review_claims_environment_environments_id_fk": {
+          "name": "review_claims_environment_environments_id_fk",
+          "tableFrom": "review_claims",
+          "tableTo": "environments",
+          "columnsFrom": [
+            "environment"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "review_claims_environment_token_digest_review_invitations_environment_token_digest_fk": {
+          "name": "review_claims_environment_token_digest_review_invitations_environment_token_digest_fk",
+          "tableFrom": "review_claims",
+          "tableTo": "review_invitations",
+          "columnsFrom": [
+            "environment",
+            "token_digest"
+          ],
+          "columnsTo": [
+            "environment",
+            "token_digest"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "review_claims_environment_order_reference_orders_environment_reference_fk": {
+          "name": "review_claims_environment_order_reference_orders_environment_reference_fk",
+          "tableFrom": "review_claims",
+          "tableTo": "orders",
+          "columnsFrom": [
+            "environment",
+            "order_reference"
+          ],
+          "columnsTo": [
+            "environment",
+            "reference"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "review_claims_environment_review_id_reviews_environment_id_fk": {
+          "name": "review_claims_environment_review_id_reviews_environment_id_fk",
+          "tableFrom": "review_claims",
+          "tableTo": "reviews",
+          "columnsFrom": [
+            "environment",
+            "review_id"
+          ],
+          "columnsTo": [
+            "environment",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "review_claims_environment_token_digest_pk": {
+          "name": "review_claims_environment_token_digest_pk",
+          "columns": [
+            "environment",
+            "token_digest"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.review_invitations": {
+      "name": "review_invitations",
+      "schema": "",
+      "columns": {
+        "environment": {
+          "name": "environment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_digest": {
+          "name": "token_digest",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "order_reference": {
+          "name": "order_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payload": {
+          "name": "payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "invitation_current_order": {
+          "name": "invitation_current_order",
+          "columns": [
+            {
+              "expression": "environment",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "order_reference",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"review_invitations\".\"state\" = 'active'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "invitation_expiry": {
+          "name": "invitation_expiry",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "review_invitations_environment_environments_id_fk": {
+          "name": "review_invitations_environment_environments_id_fk",
+          "tableFrom": "review_invitations",
+          "tableTo": "environments",
+          "columnsFrom": [
+            "environment"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "review_invitations_environment_order_reference_orders_environment_reference_fk": {
+          "name": "review_invitations_environment_order_reference_orders_environment_reference_fk",
+          "tableFrom": "review_invitations",
+          "tableTo": "orders",
+          "columnsFrom": [
+            "environment",
+            "order_reference"
+          ],
+          "columnsTo": [
+            "environment",
+            "reference"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "review_invitations_environment_token_digest_pk": {
+          "name": "review_invitations_environment_token_digest_pk",
+          "columns": [
+            "environment",
+            "token_digest"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "invitation_state": {
+          "name": "invitation_state",
+          "value": "\"review_invitations\".\"state\" in ('active','revoked','used','expired')"
+        },
+        "invitation_digest": {
+          "name": "invitation_digest",
+          "value": "\"review_invitations\".\"token_digest\" ~ '^[a-f0-9]{64}$'"
+        },
+        "invitation_dates": {
+          "name": "invitation_dates",
+          "value": "\"review_invitations\".\"expires_at\" >= \"review_invitations\".\"created_at\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.review_rankings": {
+      "name": "review_rankings",
+      "schema": "",
+      "columns": {
+        "environment": {
+          "name": "environment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "review_id": {
+          "name": "review_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "result": {
+          "name": "result",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "retry_state": {
+          "name": "retry_state",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "review_rankings_environment_environments_id_fk": {
+          "name": "review_rankings_environment_environments_id_fk",
+          "tableFrom": "review_rankings",
+          "tableTo": "environments",
+          "columnsFrom": [
+            "environment"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "review_rankings_environment_review_id_reviews_environment_id_fk": {
+          "name": "review_rankings_environment_review_id_reviews_environment_id_fk",
+          "tableFrom": "review_rankings",
+          "tableTo": "reviews",
+          "columnsFrom": [
+            "environment",
+            "review_id"
+          ],
+          "columnsTo": [
+            "environment",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "review_rankings_environment_review_id_pk": {
+          "name": "review_rankings_environment_review_id_pk",
+          "columns": [
+            "environment",
+            "review_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.review_uploads": {
+      "name": "review_uploads",
+      "schema": "",
+      "columns": {
+        "environment": {
+          "name": "environment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pathname": {
+          "name": "pathname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_digest": {
+          "name": "token_digest",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "review_id": {
+          "name": "review_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "review_uploads_environment_environments_id_fk": {
+          "name": "review_uploads_environment_environments_id_fk",
+          "tableFrom": "review_uploads",
+          "tableTo": "environments",
+          "columnsFrom": [
+            "environment"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "review_uploads_environment_token_digest_review_invitations_environment_token_digest_fk": {
+          "name": "review_uploads_environment_token_digest_review_invitations_environment_token_digest_fk",
+          "tableFrom": "review_uploads",
+          "tableTo": "review_invitations",
+          "columnsFrom": [
+            "environment",
+            "token_digest"
+          ],
+          "columnsTo": [
+            "environment",
+            "token_digest"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "review_uploads_environment_review_id_reviews_environment_id_fk": {
+          "name": "review_uploads_environment_review_id_reviews_environment_id_fk",
+          "tableFrom": "review_uploads",
+          "tableTo": "reviews",
+          "columnsFrom": [
+            "environment",
+            "review_id"
+          ],
+          "columnsTo": [
+            "environment",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "review_uploads_environment_pathname_pk": {
+          "name": "review_uploads_environment_pathname_pk",
+          "columns": [
+            "environment",
+            "pathname"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.reviews": {
+      "name": "reviews",
+      "schema": "",
+      "columns": {
+        "environment": {
+          "name": "environment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "order_reference": {
+          "name": "order_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rating": {
+          "name": "rating",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "record": {
+          "name": "record",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "submitted_at": {
+          "name": "submitted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "published_at": {
+          "name": "published_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "review_one_per_order": {
+          "name": "review_one_per_order",
+          "columns": [
+            {
+              "expression": "environment",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "order_reference",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "review_moderation": {
+          "name": "review_moderation",
+          "columns": [
+            {
+              "expression": "environment",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "submitted_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "reviews_environment_environments_id_fk": {
+          "name": "reviews_environment_environments_id_fk",
+          "tableFrom": "reviews",
+          "tableTo": "environments",
+          "columnsFrom": [
+            "environment"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "reviews_environment_order_reference_orders_environment_reference_fk": {
+          "name": "reviews_environment_order_reference_orders_environment_reference_fk",
+          "tableFrom": "reviews",
+          "tableTo": "orders",
+          "columnsFrom": [
+            "environment",
+            "order_reference"
+          ],
+          "columnsTo": [
+            "environment",
+            "reference"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "reviews_environment_id_pk": {
+          "name": "reviews_environment_id_pk",
+          "columns": [
+            "environment",
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "review_status": {
+          "name": "review_status",
+          "value": "\"reviews\".\"status\" in ('pending','published','rejected')"
+        },
+        "review_rating": {
+          "name": "review_rating",
+          "value": "\"reviews\".\"rating\" between 1 and 5"
+        },
+        "review_publication": {
+          "name": "review_publication",
+          "value": "\"reviews\".\"status\" <> 'published' or \"reviews\".\"published_at\" is not null"
+        },
+        "review_record_identity": {
+          "name": "review_record_identity",
+          "value": "(\"reviews\".\"record\"->>'id' = \"reviews\".\"id\" and \"reviews\".\"record\"->>'orderReference' = \"reviews\".\"order_reference\" and \"reviews\".\"record\"->>'status' = \"reviews\".\"status\" and (\"reviews\".\"record\"->>'rating')::integer = \"reviews\".\"rating\") is true"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.shipment_sources": {
+      "name": "shipment_sources",
+      "schema": "",
+      "columns": {
+        "environment": {
+          "name": "environment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_key": {
+          "name": "source_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_field": {
+          "name": "source_field",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shipment_id": {
+          "name": "shipment_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "shipment_sources_environment_environments_id_fk": {
+          "name": "shipment_sources_environment_environments_id_fk",
+          "tableFrom": "shipment_sources",
+          "tableTo": "environments",
+          "columnsFrom": [
+            "environment"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "shipment_sources_environment_shipment_id_shipments_environment_id_fk": {
+          "name": "shipment_sources_environment_shipment_id_shipments_environment_id_fk",
+          "tableFrom": "shipment_sources",
+          "tableTo": "shipments",
+          "columnsFrom": [
+            "environment",
+            "shipment_id"
+          ],
+          "columnsTo": [
+            "environment",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "shipment_sources_environment_source_key_source_field_pk": {
+          "name": "shipment_sources_environment_source_key_source_field_pk",
+          "columns": [
+            "environment",
+            "source_key",
+            "source_field"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.shipments": {
+      "name": "shipments",
+      "schema": "",
+      "columns": {
+        "environment": {
+          "name": "environment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "order_reference": {
+          "name": "order_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tracking_number": {
+          "name": "tracking_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payload": {
+          "name": "payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "shipment_pair": {
+          "name": "shipment_pair",
+          "columns": [
+            {
+              "expression": "environment",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "email",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "tracking_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "shipment_order": {
+          "name": "shipment_order",
+          "columns": [
+            {
+              "expression": "environment",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "order_reference",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "shipment_history": {
+          "name": "shipment_history",
+          "columns": [
+            {
+              "expression": "environment",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "email",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "started_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "shipments_environment_environments_id_fk": {
+          "name": "shipments_environment_environments_id_fk",
+          "tableFrom": "shipments",
+          "tableTo": "environments",
+          "columnsFrom": [
+            "environment"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "shipments_environment_order_reference_orders_environment_reference_fk": {
+          "name": "shipments_environment_order_reference_orders_environment_reference_fk",
+          "tableFrom": "shipments",
+          "tableTo": "orders",
+          "columnsFrom": [
+            "environment",
+            "order_reference"
+          ],
+          "columnsTo": [
+            "environment",
+            "reference"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "shipments_environment_id_pk": {
+          "name": "shipments_environment_id_pk",
+          "columns": [
+            "environment",
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "shipment_status": {
+          "name": "shipment_status",
+          "value": "\"shipments\".\"status\" in ('pending','accepted')"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

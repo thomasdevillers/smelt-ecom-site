@@ -8,6 +8,7 @@ import { commitCoupon, releaseCoupon } from './coupons';
 import { localStockTest, stockScope } from './stockEnvironment';
 import { PREORDER_BATCH, LEGACY_PREORDER_BATCH, PREORDER_ARRIVAL, PREORDER_TIMING, parsePreorder, type Availability, type PreorderDetails } from './preorders';
 import type { CartState } from './cartReducer';
+import { paystackEventConfig } from './paystackEventConfig';
 
 const prefix = () => `smelt:preorders:v1:${stockScope()}`;
 const stockKey = () => `smelt:inventory:v1:${stockScope()}:available`;
@@ -222,6 +223,9 @@ export async function expirePurchaseReservations(now = Date.now()) {
         const payment = await verifyTransaction(reference);
         if (payment.reference !== reference) throw new Error('Payment reference mismatch');
         if (payment.status === 'success') {
+          // verifyTransaction durably enqueues the verified payment. The shared
+          // SQL-guarded worker owns purchase/notification effects in this mode.
+          if (paystackEventConfig().store === 'postgres') { result.retained++; return; }
           const cart = sanitizeCart(payment.metadata?.cart);
           const voucher = parseVoucherMetadata(payment.metadata?.voucher);
           if (payment.metadata?.inventoryReservation !== reference || cart.green !== order.green || cart.cream !== order.cream || payment.currency !== 'ZAR' || payment.amount !== paidCheckoutTotal(cart, payment.metadata?.shippingMethod, voucher?.amount ?? 0, payment.metadata?.unitPrice, payment.metadata?.pricingVersion) * 100)
@@ -263,6 +267,17 @@ export async function purchaseNeedsReview(reference: string) {
   if (!reference.startsWith('smeltp-')) return false;
   const order = await adminStore().hget<PurchaseAllocation>(`${prefix()}:orders`, reference);
   return !order || order.status !== 'paid';
+}
+
+/** Read-only input for SQL fulfilment filters while allocations remain in Redis. */
+export async function fulfilmentAllocationOverrides() {
+  const allocations = await adminStore().hgetall<Record<string, { status?: string; preorderGreen?: number; preorderCream?: number }>>(`${prefix()}:orders`) || {};
+  const result: Record<string, { green: number; cream: number }> = {};
+  for (const [reference, value] of Object.entries(allocations)) {
+    if (value.status === 'paid' && [value.preorderGreen, value.preorderCream].every(n => Number.isSafeInteger(n) && Number(n) >= 0 && Number(n) <= 99))
+      result[reference] = { green: value.preorderGreen!, cream: value.preorderCream! };
+  }
+  return result;
 }
 
 // Paystack metadata records the original promise; Redis records later stock

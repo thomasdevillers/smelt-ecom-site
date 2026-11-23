@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
+import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
 import { drizzle } from "drizzle-orm/pglite";
 import { readMigrationFiles } from "drizzle-orm/migrator";
 import { migrate } from "drizzle-orm/pglite/migrator";
@@ -69,7 +70,7 @@ describe("authenticated secret envelopes", () => {
 });
 
 describe("versioned PostgreSQL schema and typed adapters (isolated WASM PostgreSQL)", () => {
-  const pg = new PGlite();
+  const pg = new PGlite({ extensions: { pg_trgm } });
   const db = drizzle(pg, { schema });
   beforeAll(async () => {
     await migrate(db, { migrationsFolder: "./drizzle" });

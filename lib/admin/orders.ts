@@ -1,5 +1,7 @@
 import { parsePreorder, preorderTiming } from "../preorders";
-import { batchReceived, purchaseNeedsReview, resolvePurchasePreorder } from "../purchaseStore";
+import { batchReceived, purchaseNeedsReview, resolvePurchasePreorder, fulfilmentAllocationOverrides } from "../purchaseStore";
+import { assertOrdersWritable, orderDatabase, orderStore, sqlOrders } from "../orderPersistence";
+import { paystackEnvironment } from "../paystackEventConfig";
 import { sanitizeAddress } from "../address";
 import { sanitizeCart } from "../checkoutShared";
 import type { OrderItem } from "../orderTypes";
@@ -20,16 +22,17 @@ export function normalizeOrder(input: unknown): AdminOrder {
   if (typeof metadata === "string") { try { metadata = JSON.parse(metadata); } catch { metadata = {}; } }
   const m = obj(metadata), customer = obj(d.customer);
   const cart = sanitizeCart(m.cart);
-  const items: OrderItem[] = (Object.keys(cart) as Array<keyof typeof cart>).filter(c => cart[c] > 0)
-    .map(c => ({ colour: c, name: PRODUCT.variants[c].name, qty: cart[c] }));
-  // Older transactions may store items without a cart. Preserve their historical quantities.
-  if (!items.length && Array.isArray(m.items)) {
+  const items: OrderItem[] = [];
+  // Prefer the frozen descriptions/quantities, not today's product names.
+  if (Array.isArray(m.items)) {
     for (const raw of m.items) {
       const item = obj(raw);
       if (typeof item.qty === "number" && Number.isSafeInteger(item.qty) && item.qty > 0 && item.qty <= 99)
         items.push({ colour: str(item.colour), name: str(item.name) || "Smelt sauna hat", qty: item.qty });
     }
   }
+  if (!items.length) items.push(...(Object.keys(cart) as Array<keyof typeof cart>).filter(c => cart[c] > 0)
+    .map(c => ({ colour: c, name: PRODUCT.variants[c].name, qty: cart[c] })));
   const email = str(customer.email).toLowerCase();
   const method = str(m.shippingMethod) || "aramex";
   let reviewReason: string | undefined;
@@ -59,7 +62,21 @@ async function paystack(path: string) {
 }
 export async function getPaidOrder(reference: string) {
   if (!/^[a-zA-Z0-9_.=\-]{1,200}$/.test(reference)) throw new AdminError("Invalid order reference.");
+  const sqlMode = orderStore() === "postgres";
+  let observedAt: string | undefined;
+  if (sqlMode) {
+    assertOrdersWritable();
+    const { paymentObservationTime } = await import("../db/payment-observations");
+    observedAt = await paymentObservationTime(await orderDatabase());
+  }
   const { data } = await paystack(`/transaction/verify/${encodeURIComponent(reference)}`);
+  if (sqlMode) {
+    const { savePaymentObservation } = await import("../db/payment-observations");
+    await savePaymentObservation(await orderDatabase(), paystackEnvironment(), reference, data, observedAt!);
+    const stored = await (await sqlOrders()).find(reference);
+    if (stored?.paymentReview !== "clear") throw new AdminError("This payment has a refund or dispute requiring review.", 409);
+    if (stored.paymentStatus !== "success") throw new AdminError("This payment needs review.", 409);
+  }
   if (data?.reference !== reference || data?.status !== "success") throw new AdminError("This order does not have a successful payment.", 409);
   const order = normalizeOrder(data);
   order.preorder = await resolvePurchasePreorder(order.reference, order.preorder, true);
@@ -82,6 +99,10 @@ export async function findPaidOrdersByEmail(email: string): Promise<AdminOrder[]
   const normalized = email.trim().toLowerCase();
   if (normalized.length > 254 || !/^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(normalized))
     throw new AdminError("Enter the email address used at checkout.");
+  if (orderStore() === "postgres") {
+    const rows = await (await sqlOrders()).byEmail(normalized);
+    return rows.filter(row => row.paymentReview === "clear").map(sqlOrder);
+  }
   const { data: customer } = await paystack(`/customer/${encodeURIComponent(normalized)}`);
   if (!Number.isSafeInteger(customer?.id)) throw new AdminError("No matching order was found.", 404);
 
@@ -100,7 +121,9 @@ export async function findPaidOrdersByEmail(email: string): Promise<AdminOrder[]
 export const completionKey = () => `smelt:orders:completed:v1:${process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_") ? "live" : "test"}`;
 export const reviewMessageSentKey = () => `smelt:orders:review-message-sent:v1:${process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_") ? "live" : "test"}`;
 export async function markReviewMessageSent(reference: string) {
+  assertOrdersWritable();
   await getPaidOrder(reference);
+  if (orderStore() === "postgres") return (await sqlOrders()).reviewMessage(reference);
   const db = adminStore();
   if (!await db.hget<string>(completionKey(), reference))
     throw new AdminError("Mark this order complete before recording a review message.", 409);
@@ -111,7 +134,9 @@ export async function markReviewMessageSent(reference: string) {
   return sentAt;
 }
 export async function setOrderCompleted(reference: string, completed: boolean) {
+  assertOrdersWritable();
   await getPaidOrder(reference);
+  if (orderStore() === "postgres") return (await sqlOrders()).complete(reference, completed);
   const db = adminStore();
   if (!completed) {
     await db.hdel(completionKey(), reference);
@@ -128,6 +153,7 @@ export async function setOrderCompleted(reference: string, completed: boolean) {
 }
 // Both the dashboard and accounting export must read every provider page.
 export async function listPaidTransactions(): Promise<unknown[]> {
+  if (orderStore() === "postgres") return (await (await sqlOrders()).allPaid()).map(row => row.snapshot);
   const query = new URLSearchParams({ status: "success", perPage: "100", page: "1" });
   const transactions: unknown[] = [];
   let providerPage = 1;
@@ -150,6 +176,7 @@ export async function listOrders(
   view: "active" | "completed" | "preorders" = "active",
   completedSort: "newest" | "oldest" = "newest",
 ): Promise<OrdersPage> {
+  if (orderStore() === "postgres") return listSqlOrders(page, search, view, completedSort);
   let orders = (await listPaidTransactions()).map(normalizeOrder);
   // Search the same paid-order dataset as the dashboard. Provider verification
   // accepts exact references only and reports ordinary search misses as errors.
@@ -202,4 +229,30 @@ export async function listOrders(
     order.history = Object.values(history || {}).filter(r => r.reference !== order.reference && !(r.id && r.id === order.receipt?.id)).map(publicReceipt).sort((a, b) => b.startedAt - a.startedAt);
   });
   return result;
+}
+
+function sqlOrder(row: typeof import("../db/schema").orders.$inferSelect): AdminOrder {
+  const order = normalizeOrder({ ...row.snapshot, status: row.paymentStatus, amount: row.amountMinor, currency: row.currency });
+  order.completedAt = row.completedAt ? new Date(row.completedAt).toISOString() : null;
+  order.reviewMessageSentAt = row.reviewMessageSentAt ? new Date(row.reviewMessageSentAt).toISOString() : null;
+  if (row.paymentReview !== "clear") { order.canShip = false; order.reviewReason = "This payment has a refund or dispute requiring review."; }
+  return order;
+}
+async function listSqlOrders(page: number, search: string, view: "active" | "completed" | "preorders", sort: "newest" | "oldest"): Promise<OrdersPage> {
+  const domain = await sqlOrders();
+  const { rows, ...pagination } = await domain.page(page, search, view, sort, await fulfilmentAllocationOverrides());
+  const orders = await Promise.all(rows.map(async row => {
+    const order = sqlOrder(row);
+    order.preorder = row.preorder && row.effectiveGreen + row.effectiveCream > 0
+      ? { ...row.preorder, quantities: { green: row.effectiveGreen, cream: row.effectiveCream } } : undefined;
+    if (order.preorder && !await batchReceived(order.preorder.batch)) {
+      order.canShip = false; order.reviewReason = `${preorderTiming(order.preorder)} Confirm the hats have been received in Restock requests before sending tracking.`;
+    }
+    await flagUnallocatedPayment(order);
+    const [receipt, history] = await Promise.all([domain.shipment(order.reference), domain.history(order.email)]);
+    order.receipt = receipt ? publicReceipt(receipt) : null;
+    order.history = history.filter(r => r.reference !== order.reference && !(r.id && r.id === receipt?.id)).map(publicReceipt);
+    return order;
+  }));
+  return { ...pagination, orders };
 }
