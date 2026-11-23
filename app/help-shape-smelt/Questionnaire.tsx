@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { hasAnswer, questionsFor, SURVEY_VERSION, toggleOption, validateSave, type ResearchSave } from "@/lib/research/shared";
 import styles from "./research.module.css";
+import { emailEntryAnswer } from "@/lib/research/emailEntry";
 
 const STORAGE_KEY = "smelt:product-research:v1";
 type SaveStatus = "idle" | "pending" | "saving" | "saved" | "error";
@@ -22,6 +23,8 @@ export default function Questionnaire() {
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const retries = useRef(0);
   const heading = useRef<HTMLHeadingElement>(null);
+  // Email selections are only suggestions until the visitor interacts with the form.
+  const unconfirmedEmailAnswer = useRef(false);
 
   const persist = useCallback((next: ResearchSave) => {
     latest.current = next;
@@ -32,7 +35,7 @@ export default function Questionnaire() {
 
   const flush = useCallback(async function saveLatest() {
     clearTimeout(timer.current);
-    if (inFlight.current || !latest.current || latest.current.revision <= acknowledged.current) return;
+    if (unconfirmedEmailAnswer.current || inFlight.current || !latest.current || latest.current.revision <= acknowledged.current) return;
     inFlight.current = true;
     if (mounted.current) { setStatus("saving"); setError(""); }
     try {
@@ -65,6 +68,18 @@ export default function Questionnaire() {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) restored = validateSave(JSON.parse(stored));
       } catch { /* An old or invalid local draft must not prevent a fresh start. */ }
+      const emailAnswer = emailEntryAnswer(new URLSearchParams(window.location.search));
+      if (emailAnswer && !restored?.completed) {
+        const bytes = crypto.getRandomValues(new Uint8Array(32));
+        const initial = restored || { token: Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join(""), version: SURVEY_VERSION, revision: 0, answers: {}, completed: false };
+        const preselected = { ...initial, answers: { ...initial.answers, frequency: emailAnswer } };
+        unconfirmedEmailAnswer.current = true;
+        latest.current = preselected;
+        setDraft(preselected);
+        setStarted(true);
+        setStep(0);
+        return;
+      }
       if (restored) {
         latest.current = restored;
         setDraft(restored);
@@ -84,7 +99,7 @@ export default function Questionnaire() {
     const onHidden = () => {
       if (document.visibilityState !== "hidden") return;
       const pending = latest.current;
-      if (pending && pending.revision > acknowledged.current) {
+      if (!unconfirmedEmailAnswer.current && pending && pending.revision > acknowledged.current) {
         // A final best-effort send includes the latest typing, even if another save is in flight.
         void fetch("/api/research", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(pending), keepalive: true }).catch(() => {});
       }
@@ -100,6 +115,7 @@ export default function Questionnaire() {
   function answer(id: string, value: string | string[], debounce = false) {
     const current = latest.current;
     if (!current) return;
+    unconfirmedEmailAnswer.current = false;
     persist({ ...current, revision: current.revision + 1, answers: { ...current.answers, [id]: value }, completed: false });
     setStatus("pending");
     clearTimeout(timer.current);
@@ -143,7 +159,7 @@ export default function Questionnaire() {
       </div> : <>
         <div className={styles.progressHeader}><span>QUESTION {step + 1} / {questions.length}</span><span>{question.product || (last ? "ONE LAST THOUGHT" : "YOUR SAUNA ROUTINE")}</span></div>
         <div className={styles.progress} role="progressbar" aria-label="Questionnaire progress" aria-valuemin={0} aria-valuemax={questions.length} aria-valuenow={step + 1}><span style={{ width: `${((step + 1) / questions.length) * 100}%` }} /></div>
-        <form onSubmit={event => { event.preventDefault(); if (question.optional || hasAnswer(value)) { if (last) finish(); else { void flush(); setStep(step + 1); } } }}>
+        <form onSubmit={event => { event.preventDefault(); if (question.optional || hasAnswer(value)) { if (unconfirmedEmailAnswer.current && typeof value === "string") answer(question.id, value); if (last) finish(); else { void flush(); setStep(step + 1); } } }}>
           <fieldset className={styles.fieldset} aria-describedby="question-hint">
             <legend className={styles.legend}><h2 tabIndex={-1} ref={heading}>{question.title}</h2></legend>
             <p id="question-hint" className={styles.hint}>{question.options ? question.multiple ? question.max ? `Choose up to ${question.max}.` : question.id === "products" ? "Select all that interest you." : "Select all that apply." : "Choose one." : "In your own words. Up to 1,500 characters."}{question.optional ? " Optional." : ""}{question.id === "products" ? " Your choices shape the questions that follow." : ""}</p>
