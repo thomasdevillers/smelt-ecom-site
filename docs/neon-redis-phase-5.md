@@ -1,5 +1,18 @@
 # Phase 5 — order records and fulfilment
 
+## Schema-only application — 23 November 2026
+
+The owner authorised reviewing and applying the pending migrations if safe, specifically to unblock the standalone product-research questionnaire, and explicitly confirmed that the operator's `.env.local` Neon connection is the intended production Smelt database. Vercel's sensitive production connection cannot be retrieved for independent comparison; all 26 published review IDs also matched the live site during the read-only preflight.
+
+- Applied `0002_order_fulfilment_backfill`, `0003_paystack_durable_inbox`, `0004_order_runtime_and_reconciliation`, and `0005_product_research` using the existing versioned runner, one transaction, an advisory lock and a three-second lock timeout. Six migrations are now applied; zero pending. `pg_trgm` and required indexes are installed.
+- These are schema changes only: new tables/columns/indexes/checks and relaxed nullability for unknown historical values. No order import, shipping ownership decision, runtime-store switch, pause/configuration change, deployment, email, payment action or file operation was performed.
+- Before/after row counts and checksums over the original columns matched for all 13 existing public tables, including 142 order stubs, 26 reviews, 214 invitations and 293 import checkpoints. Existing business values were unchanged.
+- Actual Neon questionnaire checks passed inside a rolled-back transaction: first-answer partial save, completion, stale-write rejection, admin reads, product-interest counts and Postgres rate limiting. No synthetic rows remain. The questionnaire's database dependency is ready; its application code still requires deployment before it is available on the public site.
+- 138 targeted database/import/research tests passed before application. Private aggregate verification evidence is in `.local/migration/research-schema-preflight.json` and `.local/migration/research-schema-verification.json`; operator scripts remain private/ignored.
+- Production configuration was checked read-only: `ORDER_STORE` and `PAYSTACK_EVENT_STORE` remain unset (defaults: Redis and legacy), and review/custom designs remain on Postgres with their pause disabled. The previous unverified-recovery limitation remains unresolved; this schema operation does not claim a tested restore or completed Phase 5 cutover.
+
+**Resume:** do not reapply or rewrite these migrations. Continue with shipping ownership, fresh captures, approved import/final reconciliation and the separate paused production-cutover gates below. The historical handoff describes the state before this schema-only approval.
+
 ## Handoff — 22 November 2026
 
 **Implementation and local validation are ready to commit. Production cutover is not complete.** The owner asked to stop at a commit/push point and continue later. No Phase 5 migration, import, deployment, environment change, payment action or email send has been performed against production.

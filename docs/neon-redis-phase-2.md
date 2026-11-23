@@ -1,6 +1,6 @@
 # Phase 2 — simple Neon foundation
 
-**Current status — 21 November 2026:** both migrations are applied; the initial 291-entity copy was finally reconciled to **293 matching entities**, and review/custom-design reads/writes are now live on Neon. Other domains remain on Redis. The zero-row observations below describe the original setup before import; see [import history](neon-redis-phase-3.md#owner-approved-neon-bulk-import--20-november-2026) and [completed cutover/rollback log](neon-redis-cutover.md).
+**Current status — 23 November 2026:** six migrations (`0000`–`0005`) are applied. The initial 291-entity copy was finally reconciled to **293 matching entities**, and review/custom-design reads/writes are live on Neon. The separately approved 23 November schema-only application added order/payment and product-research tables without importing orders or switching their runtime authority; see [Phase 5 schema application](neon-redis-phase-5.md#schema-only-application--23-november-2026). Other existing business domains remain on Redis. The zero-row observations below describe the original setup before import; see [import history](neon-redis-phase-3.md#owner-approved-neon-bulk-import--20-november-2026) and [completed cutover/rollback log](neon-redis-cutover.md).
 
 ## Current setup
 

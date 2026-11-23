@@ -1,0 +1,23 @@
+.toolbar { display: flex; align-items: start; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
+.toolbar p { max-width: 720px; }
+.toolbar button { flex-shrink: 0; }
+.totals { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid rgba(14,59,42,.2); margin-bottom: 24px; }
+.totals div { padding: 24px; display: grid; gap: 8px; }
+.totals div + div { border-left: 1px solid rgba(14,59,42,.2); }
+.totals strong { font-size: 38px; letter-spacing: -.06em; }
+.totals span { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+.interest { padding: 24px; background: #fff8; border: 1px solid rgba(14,59,42,.15); margin-bottom: 28px; }
+.interest h2 { font-size: 20px; margin: 0 0 12px; }
+.interest > div { display: flex; justify-content: space-between; padding: 12px 0; gap: 20px; font-size: 13px; border-top: 1px solid rgba(14,59,42,.12); }
+.responses { display: grid; gap: 16px; }
+.response { padding: 24px; border: 1px solid rgba(14,59,42,.2); background: #fff6; }
+.response header { display: flex; gap: 20px; justify-content: space-between; align-items: start; }
+.response h2 { margin: 0; font-size: 17px; }
+.response header p { font-size: 11px; line-height: 1.9; opacity: .75; }
+.response summary { cursor: pointer; padding: 12px 0; font-size: 13px; }
+.response dl { margin: 0; }
+.response dl div { border-top: 1px solid rgba(14,59,42,.12); padding: 16px 0; }
+.response dt { font-size: 13px; font-weight: 600; }
+.response dd { white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0 0; font-size: 13px; line-height: 1.8; }
+.product { display: block; font-weight: 400; text-transform: uppercase; font-size: 9px; letter-spacing: .09em; margin-bottom: 7px; }
+@media (max-width: 650px) { .toolbar { flex-direction: column; gap: 10px; } .totals div { padding: 16px; } .totals strong { font-size: 28px; } .response, .interest { padding: 18px; } }

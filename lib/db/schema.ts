@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+export { researchResponses, researchRateLimits } from "./research-schema";
 import { check, foreignKey, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import type { ReviewRecord } from "../reviews";
 import type { ReviewRanking } from "../reviewRanking";
