@@ -1,5 +1,5 @@
 // Manual storefront switch. See docs/preorder-switch.md before changing it.
-export const PREORDER_MODE = true;
+export const PREORDER_MODE = false;
 export const PREORDER_PRICE = 450;
 export const REGULAR_PRICE = 550;
 export const PREORDER_DEADLINE = '2026-11-30T00:00:00+02:00';
