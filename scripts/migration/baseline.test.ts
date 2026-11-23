@@ -35,7 +35,7 @@ describe("Phase 1 safety", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
   it("encrypts archives and authenticates before yielding any record", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "opencode/baseline-test-")); directories.push(dir);
+    const dir = await mkdtemp(join(tmpdir(), "baseline-test-")); directories.push(dir);
     const file = join(dir, "archive.aes"), key = randomBytes(32);
     async function* records() { yield { kind: "header" }; yield { private: "customer@example.com", binary: "AAAB/w==" }; yield { kind: "footer" }; }
     await encryptArchive(file, key, records());

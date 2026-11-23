@@ -11,7 +11,7 @@ describe.skipIf(process.env.RUN_MIGRATION_LOCAL_REDIS_TESTS !== "1")("isolated r
   it("restores synthetic data of every supported Redis type with absolute TTLs", async () => {
     const directory = resolve(".local/migration", `synthetic-${Date.now()}`);
     await privateDirectory(directory);
-    const socketDirectory = await mkdtemp(resolve(tmpdir(), "opencode/fixture-"));
+    const socketDirectory = await mkdtemp(resolve(tmpdir(), "fixture-"));
     const socket = resolve(socketDirectory, "redis.sock");
     const binary = resolve(".local/migration/redis-8.8.0/src");
     const server = spawn(resolve(binary, "redis-server"), ["--port", "0", "--unixsocket", socket, "--unixsocketperm", "700", "--save", "", "--appendonly", "no"], { stdio: ["ignore", "pipe", "pipe"] });

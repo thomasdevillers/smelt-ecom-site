@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+// Pins the pre-order campaign: these expectations (R450 bundles, consent, pre-order copy)
+// must not follow the live storefront switch. Normal-mode pricing: salesMode.test.ts.
+vi.mock("./salesMode", async original => ({ ...await original<typeof import("./salesMode")>(), PREORDER_MODE: true }));
 const mocks = vi.hoisted(() => ({ eval: vi.fn(), fetch: vi.fn(), availability: vi.fn(), begin: vi.fn(), finish: vi.fn() }));
 vi.mock("./hatConversations.server", () => ({ beginHatTurn: mocks.begin, finishHatTurn: mocks.finish }));
 vi.mock("server-only", () => ({}));

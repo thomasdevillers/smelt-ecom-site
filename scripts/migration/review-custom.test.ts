@@ -205,7 +205,7 @@ describe("offline import planning", () => {
 
 describe("authenticated archive input", () => {
   async function archive(badFooter = false) {
-    const directory = await mkdtemp(join(tmpdir(), "opencode/review-import-")); directories.push(directory);
+    const directory = await mkdtemp(join(tmpdir(), "review-import-")); directories.push(directory);
     const key = randomBytes(32), source = fixture(), file = join(directory, "baseline.jsonl.gz.aes");
     async function* records() {
       yield { kind: "header", version: 1, startedAt: at };

@@ -1,6 +1,9 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+// Pins the pre-order campaign: these expectations (R450 bundles, consent, pre-order copy)
+// must not follow the live storefront switch. Normal-mode pricing: salesMode.test.ts.
+vi.mock("@/lib/salesMode", async original => ({ ...await original<typeof import("@/lib/salesMode")>(), PREORDER_MODE: true }));
 import CartDrawer from "./CartDrawer";
 import CartPage from "@/app/cart/page";
 import { useCart } from "@/lib/cart";

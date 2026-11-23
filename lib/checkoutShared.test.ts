@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+// Pins the pre-order campaign: these expectations (R450 bundles, consent, pre-order copy)
+// must not follow the live storefront switch. Normal-mode pricing: salesMode.test.ts.
+vi.mock("./salesMode", async original => ({ ...await original<typeof import("./salesMode")>(), PREORDER_MODE: true }));
 import { PRICING_VERSION } from "./pricing";
 import { checkoutTotal, discountedCheckoutTotal, paidCheckoutTotal, sanitizeCart } from "./checkoutShared";
 
