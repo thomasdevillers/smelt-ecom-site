@@ -22,7 +22,6 @@ export function earlyShippingEmail(): { subject: string; html: string; text: str
       intro: "A little good news for your next sauna session.",
       blocks: [
         "<p>We promised to start shipping on 30 November. Your hats are ready ahead of schedule, and we couldn’t be happier to get them to you sooner: <strong>we’re starting to ship tomorrow, 24 November.</strong></p>",
-        "<p>Thank you for backing Smelt and trusting us with your pre-order. Having you on board means a lot to our small team, and we’re delighted to give you a little less waiting and a little more sweating.</p>",
         "<p>We’ll be working through orders from tomorrow. You don’t need to do anything. We’ll be in touch with your delivery details when your order is on its way.</p>",
         "<p><strong>While we get your hat on its way, could we ask you a small favour?</strong></p>",
         "<p>As one of the people who backed Smelt, you’re exactly who we’d love to hear from. We’ve put together a questionnaire to help shape what comes next: what you’d actually use, what matters to you, and what deserves a place in your sauna kit.</p>",
