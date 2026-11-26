@@ -1,12 +1,17 @@
-'use client';
-import { PREORDER_MODE } from '@/lib/salesMode';
-import { useCart } from '@/lib/cart';
-import { useAvailability } from '@/lib/useAvailability';
-import { hasPreorder, preorderQuantities } from '@/lib/preorders';
-import styles from './RestockChoice.module.css';
+"use client";
+import { PREORDER_MODE } from "@/lib/salesMode";
+import { useCart } from "@/lib/cart";
+import { useAvailability } from "@/lib/inventory/useAvailability";
+import { hasPreorder, preorderQuantities } from "@/lib/inventory/preorders";
+import styles from "./RestockChoice.module.css";
 export default function PreorderNotice() {
   const { cart } = useCart();
-  const { stock } = useAvailability();
+  const { stock } = useAvailability(null, PREORDER_MODE);
   if (!PREORDER_MODE || !stock || !hasPreorder(preorderQuantities(cart, stock))) return null;
-  return <aside className={styles.notice} aria-label="Pre-order delivery"><strong>Pre-order</strong><p>{stock.timing} All hats ship together.</p></aside>;
+  return (
+    <aside className={styles.notice} aria-label="Pre-order delivery">
+      <strong>Pre-order</strong>
+      <p>{stock.timing} All hats ship together.</p>
+    </aside>
+  );
 }

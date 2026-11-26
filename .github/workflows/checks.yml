@@ -1,0 +1,35 @@
+name: Project checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: sudo apt-get update && sudo apt-get install -y redis-server redis-tools
+      - run: npm test -- lib/inventory/preorderStore.integration.test.ts lib/inventory/purchaseStore.integration.test.ts scripts/migration/restore-test.integration.test.ts
+        env:
+          RUN_INVENTORY_REDIS_TESTS: "1"
+          RUN_MIGRATION_LOCAL_REDIS_TESTS: "1"
+      - run: npm run format:check
+      - run: npm audit --omit=dev
+      - run: npm run build:test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

@@ -32,16 +32,14 @@ interface PredictionItem {
   place_id: string;
   main_text: string;
   secondary_text: string;
-  raw: any;
+  raw: google.maps.places.AutocompleteSuggestion;
 }
 
 const GOOGLE_MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
-declare global {
-  interface Window {
-    google?: any;
-  }
-}
+type MapsBootstrap = {
+  maps: { importLibrary?: typeof google.maps.importLibrary; __ib__?: () => void };
+};
 
 // A plain <script src="...&loading=async"> tag does NOT define
 // google.maps.importLibrary — that function only exists once Google's
@@ -53,10 +51,10 @@ declare global {
 // script.onload, which can fire before async init finishes), and once that
 // callback fires, importLibrary is replaced by the API's real implementation.
 function ensureGoogleMapsBootstrap(apiKey: string) {
-  if (window.google?.maps?.importLibrary) return;
-
-  const google = (window.google = window.google || {});
-  const maps = (google.maps = google.maps || {});
+  const host = window as unknown as { google?: MapsBootstrap };
+  if (host.google?.maps?.importLibrary) return;
+  const bootstrap = (host.google ??= { maps: {} });
+  const maps = bootstrap.maps;
   const requestedLibraries = new Set<string>();
   let loadPromise: Promise<void> | undefined;
 
@@ -77,18 +75,21 @@ function ensureGoogleMapsBootstrap(apiKey: string) {
       document.head.appendChild(script);
     }));
 
-  maps.importLibrary = (library: string, ...rest: unknown[]) => {
+  maps.importLibrary = (library: string) => {
     requestedLibraries.add(library);
-    return loadScript().then(() => window.google.maps.importLibrary(library, ...rest));
+    return loadScript().then(() => window.google.maps.importLibrary(library));
   };
 }
 
-function loadPlacesLibrary(apiKey: string): Promise<any> {
+function loadPlacesLibrary(apiKey: string): Promise<google.maps.PlacesLibrary> {
   ensureGoogleMapsBootstrap(apiKey);
-  return window.google.maps.importLibrary("places");
+  return window.google.maps.importLibrary("places") as Promise<google.maps.PlacesLibrary>;
 }
 
-function parseComponents(components: any[], fallbackAddress?: string) {
+function parseComponents(
+  components: google.maps.places.AddressComponent[],
+  fallbackAddress?: string | null,
+) {
   let streetNumber = "";
   let route = "";
   let sublocality = "";
@@ -99,7 +100,7 @@ function parseComponents(components: any[], fallbackAddress?: string) {
 
   for (const component of components) {
     const types = (component.types || []) as string[];
-    const name = component.longText || component.long_name || component.name || "";
+    const name = component.longText || "";
     if (types.includes("street_number")) {
       streetNumber = name;
     } else if (types.includes("route")) {
@@ -135,7 +136,7 @@ function parseComponents(components: any[], fallbackAddress?: string) {
     postalCode,
     country,
     line1,
-    formattedAddress: fallbackAddress,
+    formattedAddress: fallbackAddress || undefined,
   };
 }
 
@@ -150,7 +151,13 @@ export function AddressAutocomplete({
   const containerRef = useRef<HTMLDivElement>(null);
   const [predictions, setPredictions] = useState<PredictionItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const debounceTimer = useRef<any>(null);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    },
+    [],
+  );
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -174,7 +181,7 @@ export function AddressAutocomplete({
       .then(async (placesLib) => {
         if (!placesLib?.AutocompleteSuggestion?.fetchAutocompleteSuggestions) {
           console.error(
-            "Places API (New) is unavailable — enable it for this project in Google Cloud Console."
+            "Places API (New) is unavailable — enable it for this project in Google Cloud Console.",
           );
           setPredictions([]);
           setIsOpen(false);
@@ -186,18 +193,18 @@ export function AddressAutocomplete({
             input: query,
             includedRegionCodes: ["za"],
           });
-          const items: PredictionItem[] = (res.suggestions || []).map((s: any) => {
+          const items: PredictionItem[] = (res.suggestions || []).flatMap((s) => {
             const placePrediction = s.placePrediction;
-            return {
-              place_id: placePrediction?.placeId || placePrediction?.place,
-              main_text:
-                placePrediction?.text?.text ||
-                placePrediction?.structuredFormat?.mainText?.text ||
-                "",
-              secondary_text:
-                placePrediction?.structuredFormat?.secondaryText?.text || "",
-              raw: s,
-            };
+            if (!placePrediction) return [];
+            return [
+              {
+                place_id: placePrediction.placeId,
+                main_text:
+                  placePrediction.text?.toString() || placePrediction.mainText?.toString() || "",
+                secondary_text: placePrediction.secondaryText?.toString() || "",
+                raw: s,
+              },
+            ];
           });
           setPredictions(items);
           setIsOpen(items.length > 0);
@@ -225,7 +232,7 @@ export function AddressAutocomplete({
       .then(async (placesLib) => {
         if (!placesLib?.Place) {
           console.error(
-            "Places API (New) is unavailable — enable it for this project in Google Cloud Console."
+            "Places API (New) is unavailable — enable it for this project in Google Cloud Console.",
           );
           return;
         }

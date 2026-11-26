@@ -1,5 +1,5 @@
-import { getAvailability } from "./purchaseStore";
-import type { Availability } from "./preorders";
+import { getAvailability } from "./inventory/purchaseStore";
+import type { Availability } from "./inventory/preorders";
 
 export async function getProductAvailability(): Promise<Availability | null> {
   try {

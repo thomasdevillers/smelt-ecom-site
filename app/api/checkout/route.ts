@@ -1,16 +1,31 @@
 import { cartSubtotal, type CartState } from "@/lib/cartReducer";
 import { PRODUCT } from "@/lib/product";
-import { initializeTransaction, isPaystackConfigured, PaystackInitializationRejected } from "@/lib/paystack";
-import { discountedCheckoutTotal, sanitizeCart } from "@/lib/checkoutShared";
+import {
+  initializeTransaction,
+  isPaystackConfigured,
+  PaystackInitializationRejected,
+} from "@/lib/payments/paystack";
+import { discountedCheckoutTotal, sanitizeCart } from "@/lib/checkout/checkoutShared";
 import { BASE_PRICE, PRICING_VERSION, parseShippingMethod } from "@/lib/pricing";
-import { sanitizeAddress } from "@/lib/address";
+import { sanitizeAddress, isCompleteAddress } from "@/lib/address";
 import type { MetaClientContext } from "@/lib/meta";
-import { createInventoryReservationId } from "@/lib/inventory";
-import { reservePurchase, getAvailability, releaseRejectedPurchase } from "@/lib/purchaseStore";
-import { localStockTest } from "@/lib/stockEnvironment";
-import { releaseVoucherCodeReservation, releaseVoucherReservation, reserveVoucher, type VoucherMetadata } from "@/lib/vouchers";
+import { createInventoryReservationId } from "@/lib/inventory/inventory";
+import {
+  reservePurchase,
+  getAvailability,
+  releaseRejectedPurchase,
+} from "@/lib/inventory/purchaseStore";
+import { localStockTest } from "@/lib/inventory/stockEnvironment";
+import {
+  releaseVoucherCodeReservation,
+  releaseVoucherReservation,
+  reserveVoucher,
+  type VoucherMetadata,
+} from "@/lib/vouchers";
 import { AdminError } from "@/lib/admin/store";
 import { activeAttribution } from "@/lib/attribution";
+import { readJsonObject } from "@/lib/http/readJson";
+import { limitCheckout } from "@/lib/checkout/rateLimit";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -19,22 +34,33 @@ export async function POST(request: Request) {
     return Response.json({ error: "Request origin is not allowed." }, { status: 403 });
   }
 
-  let body: { shippingMethod?: unknown; email?: unknown; cart?: unknown; name?: unknown; address?: unknown; metaClient?: MetaClientContext; preorderConsent?: unknown; voucherCode?: unknown; attribution?: unknown };
+  let body: Record<string, unknown>;
   try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "Invalid request body." }, { status: 400 });
+    body = await readJsonObject(request);
+  } catch (error) {
+    return Response.json(
+      { error: error instanceof AdminError ? error.message : "Invalid request body." },
+      { status: error instanceof AdminError ? error.status : 400 },
+    );
   }
 
   // Lowercase so the order + the abandoned-cart row + the Paystack round-trip
   // all key on the same address regardless of how the customer typed it.
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-  if (!EMAIL_RE.test(email)) {
+  if (email.length > 254 || !EMAIL_RE.test(email)) {
     return Response.json({ error: "A valid email is required." }, { status: 400 });
   }
 
   const customerName = typeof body.name === "string" ? body.name.trim() : "";
   const shippingAddress = sanitizeAddress(body.address);
+  if (!isCompleteAddress(shippingAddress)) {
+    return Response.json(
+      {
+        error: "Please check the street, city, postal code and province for your delivery address.",
+      },
+      { status: 400 },
+    );
+  }
   if (!shippingAddress.phone) {
     return Response.json(
       { error: "A contact phone number is required for delivery." },
@@ -56,9 +82,40 @@ export async function POST(request: Request) {
     return Response.json({ configured: false }, { status: 503 });
   }
 
+  try {
+    await limitCheckout(request);
+  } catch (error) {
+    const status = error instanceof AdminError ? error.status : 503;
+    return Response.json(
+      {
+        error: error instanceof AdminError ? error.message : "Checkout is temporarily unavailable.",
+      },
+      {
+        status,
+        headers: status === 429 ? { "Retry-After": "900" } : undefined,
+      },
+    );
+  }
+
+  // Forward only recognized, bounded tracking fields to the payment provider.
+  const tracking =
+    body.metaClient && typeof body.metaClient === "object"
+      ? (body.metaClient as Record<string, unknown>)
+      : {};
+  const metaClient: MetaClientContext = {};
+  for (const key of ["fbp", "fbc", "clientUserAgent"] as const) {
+    if (typeof tracking[key] === "string") metaClient[key] = tracking[key].slice(0, 512);
+  }
+
   const origin = new URL(request.url).origin;
   if (localStockTest() && process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_")) {
-    return Response.json({ error: "Local stock testing is enabled. Use a Paystack test secret key to test payment; live payments are disabled in this mode." }, { status: 503 });
+    return Response.json(
+      {
+        error:
+          "Local stock testing is enabled. Use a Paystack test secret key to test payment; live payments are disabled in this mode.",
+      },
+      { status: 503 },
+    );
   }
   const reservationId = createInventoryReservationId().replace("smelt-", "smeltp-");
   let reservation;
@@ -66,27 +123,56 @@ export async function POST(request: Request) {
     reservation = await reservePurchase(cart, reservationId, body.preorderConsent);
   } catch (error) {
     console.error("Inventory reservation failed:", error);
-    return Response.json({ error: "We couldn't confirm stock right now. Please try again." }, { status: 503 });
+    return Response.json(
+      { error: "We couldn't confirm stock right now. Please try again." },
+      { status: 503 },
+    );
   }
   if (!reservation.reserved) {
     return Response.json(
-      { error: "Availability has changed. Review your bag and confirm any pre-order before paying.", stock: await getAvailability() },
+      {
+        error: "Availability has changed. Review your bag and confirm any pre-order before paying.",
+        stock: await getAvailability(),
+      },
       { status: 409 },
     );
   }
   let voucher: VoucherMetadata | undefined;
   if (typeof body.voucherCode === "string" && body.voucherCode.trim()) {
-    try { voucher = await reserveVoucher(body.voucherCode, email, reservationId, cart.green + cart.cream); }
-    catch (error) {
-      await releaseRejectedPurchase(reservationId).catch(releaseError => console.error("Unused stock allocation needs review", releaseError));
-      await releaseVoucherCodeReservation(reservationId, body.voucherCode).catch(releaseError => console.error("Ambiguous voucher allocation needs review", releaseError));
-      return Response.json({ error: error instanceof AdminError ? error.message : "We couldn't validate this voucher right now." }, { status: error instanceof AdminError ? error.status : 503 });
+    try {
+      voucher = await reserveVoucher(
+        body.voucherCode,
+        email,
+        reservationId,
+        cart.green + cart.cream,
+      );
+    } catch (error) {
+      await releaseRejectedPurchase(reservationId).catch((releaseError) =>
+        console.error("Unused stock allocation needs review", releaseError),
+      );
+      await releaseVoucherCodeReservation(reservationId, body.voucherCode).catch((releaseError) =>
+        console.error("Ambiguous voucher allocation needs review", releaseError),
+      );
+      return Response.json(
+        {
+          error:
+            error instanceof AdminError
+              ? error.message
+              : "We couldn't validate this voucher right now.",
+        },
+        { status: error instanceof AdminError ? error.status : 503 },
+      );
     }
   }
   const amount = discountedCheckoutTotal(cart, shippingMethod, voucher?.amount ?? 0);
   if (!Number.isFinite(amount) || amount <= 0) {
-    await releaseRejectedPurchase(reservationId).catch(error => console.error("Unused stock allocation needs review", error));
-    if (voucher) await releaseVoucherReservation(reservationId, voucher).catch(error => console.error("Unused voucher allocation needs review", error));
+    await releaseRejectedPurchase(reservationId).catch((error) =>
+      console.error("Unused stock allocation needs review", error),
+    );
+    if (voucher)
+      await releaseVoucherReservation(reservationId, voucher).catch((error) =>
+        console.error("Unused voucher allocation needs review", error),
+      );
     return Response.json({ error: "The order total could not be calculated." }, { status: 400 });
   }
   const items = (Object.keys(cart) as Array<keyof CartState>)
@@ -100,29 +186,39 @@ export async function POST(request: Request) {
       callbackUrl: `${origin}/checkout/success`,
       reference: reservationId,
       metadata: {
-        cart, items, unitPrice: BASE_PRICE, pricingVersion: PRICING_VERSION, amountRand: amount, customerName, shippingAddress, shippingMethod,
+        cart,
+        items,
+        unitPrice: BASE_PRICE,
+        pricingVersion: PRICING_VERSION,
+        amountRand: amount,
+        customerName,
+        shippingAddress,
+        shippingMethod,
         inventoryReservation: reservationId,
         preorder: reservation.preorder,
         voucher,
         cancel_action: `${origin}/api/checkout/cancel?reservation=${encodeURIComponent(reservationId)}`,
-        metaClient: body.metaClient,
+        metaClient,
         attribution: activeAttribution(body.attribution),
       },
     });
     return Response.json({ configured: true, authorizationUrl, accessCode, reference });
   } catch (err) {
     if (err instanceof PaystackInitializationRejected) {
-      try { await releaseRejectedPurchase(reservationId); }
-      catch (error) { console.error('Rejected payment allocation needs review', error); }
-      try { await releaseVoucherReservation(reservationId, voucher); }
-      catch (error) { console.error("Rejected voucher allocation needs review", error); }
+      try {
+        await releaseRejectedPurchase(reservationId);
+      } catch (error) {
+        console.error("Rejected payment allocation needs review", error);
+      }
+      try {
+        await releaseVoucherReservation(reservationId, voucher);
+      } catch (error) {
+        console.error("Rejected voucher allocation needs review", error);
+      }
     }
     // A timeout can follow a successful provider initialization. Keep the hold
     // until the payment link is definitively unusable, so it cannot oversell.
     console.error("Paystack initialize error:", err);
-    return Response.json(
-      { error: "Could not start payment. Please try again." },
-      { status: 502 },
-    );
+    return Response.json({ error: "Could not start payment. Please try again." }, { status: 502 });
   }
 }

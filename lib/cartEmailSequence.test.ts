@@ -1,4 +1,7 @@
-vi.mock("./salesMode", async original => ({ ...await original<typeof import("./salesMode")>(), PREORDER_MODE: true }));
+vi.mock("./salesMode", async (original) => ({
+  ...(await original<typeof import("./salesMode")>()),
+  PREORDER_MODE: true,
+}));
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
@@ -6,38 +9,67 @@ const mocks = vi.hoisted(() => {
   const queue = new Map<string, number>();
   const db = {
     get: vi.fn(async (key: string) => values.get(key) ?? null),
-    exists: vi.fn(async (key: string) => values.has(key) ? 1 : 0),
+    exists: vi.fn(async (key: string) => (values.has(key) ? 1 : 0)),
     set: vi.fn(async (key: string, value: unknown, options?: { nx?: boolean }) => {
       if (options?.nx && values.has(key)) return null;
-      values.set(key, value); return "OK";
+      values.set(key, value);
+      return "OK";
     }),
-    zrange: vi.fn(async (_key: string, _min: number, max: number) => [...queue.entries()].filter(([, score]) => score <= max).sort((a, b) => a[1] - b[1]).map(([id]) => id).slice(0, 10)),
-    zadd: vi.fn(async (_key: string, value: { member: string; score: number }) => { queue.set(value.member, value.score); return 1; }),
-    zrem: vi.fn(async (_key: string, id: string) => { queue.delete(id); return 1; }),
+    zrange: vi.fn(async (_key: string, _min: number, max: number) =>
+      [...queue.entries()]
+        .filter(([, score]) => score <= max)
+        .sort((a, b) => a[1] - b[1])
+        .map(([id]) => id)
+        .slice(0, 10),
+    ),
+    zadd: vi.fn(async (_key: string, value: { member: string; score: number }) => {
+      queue.set(value.member, value.score);
+      return 1;
+    }),
+    zrem: vi.fn(async (_key: string, id: string) => {
+      queue.delete(id);
+      return 1;
+    }),
     eval: vi.fn(async (script: string, keys: string[], args: Array<string | number>) => {
       if (script.includes("if redis.call('EXISTS', KEYS[1])")) {
         if (values.has(keys[0])) return values.get(keys[0]);
         values.set(keys[1], JSON.parse(String(args[1])));
         values.set(keys[2], args[3]);
         values.set(keys[3], JSON.parse(String(args[5])));
-        const campaign = JSON.parse(String(args[0])); values.set(keys[0], campaign); return campaign;
+        const campaign = JSON.parse(String(args[0]));
+        values.set(keys[0], campaign);
+        return campaign;
       }
       if (script.includes("campaign.nextStep ~= tonumber")) {
         const campaign = values.get(keys[0]) as Record<string, unknown>;
-        if (args[4] === "1") { campaign.status = "completed"; queue.delete(String(args[0])); }
-        else { campaign.nextStep = Number(campaign.nextStep) + 1; queue.set(String(args[0]), Number(args[3])); }
-        campaign.nextDue = Number(args[3]); values.set(keys[0], campaign); return 1;
+        if (args[4] === "1") {
+          campaign.status = "completed";
+          queue.delete(String(args[0]));
+        } else {
+          campaign.nextStep = Number(campaign.nextStep) + 1;
+          queue.set(String(args[0]), Number(args[3]));
+        }
+        campaign.nextDue = Number(args[3]);
+        values.set(keys[0], campaign);
+        return 1;
       }
       if (script.includes("campaign.status = ARGV[2]")) {
         const campaign = values.get(keys[0]) as Record<string, unknown> | undefined;
-        if (campaign) { campaign.status = args[1]; values.set(keys[0], campaign); }
-        queue.delete(String(args[0])); return 1;
+        if (campaign) {
+          campaign.status = args[1];
+          values.set(keys[0], campaign);
+        }
+        queue.delete(String(args[0]));
+        return 1;
       }
       if (script.includes("ARGV[1], 'NX', 'EX'")) {
         if (!values.has(keys[0])) values.set(keys[0], JSON.parse(String(args[0])));
         return values.get(keys[0]);
       }
-      if (script.includes("redis.call('DEL', KEYS[1])")) { values.delete(keys[0]); return 1; }
+      if (script.includes("redis.call('DEL', KEYS[1])")) {
+        values.delete(keys[0]);
+        return 1;
+      }
       return 1;
     }),
   };
@@ -48,22 +80,34 @@ vi.mock("./admin/store", async (original) => {
   const actual = await original<typeof import("./admin/store")>();
   return { ...actual, adminStore: () => mocks.db };
 });
-vi.mock("resend", () => ({ Resend: class { emails = { send: mocks.send }; } }));
-vi.mock("./followupPaystack", () => ({ followupPaymentState: mocks.payment }));
+vi.mock("resend", () => ({
+  Resend: class {
+    emails = { send: mocks.send };
+  },
+}));
+vi.mock("./payments/followupPaystack", () => ({ followupPaymentState: mocks.payment }));
 vi.mock("./vouchers", async (original) => {
   const actual = await original<typeof import("./vouchers")>();
   return { ...actual, createAbandonedCartVoucher: mocks.voucher };
 });
 
-import { followupRecordKey, type FollowupLead } from "./checkoutFollowup";
+import { followupRecordKey, type FollowupLead } from "./checkout/checkoutFollowup";
 import { getCartRecovery, processCartEmails, unsubscribeCartEmails } from "./cartEmailSequence";
 
 const now = Date.parse("2026-09-22T10:00:00.000Z");
 const lead = (overrides: Partial<FollowupLead> = {}): FollowupLead => ({
-  id: "a7f2c83c-c1a9-4567-9345-cc49a8f01234", email: "buyer@example.com", name: "Tumi",
-  cart: { green: 1, cream: 0 }, stage: "details", createdAt: now - 2 * 60 * 60 * 1000,
-  updatedAt: now - 60 * 60 * 1000, version: "lead-v1", marketingConsent: true,
-  consentAt: new Date(now - 60 * 60 * 1000).toISOString(), consentVersion: "2026-09-22", ...overrides,
+  id: "a7f2c83c-c1a9-4567-9345-cc49a8f01234",
+  email: "buyer@example.com",
+  name: "Tumi",
+  cart: { green: 1, cream: 0 },
+  stage: "details",
+  createdAt: now - 2 * 60 * 60 * 1000,
+  updatedAt: now - 60 * 60 * 1000,
+  version: "lead-v1",
+  marketingConsent: true,
+  consentAt: new Date(now - 60 * 60 * 1000).toISOString(),
+  consentVersion: "2026-09-22",
+  ...overrides,
 });
 
 function queueLead(value: FollowupLead) {
@@ -74,33 +118,50 @@ function queueLead(value: FollowupLead) {
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-09-22T10:00:00.000Z"));
-  vi.clearAllMocks(); mocks.values.clear(); mocks.queue.clear();
+  vi.clearAllMocks();
+  mocks.values.clear();
+  mocks.queue.clear();
   Object.entries({
-    UPSTASH_REDIS_REST_URL: "https://redis.example.com", UPSTASH_REDIS_REST_TOKEN: "test",
-    PAYSTACK_SECRET_KEY: "sk_test_example", RESEND_API_KEY: "resend-test",
-    ORDER_FROM_EMAIL: "Smelt <orders@saunahat.co.za>", SITE_URL: "https://saunahat.co.za",
+    UPSTASH_REDIS_REST_URL: "https://redis.example.com",
+    UPSTASH_REDIS_REST_TOKEN: "test",
+    PAYSTACK_SECRET_KEY: "sk_test_example",
+    RESEND_API_KEY: "resend-test",
+    ORDER_FROM_EMAIL: "Smelt <orders@saunahat.co.za>",
+    SITE_URL: "https://saunahat.co.za",
     CART_EMAIL_SEQUENCE_ENABLED: "true",
   }).forEach(([key, value]) => vi.stubEnv(key, value));
   mocks.payment.mockResolvedValue("unpaid");
   mocks.send.mockResolvedValue({ data: { id: "email-1" }, error: null });
   mocks.voucher.mockImplementation((email: string, id: string) => ({
-    voucherKey: `voucher:${id}`, ttl: 604800,
+    voucherKey: `voucher:${id}`,
+    ttl: 604800,
     record: { email, amount: 50 },
     reward: { code: "SMELT-ABCDEFGHIJKL", amount: 50, expiresAt: "2026-09-29T10:00:00.000Z" },
   }));
 });
-afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllEnvs();
+});
 
 describe("abandoned-cart email sequence", () => {
   it("sends the first opted-in reminder and restores its private cart", async () => {
     queueLead(lead());
     await expect(processCartEmails(now)).resolves.toMatchObject({ sent: 1, errors: 0 });
     expect(mocks.send).toHaveBeenCalledTimes(1);
-    expect(mocks.send.mock.calls[0][0]).toMatchObject({ to: "buyer@example.com", subject: expect.stringContaining("R50") });
+    expect(mocks.send.mock.calls[0][0]).toMatchObject({
+      to: "buyer@example.com",
+      subject: expect.stringContaining("R50"),
+    });
     expect(mocks.send.mock.calls[0][0].html).toContain("/checkout/recover/");
     expect(mocks.send.mock.calls[0][0].html).toContain("/email/unsubscribe/");
-    const campaign = [...mocks.values.entries()].find(([key]) => key.includes(":campaign:"))?.[1] as { recoveryToken: string };
-    await expect(getCartRecovery(campaign.recoveryToken)).resolves.toMatchObject({ email: "buyer@example.com", cart: { green: 1, cream: 0 } });
+    const campaign = [...mocks.values.entries()].find(([key]) =>
+      key.includes(":campaign:"),
+    )?.[1] as { recoveryToken: string };
+    await expect(getCartRecovery(campaign.recoveryToken)).resolves.toMatchObject({
+      email: "buyer@example.com",
+      cart: { green: 1, cream: 0 },
+    });
     await processCartEmails(now);
     expect(mocks.send).toHaveBeenCalledTimes(1);
   });
@@ -113,7 +174,7 @@ describe("abandoned-cart email sequence", () => {
     await processCartEmails(now + 23 * 60 * 60 * 1000);
     await processCartEmails(now + 71 * 60 * 60 * 1000);
     expect(mocks.send).toHaveBeenCalledTimes(3);
-    expect(mocks.send.mock.calls.map(call => call[0].subject)).toEqual([
+    expect(mocks.send.mock.calls.map((call) => call[0].subject)).toEqual([
       "Your Smelt pre-order is waiting — R50 off inside",
       "Secure your Smelt at the pre-order price",
       "One last reminder to reserve your Smelt pre-order",
@@ -130,29 +191,41 @@ describe("abandoned-cart email sequence", () => {
   });
 
   it("rechecks Paystack and suppresses a completed payment before issuing an offer", async () => {
-    queueLead(lead()); mocks.payment.mockResolvedValue("paid");
+    queueLead(lead());
+    mocks.payment.mockResolvedValue("paid");
     await expect(processCartEmails(now)).resolves.toMatchObject({ paid: 1, sent: 0 });
     expect(mocks.voucher).not.toHaveBeenCalled();
     expect(mocks.send).not.toHaveBeenCalled();
   });
 
   it("hands a permanently rejected send off as manual without retrying", async () => {
-    const value = lead(); queueLead(value);
+    const value = lead();
+    queueLead(value);
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    mocks.send.mockResolvedValue({ data: null, error: { name: "validation_error", statusCode: 422, message: "Invalid `to` field." } });
+    mocks.send.mockResolvedValue({
+      data: null,
+      error: { name: "validation_error", statusCode: 422, message: "Invalid `to` field." },
+    });
     await expect(processCartEmails(now)).resolves.toMatchObject({ manual: 1, sent: 0, errors: 0 });
     expect(mocks.queue.has(value.id)).toBe(false);
     await processCartEmails(now + 24 * 60 * 60 * 1000);
     expect(mocks.send).toHaveBeenCalledTimes(1);
-    expect(errorSpy).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ error: "validation_error", statusCode: 422 }));
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ error: "validation_error", statusCode: 422 }),
+    );
     errorSpy.mockRestore();
   });
 
   it("retries a transient send failure five times with backoff, then hands off as manual", async () => {
-    const value = lead(); queueLead(value);
+    const value = lead();
+    queueLead(value);
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    mocks.send.mockResolvedValue({ data: null, error: { name: "internal_server_error", statusCode: 500, message: "Internal" } });
+    mocks.send.mockResolvedValue({
+      data: null,
+      error: { name: "internal_server_error", statusCode: 500, message: "Internal" },
+    });
     const minutes = (n: number) => n * 60 * 1000;
     let at = now;
     await expect(processCartEmails(at)).resolves.toMatchObject({ errors: 1 });
@@ -165,25 +238,37 @@ describe("abandoned-cart email sequence", () => {
     expect(mocks.queue.has(value.id)).toBe(false);
     expect(warnSpy).toHaveBeenCalledTimes(5);
     expect(errorSpy).toHaveBeenCalledTimes(1);
-    const campaign = [...mocks.values.entries()].find(([key]) => key.includes(":campaign:"))?.[1] as { status: string };
+    const campaign = [...mocks.values.entries()].find(([key]) =>
+      key.includes(":campaign:"),
+    )?.[1] as { status: string };
     expect(campaign.status).toBe("manual");
-    warnSpy.mockRestore(); errorSpy.mockRestore();
+    warnSpy.mockRestore();
+    errorSpy.mockRestore();
   });
 
   it("delivers on a retry after a transient failure", async () => {
     queueLead(lead());
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    mocks.send.mockResolvedValueOnce({ data: null, error: { name: "rate_limit_exceeded", statusCode: 429, message: "Slow down" } });
+    mocks.send.mockResolvedValueOnce({
+      data: null,
+      error: { name: "rate_limit_exceeded", statusCode: 429, message: "Slow down" },
+    });
     await processCartEmails(now);
-    await expect(processCartEmails(now + 5 * 60 * 1000)).resolves.toMatchObject({ sent: 1, errors: 0 });
+    await expect(processCartEmails(now + 5 * 60 * 1000)).resolves.toMatchObject({
+      sent: 1,
+      errors: 0,
+    });
     expect(mocks.send).toHaveBeenCalledTimes(2);
     warnSpy.mockRestore();
   });
 
   it("persists an unsubscribe and stops the queued campaign", async () => {
-    const value = lead(); queueLead(value);
+    const value = lead();
+    queueLead(value);
     await processCartEmails(now);
-    const campaign = [...mocks.values.entries()].find(([key]) => key.includes(":campaign:"))?.[1] as { unsubscribeToken: string };
+    const campaign = [...mocks.values.entries()].find(([key]) =>
+      key.includes(":campaign:"),
+    )?.[1] as { unsubscribeToken: string };
     await expect(unsubscribeCartEmails(campaign.unsubscribeToken)).resolves.toBe(true);
     mocks.queue.set(value.id, now);
     await expect(processCartEmails(now)).resolves.toMatchObject({ suppressed: 1, sent: 0 });

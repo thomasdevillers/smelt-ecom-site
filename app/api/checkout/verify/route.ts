@@ -1,22 +1,29 @@
-import { resolvePurchasePreorder } from "@/lib/purchaseStore";
+import { resolvePurchasePreorder } from "@/lib/inventory/purchaseStore";
 import { after } from "next/server";
 import { tryOrderConfirmation } from "@/lib/orderConfirmation";
-import { verifyTransaction } from "@/lib/paystack";
+import { verifyTransaction } from "@/lib/payments/paystack";
 import type { OrderItem } from "@/lib/orderTypes";
-import { paidCheckoutTotal, sanitizeCart } from "@/lib/checkoutShared";
+import { paidCheckoutTotal, sanitizeCart } from "@/lib/checkout/checkoutShared";
 import { parseShippingMethod } from "@/lib/pricing";
 import { PRODUCT } from "@/lib/product";
 import { type CartState } from "@/lib/cartReducer";
 import { sendMetaPurchase } from "@/lib/metaConversions";
 import type { MetaClientContext } from "@/lib/meta";
-import { commitInventory } from "@/lib/inventory";
+import { commitInventory } from "@/lib/inventory/inventory";
 import { commitVoucher, parseVoucherMetadata } from "@/lib/vouchers";
 import { getDeliveryAddress } from "@/lib/deliveryMap";
-import { paystackEventConfig } from "@/lib/paystackEventConfig";
+import { paystackEventConfig } from "@/lib/payments/paystackEventConfig";
 
-async function commitReservedStock(reservation: unknown, cart: CartState, reference: string): Promise<boolean> {
+async function commitReservedStock(
+  reservation: unknown,
+  cart: CartState,
+  reference: string,
+): Promise<boolean> {
   if (reference.startsWith("smeltp-") && reservation !== reference) return false;
-  return typeof reservation !== "string" || (reservation === reference && await commitInventory(reservation, cart));
+  return (
+    typeof reservation !== "string" ||
+    (reservation === reference && (await commitInventory(reservation, cart)))
+  );
 }
 
 export async function POST(request: Request) {
@@ -33,10 +40,7 @@ export async function POST(request: Request) {
 
   const { reference } = body;
   if (typeof reference !== "string") {
-    return Response.json(
-      { error: "A valid transaction reference is required." },
-      { status: 400 },
-    );
+    return Response.json({ error: "A valid transaction reference is required." }, { status: 400 });
   }
 
   try {
@@ -55,7 +59,10 @@ export async function POST(request: Request) {
       items?: OrderItem[];
       inventoryReservation?: unknown;
       preorder?: unknown;
-      voucher?: unknown; unitPrice?: unknown; pricingVersion?: unknown; attribution?: unknown;
+      voucher?: unknown;
+      unitPrice?: unknown;
+      pricingVersion?: unknown;
+      attribution?: unknown;
     } | null;
 
     const cart = sanitizeCart(meta?.cart ?? body.cart);
@@ -73,9 +80,18 @@ export async function POST(request: Request) {
     // tampered client could pay for a cheap cart while claiming an expensive
     // one in `items`/`cart`.
     const voucher = parseVoucherMetadata(meta?.voucher);
-    const expectedAmountRand = paidCheckoutTotal(cart, meta?.shippingMethod, voucher?.amount ?? 0, meta?.unitPrice, meta?.pricingVersion);
+    const expectedAmountRand = paidCheckoutTotal(
+      cart,
+      meta?.shippingMethod,
+      voucher?.amount ?? 0,
+      meta?.unitPrice,
+      meta?.pricingVersion,
+    );
     const paidAmountRand = Math.round(verified.amount / 100);
-    const amountMatches = expectedAmountRand > 0 && verified.amount === expectedAmountRand * 100 && verified.currency === "ZAR";
+    const amountMatches =
+      expectedAmountRand > 0 &&
+      verified.amount === expectedAmountRand * 100 &&
+      verified.currency === "ZAR";
 
     if (!amountMatches) {
       console.error(
@@ -91,42 +107,62 @@ export async function POST(request: Request) {
     }
 
     if (paystackEventConfig().store === "legacy") {
-    if (!await commitReservedStock(meta?.inventoryReservation, cart, verified.reference)) {
-      console.error(`Inventory reservation mismatch for paid transaction ${reference}`);
-      return Response.json(
-        { error: "Your payment was received, but we couldn't reconcile the stock reservation. Please contact support with your reference." },
-        { status: 409 },
+      if (!(await commitReservedStock(meta?.inventoryReservation, cart, verified.reference))) {
+        console.error(`Inventory reservation mismatch for paid transaction ${reference}`);
+        return Response.json(
+          {
+            error:
+              "Your payment was received, but we couldn't reconcile the stock reservation. Please contact support with your reference.",
+          },
+          { status: 409 },
+        );
+      }
+      if (!(await commitVoucher(verified.reference, meta?.voucher))) {
+        console.error(`Voucher reservation mismatch for paid transaction ${reference}`);
+        return Response.json(
+          {
+            error:
+              "Your payment was received, but we couldn't reconcile the voucher. Please contact support with your reference.",
+          },
+          { status: 409 },
+        );
+      }
+
+      after(() =>
+        tryOrderConfirmation({
+          reference: verified.reference,
+          email: verified.customerEmail ?? "",
+          customerName: meta?.customerName,
+          paidAt: verified.paidAt,
+          amount: verified.amount,
+          currency: verified.currency,
+          cart,
+          address: meta?.shippingAddress,
+          shippingMethod: meta?.shippingMethod,
+          preorder: meta?.preorder,
+          voucher: meta?.voucher,
+          unitPrice: meta?.unitPrice,
+          pricingVersion: meta?.pricingVersion,
+          attribution: meta?.attribution,
+        }),
       );
-    }
-    if (!await commitVoucher(verified.reference, meta?.voucher)) {
-      console.error(`Voucher reservation mismatch for paid transaction ${reference}`);
-      return Response.json({ error: "Your payment was received, but we couldn't reconcile the voucher. Please contact support with your reference." }, { status: 409 });
-    }
 
-    after(() => tryOrderConfirmation({
-      reference: verified.reference, email: verified.customerEmail ?? "", customerName: meta?.customerName, paidAt: verified.paidAt,
-      amount: verified.amount, currency: verified.currency, cart, address: meta?.shippingAddress, shippingMethod: meta?.shippingMethod, preorder: meta?.preorder, voucher: meta?.voucher, unitPrice: meta?.unitPrice, pricingVersion: meta?.pricingVersion, attribution: meta?.attribution,
-    }));
-
-    await sendMetaPurchase({
-      reference,
-      email: verified.customerEmail ?? "",
-      amount: paidAmountRand,
-      currency: verified.currency,
-      items,
-      paidAt: verified.paidAt,
-      request,
-      client: body.metaClient,
-    });
+      await sendMetaPurchase({
+        reference,
+        email: verified.customerEmail ?? "",
+        amount: paidAmountRand,
+        currency: verified.currency,
+        items,
+        paidAt: verified.paidAt,
+        request,
+        client: body.metaClient,
+      });
     }
 
     return Response.json({ success: true });
   } catch (err) {
     console.error("Paystack verify error:", err);
-    return Response.json(
-      { error: "Could not verify payment. Please try again." },
-      { status: 502 },
-    );
+    return Response.json({ error: "Could not verify payment. Please try again." }, { status: 502 });
   }
 }
 
@@ -143,52 +179,92 @@ export async function GET(request: Request) {
     }
 
     const meta = verified.metadata as {
-      items?: OrderItem[]; cart?: unknown;
+      items?: OrderItem[];
+      cart?: unknown;
       shippingAddress?: { phone?: unknown };
       customerName?: unknown;
       shippingMethod?: unknown;
       inventoryReservation?: unknown;
       preorder?: unknown;
-      voucher?: unknown; unitPrice?: unknown; pricingVersion?: unknown; attribution?: unknown;
+      voucher?: unknown;
+      unitPrice?: unknown;
+      pricingVersion?: unknown;
+      attribution?: unknown;
     } | null;
     const cart = sanitizeCart(meta?.cart);
     const voucher = parseVoucherMetadata(meta?.voucher);
-    const expectedAmount = paidCheckoutTotal(cart, meta?.shippingMethod, voucher?.amount ?? 0, meta?.unitPrice, meta?.pricingVersion);
-    if (expectedAmount * 100 !== verified.amount || expectedAmount <= 0 || verified.currency !== "ZAR") {
+    const expectedAmount = paidCheckoutTotal(
+      cart,
+      meta?.shippingMethod,
+      voucher?.amount ?? 0,
+      meta?.unitPrice,
+      meta?.pricingVersion,
+    );
+    if (
+      expectedAmount * 100 !== verified.amount ||
+      expectedAmount <= 0 ||
+      verified.currency !== "ZAR"
+    ) {
       return Response.json({ error: "Payment total does not match the order." }, { status: 409 });
     }
     if (paystackEventConfig().store === "legacy") {
-    if (!await commitReservedStock(meta?.inventoryReservation, cart, verified.reference)) {
-      console.error(`Inventory reservation mismatch for paid transaction ${reference}`);
-      return Response.json({ error: "Payment received, but stock needs manual review. Please contact support with your reference." }, { status: 409 });
+      if (!(await commitReservedStock(meta?.inventoryReservation, cart, verified.reference))) {
+        console.error(`Inventory reservation mismatch for paid transaction ${reference}`);
+        return Response.json(
+          {
+            error:
+              "Payment received, but stock needs manual review. Please contact support with your reference.",
+          },
+          { status: 409 },
+        );
+      }
+      if (!(await commitVoucher(verified.reference, meta?.voucher))) {
+        console.error(`Voucher reservation mismatch for paid transaction ${reference}`);
+        return Response.json(
+          {
+            error:
+              "Payment received, but the voucher needs manual review. Please contact support with your reference.",
+          },
+          { status: 409 },
+        );
+      }
+      after(() =>
+        tryOrderConfirmation({
+          reference: verified.reference,
+          email: verified.customerEmail ?? "",
+          customerName: meta?.customerName,
+          paidAt: verified.paidAt,
+          amount: verified.amount,
+          currency: verified.currency,
+          cart,
+          address: meta?.shippingAddress,
+          shippingMethod: meta?.shippingMethod,
+          preorder: meta?.preorder,
+          voucher: meta?.voucher,
+          unitPrice: meta?.unitPrice,
+          pricingVersion: meta?.pricingVersion,
+          attribution: meta?.attribution,
+        }),
+      );
     }
-    if (!await commitVoucher(verified.reference, meta?.voucher)) {
-      console.error(`Voucher reservation mismatch for paid transaction ${reference}`);
-      return Response.json({ error: "Payment received, but the voucher needs manual review. Please contact support with your reference." }, { status: 409 });
-    }
-    after(() => tryOrderConfirmation({
-      reference: verified.reference, email: verified.customerEmail ?? "", customerName: meta?.customerName, paidAt: verified.paidAt,
-      amount: verified.amount, currency: verified.currency, cart, address: meta?.shippingAddress, shippingMethod: meta?.shippingMethod, preorder: meta?.preorder, voucher: meta?.voucher, unitPrice: meta?.unitPrice, pricingVersion: meta?.pricingVersion, attribution: meta?.attribution,
-    }));
-    }
-    return Response.json({
-      paid: true,
-      preorder: await resolvePurchasePreorder(verified.reference, meta?.preorder),
-      shippingMethod: parseShippingMethod(meta?.shippingMethod),
-      address: getDeliveryAddress(meta?.shippingAddress),
-      reference: verified.reference,
-      amountRand: Math.round(verified.amount / 100),
-      discountRand: voucher?.amount ?? 0,
-      currency: verified.currency,
-      items: (Object.keys(cart) as Array<keyof CartState>)
-        .filter((colour) => cart[colour] > 0)
-        .map((colour) => ({ colour, name: PRODUCT.variants[colour].name, qty: cart[colour] })),
-    }, { headers: { "Cache-Control": "private, no-store" } });
+    return Response.json(
+      {
+        paid: true,
+        preorder: await resolvePurchasePreorder(verified.reference, meta?.preorder),
+        shippingMethod: parseShippingMethod(meta?.shippingMethod),
+        address: getDeliveryAddress(meta?.shippingAddress),
+        reference: verified.reference,
+        amountRand: Math.round(verified.amount / 100),
+        discountRand: voucher?.amount ?? 0,
+        currency: verified.currency,
+        items: (Object.keys(cart) as Array<keyof CartState>)
+          .filter((colour) => cart[colour] > 0)
+          .map((colour) => ({ colour, name: PRODUCT.variants[colour].name, qty: cart[colour] })),
+      },
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
   } catch (err) {
     console.error("Paystack read verification error:", err);
-    return Response.json(
-      { error: "Could not verify payment. Please try again." },
-      { status: 502 },
-    );
+    return Response.json({ error: "Could not verify payment. Please try again." }, { status: 502 });
   }
 }

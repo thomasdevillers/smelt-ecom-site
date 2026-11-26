@@ -2,12 +2,16 @@ import { COLOURS, PRODUCT, type Colour } from "./product";
 import { BASE_PRICE, SHIPPING_FEE } from "./pricing";
 import { PREORDER_MODE } from "./salesMode";
 import { metaContentId } from "./meta";
-import type { Availability } from "./preorders";
+import type { Availability } from "./inventory/preorders";
 import { reviewSummary, type PublishedReviews } from "./reviews";
 import { abs } from "./seo";
 
 /** Unknown inventory must not be advertised as either available or sold out. */
-export function variantAvailability(stock: Availability | null, colour: Colour, preorderMode = PREORDER_MODE) {
+export function variantAvailability(
+  stock: Availability | null,
+  colour: Colour,
+  preorderMode = PREORDER_MODE,
+) {
   if (!stock) return undefined;
   if (!preorderMode && stock[colour] > 0) return "https://schema.org/InStock";
   if (stock.preorder[colour] > 0) return "https://schema.org/PreOrder";
@@ -18,10 +22,21 @@ function productRatings(data: PublishedReviews | null) {
   if (!data?.reviews.length) return {};
   const reviews = data.reviews;
   // Only emit the complete visible rating, never a hand-picked subset.
-  if (reviews.some(review => !review.verifiedPurchase || review.id.startsWith("dev-") ||
-    !Number.isInteger(review.rating) || review.rating < 1 || review.rating > 5 ||
-    !review.body.trim() || !review.displayName.trim() || review.displayName.length >= 100 ||
-    !Number.isFinite(Date.parse(review.publishedAt)))) return {};
+  if (
+    reviews.some(
+      (review) =>
+        !review.verifiedPurchase ||
+        review.id.startsWith("dev-") ||
+        !Number.isInteger(review.rating) ||
+        review.rating < 1 ||
+        review.rating > 5 ||
+        !review.body.trim() ||
+        !review.displayName.trim() ||
+        review.displayName.length >= 100 ||
+        !Number.isFinite(Date.parse(review.publishedAt)),
+    )
+  )
+    return {};
   const summary = reviewSummary(reviews);
   if (summary.total !== data.summary.total || summary.average !== data.summary.average) return {};
   return {
@@ -32,12 +47,17 @@ function productRatings(data: PublishedReviews | null) {
       bestRating: 5,
       worstRating: 1,
     },
-    review: reviews.map(review => ({
+    review: reviews.map((review) => ({
       "@type": "Review",
       author: { "@type": "Person", name: review.displayName },
       datePublished: review.publishedAt,
       reviewBody: review.body,
-      reviewRating: { "@type": "Rating", ratingValue: review.rating, bestRating: 5, worstRating: 1 },
+      reviewRating: {
+        "@type": "Rating",
+        ratingValue: review.rating,
+        bestRating: 5,
+        worstRating: 1,
+      },
     })),
   };
 }
@@ -50,13 +70,14 @@ export function productGroupLd(stock: Availability | null, reviews: PublishedRev
     "@id": abs("/product#product-group"),
     productGroupID: "smelt-sauna-hat",
     name: PRODUCT.name,
-    description: "100% merino wool felt sauna hat, embroidered front and back. One size fits most heads.",
+    description:
+      "100% merino wool felt sauna hat, embroidered front and back. One size fits most heads.",
     url: abs("/product"),
     brand: { "@type": "Brand", name: "Smelt" },
     material: "100% merino wool felt",
     variesBy: ["https://schema.org/color"],
     ...productRatings(reviews),
-    hasVariant: COLOURS.map(colour => {
+    hasVariant: COLOURS.map((colour) => {
       const variant = PRODUCT.variants[colour];
       const url = abs(`/product?colour=${colour}`);
       const availability = variantAvailability(stock, colour);
@@ -92,12 +113,28 @@ export function productGroupLd(stock: Availability | null, reviews: PublishedRev
             shippingDestination: { "@type": "DefinedRegion", addressCountry: "ZA" },
             deliveryTime: {
               "@type": "ShippingDeliveryTime",
-              handlingTime: { "@type": "QuantitativeValue", minValue: 1, maxValue: 3, unitCode: "DAY" },
+              handlingTime: {
+                "@type": "QuantitativeValue",
+                minValue: 1,
+                maxValue: 3,
+                unitCode: "DAY",
+              },
               // Include regional and outlying destinations in the nationwide estimate.
-              transitTime: { "@type": "QuantitativeValue", minValue: 1, maxValue: 5, unitCode: "DAY" },
+              transitTime: {
+                "@type": "QuantitativeValue",
+                minValue: 1,
+                maxValue: 5,
+                unitCode: "DAY",
+              },
               businessDays: {
                 "@type": "OpeningHoursSpecification",
-                dayOfWeek: ["https://schema.org/Monday", "https://schema.org/Tuesday", "https://schema.org/Wednesday", "https://schema.org/Thursday", "https://schema.org/Friday"],
+                dayOfWeek: [
+                  "https://schema.org/Monday",
+                  "https://schema.org/Tuesday",
+                  "https://schema.org/Wednesday",
+                  "https://schema.org/Thursday",
+                  "https://schema.org/Friday",
+                ],
               },
             },
           },

@@ -6,9 +6,18 @@ import { completedOrderDates, orderCompletedAt } from "./orderFulfilment";
 import { assertOrdersWritable } from "./orderPersistence";
 import { PRODUCT, type Colour } from "./product";
 import { reviewNamespace, type ReviewNamespace } from "./reviewNamespace";
-import { assertReviewCustomWritable, reviewCustomDatabase, reviewCustomStore } from "./reviewCustomPersistence";
+import {
+  assertReviewCustomWritable,
+  reviewCustomDatabase,
+  reviewCustomStore,
+} from "./reviewCustomPersistence";
 import { reviewDomain } from "./db/review-domain";
-import { currentReviewRanking, rankReviewRecords, reviewRankingPrefix, type ReviewRanking } from "./reviewRanking";
+import {
+  currentReviewRanking,
+  rankReviewRecords,
+  reviewRankingPrefix,
+  type ReviewRanking,
+} from "./reviewRanking";
 import {
   REVIEW_INVITATION_DAYS,
   REVIEW_MAX_PHOTO_BYTES,
@@ -33,7 +42,8 @@ const claimKey = (tokenDigest: string) => `${prefix()}:claim:${tokenDigest}`;
 const orderClaimKey = (reference: string) => `${prefix()}:order:${digest(reference)}:review`;
 const uploadPathsKey = (tokenDigest: string) => `${prefix()}:upload-paths:${tokenDigest}`;
 const accessRateKey = (value: string) => `${prefix()}:access-rate:${digest(value)}`;
-const pgReviews = async (namespace = mode()) => reviewDomain(await reviewCustomDatabase(), namespace);
+const pgReviews = async (namespace = mode()) =>
+  reviewDomain(await reviewCustomDatabase(), namespace);
 
 // New Vercel Blob connections use short-lived OIDC credentials at runtime and
 // expose the connected store through BLOB_STORE_ID. Older connections can
@@ -69,19 +79,32 @@ export interface PublicInvitation {
 function parseStored<T>(value: T | string | null): T | null {
   if (!value) return null;
   if (typeof value !== "string") return value;
-  try { return JSON.parse(value) as T; } catch { return null; }
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
 }
 
 function coloursFromOrder(items: Array<{ colour: string }>): Colour[] {
-  return [...new Set(items.map(item => item.colour).filter((colour): colour is Colour => colour === "green" || colour === "cream"))];
+  return [
+    ...new Set(
+      items
+        .map((item) => item.colour)
+        .filter((colour): colour is Colour => colour === "green" || colour === "cream"),
+    ),
+  ];
 }
 
-export async function createReviewInvitation(reference: string, options: { photosRequired?: boolean } = {}) {
+export async function createReviewInvitation(
+  reference: string,
+  options: { photosRequired?: boolean } = {},
+) {
   assertOrdersWritable();
   assertReviewCustomWritable();
   const order = await getPaidOrder(reference);
   const db = adminStore();
-  if (!await orderCompletedAt(reference))
+  if (!(await orderCompletedAt(reference)))
     throw new AdminError("Mark this order complete before creating a review link.", 409);
   if (await hasReviewForOrder(reference))
     throw new AdminError("A review has already been submitted for this order.", 409);
@@ -106,7 +129,13 @@ export async function createReviewInvitation(reference: string, options: { photo
     await db.set(inviteKey(tokenDigest), invitation, { ex: ttl });
     await db.set(currentInviteKey(reference), tokenDigest, { ex: ttl });
   }
-  return { token, expiresAt: invitation.expiresAt, email: invitation.email, suggestedName: invitation.suggestedName, photosRequired: invitation.photosRequired };
+  return {
+    token,
+    expiresAt: invitation.expiresAt,
+    email: invitation.email,
+    suggestedName: invitation.suggestedName,
+    photosRequired: invitation.photosRequired,
+  };
 }
 
 export async function hasCurrentReviewInvitation(reference: string): Promise<boolean> {
@@ -116,7 +145,7 @@ export async function hasCurrentReviewInvitation(reference: string): Promise<boo
 
 export async function hasReviewForOrder(reference: string): Promise<boolean> {
   if (reviewCustomStore() === "postgres") return (await pgReviews()).hasReview(reference);
-  return (await listReviewRecords()).some(review => review.orderReference === reference);
+  return (await listReviewRecords()).some((review) => review.orderReference === reference);
 }
 
 export async function createReviewInvitationForEmail(input: unknown, ip: string) {
@@ -126,37 +155,49 @@ export async function createReviewInvitationForEmail(input: unknown, ip: string)
     throw new AdminError("Enter the email address used at checkout.");
 
   const db = adminStore();
-  const allowed = await db.eval(`
+  const allowed = await db.eval(
+    `
 local ipCount = redis.call('INCR', KEYS[1])
 if ipCount == 1 then redis.call('EXPIRE', KEYS[1], 3600) end
 local emailCount = redis.call('INCR', KEYS[2])
 if emailCount == 1 then redis.call('EXPIRE', KEYS[2], 3600) end
 if ipCount > 30 or emailCount > 6 then return 0 end
-return 1`, [accessRateKey(`ip:${ip}`), accessRateKey(`email:${email}`)], []);
+return 1`,
+    [accessRateKey(`ip:${ip}`), accessRateKey(`email:${email}`)],
+    [],
+  );
   if (!allowed) throw new AdminError("Too many attempts. Please try again in an hour.", 429);
 
   let orders;
-  try { orders = await findPaidOrdersByEmail(email); }
-  catch (error) {
+  try {
+    orders = await findPaidOrdersByEmail(email);
+  } catch (error) {
     if (error instanceof AdminError && error.status === 404)
-      throw new AdminError("We couldn’t find a completed Smelt order for that email. Check the address used at checkout.", 404);
+      throw new AdminError(
+        "We couldn’t find a completed Smelt order for that email. Check the address used at checkout.",
+        404,
+      );
     throw error;
   }
-  const [completed, stored] = await Promise.all([
-    completedOrderDates(),
-    listReviewRecords(),
-  ]);
-  const reviewed = new Set(stored.map(review => review.orderReference));
-  const order = orders.find(candidate => completed?.[candidate.reference] && !reviewed.has(candidate.reference));
+  const [completed, stored] = await Promise.all([completedOrderDates(), listReviewRecords()]);
+  const reviewed = new Set(stored.map((review) => review.orderReference));
+  const order = orders.find(
+    (candidate) => completed?.[candidate.reference] && !reviewed.has(candidate.reference),
+  );
   if (!order) {
-    if (orders.some(candidate => reviewed.has(candidate.reference)))
+    if (orders.some((candidate) => reviewed.has(candidate.reference)))
       throw new AdminError("A review has already been submitted for this order.", 409);
-    throw new AdminError("We couldn’t find a completed Smelt order for that email. Check the address used at checkout.", 404);
+    throw new AdminError(
+      "We couldn’t find a completed Smelt order for that email. Check the address used at checkout.",
+      404,
+    );
   }
   return createReviewInvitation(order.reference);
 }
 
-async function invitationForToken(token: string): Promise<{ invitation: ReviewInvitation; tokenDigest: string; used: boolean } | null> {
+async function invitationForToken(
+  token: string,
+): Promise<{ invitation: ReviewInvitation; tokenDigest: string; used: boolean } | null> {
   if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
   const tokenDigest = digest(token);
   if (reviewCustomStore() === "postgres") return (await pgReviews()).invitation(tokenDigest);
@@ -193,7 +234,8 @@ export async function getPublicInvitation(token: string): Promise<PublicInvitati
 export async function reservePhotoUpload(token: string, pathname: string) {
   assertReviewCustomWritable();
   if (reviewCustomStore() === "postgres") {
-    if (!/^[A-Za-z0-9_-]{43}$/.test(token)) throw new AdminError("This review link is invalid or has expired.", 404);
+    if (!/^[A-Za-z0-9_-]{43}$/.test(token))
+      throw new AdminError("This review link is invalid or has expired.", 404);
     return (await pgReviews()).reserveUpload(digest(token), pathname);
   }
   const found = await invitationForToken(token);
@@ -202,13 +244,18 @@ export async function reservePhotoUpload(token: string, pathname: string) {
   const prefix = `reviews/pending/${found.invitation.uploadKey}/`;
   if (!pathname.startsWith(prefix) || !/^[^/]+\.(?:webp|jpg)$/.test(pathname.slice(prefix.length)))
     throw new AdminError("Invalid photo path.");
-  const allowed = await adminStore().eval(`
+  const allowed = await adminStore().eval(
+    `
 if redis.call('SISMEMBER', KEYS[1], ARGV[1]) == 1 then return 1 end
 if redis.call('SCARD', KEYS[1]) >= ${REVIEW_MAX_PHOTOS * 4} then return 0 end
 redis.call('SADD', KEYS[1], ARGV[1])
 if redis.call('SCARD', KEYS[1]) == 1 then redis.call('EXPIRE', KEYS[1], 3600) end
-return 1`, [uploadPathsKey(found.tokenDigest)], [pathname]);
-  if (!allowed) throw new AdminError("Too many photo upload attempts. Please try again in an hour.", 429);
+return 1`,
+    [uploadPathsKey(found.tokenDigest)],
+    [pathname],
+  );
+  if (!allowed)
+    throw new AdminError("Too many photo upload attempts. Please try again in an hour.", 429);
   return found.invitation.uploadKey;
 }
 
@@ -227,27 +274,46 @@ export async function submitReview(token: string, input: unknown) {
   assertReviewCustomWritable();
   const found = await invitationForToken(token);
   if (!found) throw new AdminError("This review link is invalid or has expired.", 404);
-  if (found.used)
-    throw new AdminError("This review link has already been used.", 409);
+  if (found.used) throw new AdminError("This review link has already been used.", 409);
   // Include reviews created before the order-level claim was introduced.
   if (await hasReviewForOrder(found.invitation.reference))
     throw new AdminError("A review has already been submitted for this order.", 409);
-  const submission = validateReviewSubmission(input, { photosRequired: found.invitation.photosRequired !== false });
-  const photos = submission.photoUrls.map(url => photoFromInvitation(url, found.invitation.uploadKey));
-  if (photos.some(photo => !photo)) throw new AdminError("One of the uploaded photos is not valid.");
-  await Promise.all(photos.map(async photo => {
-    let stored;
-    try { stored = await head(photo!.url, { abortSignal: AbortSignal.timeout(10_000) }); }
-    catch { throw new AdminError("One of your photos could not be verified. Please try submitting again.", 503); }
-    if (stored.pathname !== photo!.pathname || stored.size <= 0 || stored.size > REVIEW_MAX_PHOTO_BYTES ||
-      !["image/webp", "image/jpeg"].includes(stored.contentType))
-      throw new AdminError("One of the uploaded photos is not valid. Please choose a JPEG or WebP photo under 5 MB.");
-  }));
+  const submission = validateReviewSubmission(input, {
+    photosRequired: found.invitation.photosRequired !== false,
+  });
+  const photos = submission.photoUrls.map((url) =>
+    photoFromInvitation(url, found.invitation.uploadKey),
+  );
+  if (photos.some((photo) => !photo))
+    throw new AdminError("One of the uploaded photos is not valid.");
+  await Promise.all(
+    photos.map(async (photo) => {
+      let stored;
+      try {
+        stored = await head(photo!.url, { abortSignal: AbortSignal.timeout(10_000) });
+      } catch {
+        throw new AdminError(
+          "One of your photos could not be verified. Please try submitting again.",
+          503,
+        );
+      }
+      if (
+        stored.pathname !== photo!.pathname ||
+        stored.size <= 0 ||
+        stored.size > REVIEW_MAX_PHOTO_BYTES ||
+        !["image/webp", "image/jpeg"].includes(stored.contentType)
+      )
+        throw new AdminError(
+          "One of the uploaded photos is not valid. Please choose a JPEG or WebP photo under 5 MB.",
+        );
+    }),
+  );
 
   // Recheck the provider when the review is submitted; an invitation alone is
   // not enough to retain the verified-purchase label after a payment reversal.
   const order = await getPaidOrder(found.invitation.reference);
-  if (order.email !== found.invitation.email) throw new AdminError("This review link no longer matches the paid order.", 409);
+  if (order.email !== found.invitation.email)
+    throw new AdminError("This review link no longer matches the paid order.", 409);
 
   const id = randomUUID();
   const submittedAt = new Date().toISOString();
@@ -276,7 +342,14 @@ export async function submitReview(token: string, input: unknown) {
     const db = adminStore();
     const result = await db.eval(
       SUBMIT_REVIEW,
-      [inviteKey(found.tokenDigest), currentInviteKey(order.reference), claimKey(found.tokenDigest), recordsKey(), statusKey("pending"), orderClaimKey(order.reference)],
+      [
+        inviteKey(found.tokenDigest),
+        currentInviteKey(order.reference),
+        claimKey(found.tokenDigest),
+        recordsKey(),
+        statusKey("pending"),
+        orderClaimKey(order.reference),
+      ],
       [found.tokenDigest, id, JSON.stringify(review), String(Date.parse(submittedAt))],
     );
     if (result === 0) throw new AdminError("This review link has already been used.", 409);
@@ -290,34 +363,53 @@ function normalizedRecord(value: ReviewRecord | string): ReviewRecord | null {
   return parsed?.productId === REVIEW_PRODUCT_ID ? parsed : null;
 }
 
-export async function listReviewRecords(status?: ReviewStatus, namespace: ReviewNamespace = mode()): Promise<ReviewRecord[]> {
+export async function listReviewRecords(
+  status?: ReviewStatus,
+  namespace: ReviewNamespace = mode(),
+): Promise<ReviewRecord[]> {
   if (reviewCustomStore() === "postgres") return (await pgReviews(namespace)).list(status);
-  const stored = await adminStore().hgetall<Record<string, ReviewRecord | string>>(`smelt:reviews:v1:${namespace}:records`) || {};
+  const stored =
+    (await adminStore().hgetall<Record<string, ReviewRecord | string>>(
+      `smelt:reviews:v1:${namespace}:records`,
+    )) || {};
   return Object.values(stored)
     .map(normalizedRecord)
-    .filter((review): review is ReviewRecord => review !== null && (!status || review.status === status))
+    .filter(
+      (review): review is ReviewRecord => review !== null && (!status || review.status === status),
+    )
     .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
 }
 
 export async function getReviewPhoto(id: string, index: number, allowUnpublished = false) {
   if (!/^[0-9a-f-]{36}$/.test(id) || !Number.isSafeInteger(index) || index < 0) return null;
-  const review = reviewCustomStore() === "postgres" ? await (await pgReviews()).find(id)
-    : normalizedRecord(await adminStore().hget<ReviewRecord | string>(recordsKey(), id) as ReviewRecord | string);
+  const review =
+    reviewCustomStore() === "postgres"
+      ? await (await pgReviews()).find(id)
+      : normalizedRecord(
+          (await adminStore().hget<ReviewRecord | string>(recordsKey(), id)) as
+            ReviewRecord | string,
+        );
   if (!review || (review.status !== "published" && !allowUnpublished)) return null;
   return review.photos[index] ?? null;
 }
 
-export async function listPublishedReviews(namespace: ReviewNamespace = mode()): Promise<{ reviews: PublicReview[]; summary: ReturnType<typeof reviewSummary>; sort: "helpful" | "newest" }> {
+export async function listPublishedReviews(namespace: ReviewNamespace = mode()): Promise<{
+  reviews: PublicReview[];
+  summary: ReturnType<typeof reviewSummary>;
+  sort: "helpful" | "newest";
+}> {
   let records = await listReviewRecords("published", namespace);
   let sort: "helpful" | "newest" = "newest";
   // Serving saved scores does not require the flags used to generate rankings.
   try {
     const rankings = await listSavedReviewRankings(namespace);
-    if (records.some(review => currentReviewRanking(review, rankings[review.id]))) {
+    if (records.some((review) => currentReviewRanking(review, rankings[review.id]))) {
       records = rankReviewRecords(records, rankings);
       sort = "helpful";
     }
-  } catch { /* A ranking storage failure must not hide published reviews. */ }
+  } catch {
+    /* A ranking storage failure must not hide published reviews. */
+  }
   const reviews = records
     .map(publicReview)
     .filter((review): review is PublicReview => Boolean(review));
@@ -329,17 +421,23 @@ export async function moderateReview(id: string, status: "published" | "rejected
   if (!/^[0-9a-f-]{36}$/.test(id)) throw new AdminError("Invalid review.");
   if (reviewCustomStore() === "postgres") {
     const repo = await pgReviews();
-    const updated = await repo.update(id, review => ({ ...review, status, publishedAt: status === "published" ? review.publishedAt || new Date().toISOString() : null }));
+    const updated = await repo.update(id, (review) => ({
+      ...review,
+      status,
+      publishedAt: status === "published" ? review.publishedAt || new Date().toISOString() : null,
+    }));
     if (status !== "rejected" || !updated.photos.length || !blobUploadMode()) return updated;
     // Rejection is committed before deleting files, so public access is closed.
-    return repo.update(id, async review => {
+    return repo.update(id, async (review) => {
       if (review.status !== "rejected" || !review.photos.length) return review;
-      await del(review.photos.map(photo => photo.url));
+      await del(review.photos.map((photo) => photo.url));
       return { ...review, photos: [] };
     });
   }
   const db = adminStore();
-  const review = normalizedRecord(await db.hget<ReviewRecord | string>(recordsKey(), id) as ReviewRecord | string);
+  const review = normalizedRecord(
+    (await db.hget<ReviewRecord | string>(recordsKey(), id)) as ReviewRecord | string,
+  );
   if (!review) throw new AdminError("Review not found.", 404);
   const updated: ReviewRecord = {
     ...review,
@@ -347,10 +445,14 @@ export async function moderateReview(id: string, status: "published" | "rejected
     publishedAt: status === "published" ? review.publishedAt || new Date().toISOString() : null,
   };
   await db.hset(recordsKey(), { [id]: updated });
-  await Promise.all((["pending", "published", "rejected"] as ReviewStatus[]).map(value => db.zrem(statusKey(value), id)));
+  await Promise.all(
+    (["pending", "published", "rejected"] as ReviewStatus[]).map((value) =>
+      db.zrem(statusKey(value), id),
+    ),
+  );
   await db.zadd(statusKey(status), { score: Date.parse(updated.submittedAt), member: id });
   if (status === "rejected" && review.photos.length && blobUploadMode()) {
-    await del(review.photos.map(photo => photo.url));
+    await del(review.photos.map((photo) => photo.url));
     updated.photos = [];
     await db.hset(recordsKey(), { [id]: updated });
   }
@@ -362,9 +464,12 @@ export async function editReviewText(id: string, body: unknown) {
   if (!/^[0-9a-f-]{36}$/.test(id)) throw new AdminError("Invalid review.");
   if (typeof body !== "string" || body.trim().length < 3 || body.trim().length > 1600)
     throw new AdminError("Review text must be between 3 and 1,600 characters.");
-  if (reviewCustomStore() === "postgres") return (await pgReviews()).update(id, review => ({ ...review, body: body.trim() }));
+  if (reviewCustomStore() === "postgres")
+    return (await pgReviews()).update(id, (review) => ({ ...review, body: body.trim() }));
   const db = adminStore();
-  const review = normalizedRecord(await db.hget<ReviewRecord | string>(recordsKey(), id) as ReviewRecord | string);
+  const review = normalizedRecord(
+    (await db.hget<ReviewRecord | string>(recordsKey(), id)) as ReviewRecord | string,
+  );
   if (!review) throw new AdminError("Review not found.", 404);
   const updated: ReviewRecord = { ...review, body: body.trim() };
   await db.hset(recordsKey(), { [id]: updated });
@@ -373,26 +478,37 @@ export async function editReviewText(id: string, body: unknown) {
 
 export async function removeReviewPhoto(id: string, url: string) {
   assertReviewCustomWritable();
-  if (reviewCustomStore() === "postgres") return (await pgReviews()).update(id, async review => {
-    const photo = review.photos.find(item => item.url === url);
-    if (!photo) throw new AdminError("Photo not found.", 404);
-    if (blobUploadMode()) await del(photo.url);
-    return { ...review, photos: review.photos.filter(item => item.url !== url) };
-  });
+  if (reviewCustomStore() === "postgres")
+    return (await pgReviews()).update(id, async (review) => {
+      const photo = review.photos.find((item) => item.url === url);
+      if (!photo) throw new AdminError("Photo not found.", 404);
+      if (blobUploadMode()) await del(photo.url);
+      return { ...review, photos: review.photos.filter((item) => item.url !== url) };
+    });
   const db = adminStore();
-  const review = normalizedRecord(await db.hget<ReviewRecord | string>(recordsKey(), id) as ReviewRecord | string);
+  const review = normalizedRecord(
+    (await db.hget<ReviewRecord | string>(recordsKey(), id)) as ReviewRecord | string,
+  );
   if (!review) throw new AdminError("Review not found.", 404);
-  const photo = review.photos.find(item => item.url === url);
+  const photo = review.photos.find((item) => item.url === url);
   if (!photo) throw new AdminError("Photo not found.", 404);
   if (blobUploadMode()) await del(photo.url);
-  const updated = { ...review, photos: review.photos.filter(item => item.url !== url) };
+  const updated = { ...review, photos: review.photos.filter((item) => item.url !== url) };
   await db.hset(recordsKey(), { [id]: updated });
   return updated;
 }
 
-export function productName() { return PRODUCT.name; }
+export function productName() {
+  return PRODUCT.name;
+}
 
-export async function listSavedReviewRankings(namespace: ReviewNamespace = mode()): Promise<Record<string, ReviewRanking>> {
+export async function listSavedReviewRankings(
+  namespace: ReviewNamespace = mode(),
+): Promise<Record<string, ReviewRanking>> {
   if (reviewCustomStore() === "postgres") return (await pgReviews(namespace)).rankings();
-  return await adminStore().hgetall<Record<string, ReviewRanking>>(`${reviewRankingPrefix(namespace)}:scores`) || {};
+  return (
+    (await adminStore().hgetall<Record<string, ReviewRanking>>(
+      `${reviewRankingPrefix(namespace)}:scores`,
+    )) || {}
+  );
 }

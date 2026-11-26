@@ -1,4 +1,4 @@
-import { followupConfigured, parseFollowup, saveFollowup } from "@/lib/checkoutFollowup";
+import { followupConfigured, parseFollowup, saveFollowup } from "@/lib/checkout/checkoutFollowup";
 
 export const runtime = "nodejs";
 
@@ -13,7 +13,11 @@ export async function POST(request: Request) {
   const raw = await request.text();
   if (raw.length > 4096) return new Response(null, { status: 413 });
   let body: unknown;
-  try { body = JSON.parse(raw); } catch { return new Response(null, { status: 400 }); }
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    return new Response(null, { status: 400 });
+  }
   const lead = parseFollowup(body);
   if (!lead) return new Response(null, { status: 400 });
   try {

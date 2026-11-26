@@ -1,14 +1,23 @@
-import { resolvePurchasePreorder } from "./purchaseStore";
+import { resolvePurchasePreorder } from "./inventory/purchaseStore";
 import { createHash } from "node:crypto";
 import { Redis } from "@upstash/redis";
 import { Resend } from "resend";
 import { ownerOrderEmail } from "./emails/ownerOrder";
 import { orderConfirmationEmail } from "./emails/orderConfirmation";
 import { sanitizeAddress } from "./address";
-import { paidCheckoutTotal, paidUnitPrice, sanitizeCart } from "./checkoutShared";
+import { paidCheckoutTotal, paidUnitPrice, sanitizeCart } from "./checkout/checkoutShared";
 import { PRODUCT } from "./product";
 import type { CartState } from "./cartReducer";
-import { bundleDiscount, PRICING_VERSION, PREORDER_PACK_PRICING_VERSION, STOCK_PRICING_VERSION, PREVIOUS_PRICING_VERSION, LEGACY_PRICING_VERSION, formatMoney, parseShippingMethod } from "./pricing";
+import {
+  bundleDiscount,
+  PRICING_VERSION,
+  PREORDER_PACK_PRICING_VERSION,
+  STOCK_PRICING_VERSION,
+  PREVIOUS_PRICING_VERSION,
+  LEGACY_PRICING_VERSION,
+  formatMoney,
+  parseShippingMethod,
+} from "./pricing";
 import { parseVoucherMetadata } from "./vouchers";
 import { parseAttribution } from "./attribution";
 
@@ -29,8 +38,16 @@ export interface ConfirmedOrder {
   attribution?: unknown;
 }
 
-type Message = { from: string; to: string; cc?: string; subject: string; html: string; text: string };
-type Receipt = { status: "accepted"; id: string } | { status: "pending"; startedAt: number; message: Message };
+type Message = {
+  from: string;
+  to: string;
+  cc?: string;
+  subject: string;
+  html: string;
+  text: string;
+};
+type Receipt =
+  { status: "accepted"; id: string } | { status: "pending"; startedAt: number; message: Message };
 // Keep the first payload unchanged across concurrent callbacks, deployments, and retries.
 export const PREPARE_CONFIRMATION = `
 redis.call('SET', KEYS[1], ARGV[1], 'NX')
@@ -41,22 +58,38 @@ const RETRY_WINDOW = 23 * 60 * 60 * 1000;
 const FIRST_NOTIFICATION_WINDOW = 24 * 60 * 60 * 1000;
 
 /** Call only after authenticated payment success and amount reconciliation. */
-async function sendOrderEmail(order: ConfirmedOrder, audience: "customer" | "owner"): Promise<void> {
+async function sendOrderEmail(
+  order: ConfirmedOrder,
+  audience: "customer" | "owner",
+): Promise<void> {
   const reference = typeof order.reference === "string" ? order.reference.trim() : "";
   const email = typeof order.email === "string" ? order.email.trim() : "";
   const cart = sanitizeCart(order.cart);
   const voucher = parseVoucherMetadata(order.voucher);
-  const expectedTotal = paidCheckoutTotal(cart, order.shippingMethod, voucher?.amount ?? 0, order.unitPrice, order.pricingVersion);
-  if (!reference || !/^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(email) ||
-      expectedTotal <= 0 || order.currency !== "ZAR" || expectedTotal * 100 !== order.amount) {
+  const expectedTotal = paidCheckoutTotal(
+    cart,
+    order.shippingMethod,
+    voucher?.amount ?? 0,
+    order.unitPrice,
+    order.pricingVersion,
+  );
+  if (
+    !reference ||
+    !/^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(email) ||
+    expectedTotal <= 0 ||
+    order.currency !== "ZAR" ||
+    expectedTotal * 100 !== order.amount
+  ) {
     throw new Error("order_confirmation_invalid_payment_data");
   }
   if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
     throw new Error("order_confirmation_missing_redis_configuration");
   }
   const db = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN,
-    retry: { retries: 0 }, signal: () => AbortSignal.timeout(10_000),
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    retry: { retries: 0 },
+    signal: () => AbortSignal.timeout(10_000),
   });
   const hash = createHash("sha256").update(reference).digest("hex");
   const family = audience === "owner" ? "owner-order" : "order-confirmation";
@@ -71,7 +104,9 @@ async function sendOrderEmail(order: ConfirmedOrder, audience: "customer" | "own
     }
     if (paymentAge >= FIRST_NOTIFICATION_WINDOW) {
       console.warn("Historical order email skipped; manual reconciliation required", {
-        audience, reference, paidAt: order.paidAt,
+        audience,
+        reference,
+        paidAt: order.paidAt,
       });
       return;
     }
@@ -80,36 +115,78 @@ async function sendOrderEmail(order: ConfirmedOrder, audience: "customer" | "own
   // window, even when the payment has since aged beyond the first-send window.
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.ORDER_FROM_EMAIL;
-  if (!apiKey || !from || from.includes("@resend.dev")) throw new Error("order_confirmation_missing_resend_configuration");
+  if (!apiKey || !from || from.includes("@resend.dev"))
+    throw new Error("order_confirmation_missing_resend_configuration");
   if (!receipt) {
     const site = new URL(process.env.SITE_URL || "https://saunahat.co.za");
-    if (site.protocol !== "https:" || site.username || site.password) throw new Error("order_confirmation_invalid_site_url");
+    if (site.protocol !== "https:" || site.username || site.password)
+      throw new Error("order_confirmation_invalid_site_url");
     const items = (Object.keys(cart) as Array<keyof CartState>)
       .filter((colour) => cart[colour] > 0)
       .map((colour) => ({ colour, name: PRODUCT.variants[colour].name, qty: cart[colour] }));
     const details = {
-      reference, total: formatMoney(order.amount / 100), items, preorder: await resolvePurchasePreorder(reference, order.preorder), discount: voucher?.amount,
-      bundleDiscount: (order.pricingVersion === PRICING_VERSION || order.pricingVersion === PREORDER_PACK_PRICING_VERSION || order.pricingVersion === STOCK_PRICING_VERSION || order.pricingVersion === PREVIOUS_PRICING_VERSION || order.pricingVersion === LEGACY_PRICING_VERSION) ? bundleDiscount(cart.green + cart.cream, paidUnitPrice(order.unitPrice), order.pricingVersion) : 0,
+      reference,
+      total: formatMoney(order.amount / 100),
+      items,
+      preorder: await resolvePurchasePreorder(reference, order.preorder),
+      discount: voucher?.amount,
+      bundleDiscount:
+        order.pricingVersion === PRICING_VERSION ||
+        order.pricingVersion === PREORDER_PACK_PRICING_VERSION ||
+        order.pricingVersion === STOCK_PRICING_VERSION ||
+        order.pricingVersion === PREVIOUS_PRICING_VERSION ||
+        order.pricingVersion === LEGACY_PRICING_VERSION
+          ? bundleDiscount(
+              cart.green + cart.cream,
+              paidUnitPrice(order.unitPrice),
+              order.pricingVersion,
+            )
+          : 0,
       shippingMethod: parseShippingMethod(order.shippingMethod)!,
       address: order.address ? sanitizeAddress(order.address) : null,
     };
-    const message = audience === "owner"
-      ? ownerOrderEmail({ ...details, email, customerName: typeof order.customerName === "string" ? order.customerName.trim() : "", paidAt: order.paidAt, cart, unitPrice: paidUnitPrice(order.unitPrice), deliveryFee: expectedTotal + (voucher?.amount ?? 0) - ((cart.green + cart.cream) * paidUnitPrice(order.unitPrice) - details.bundleDiscount), attribution: parseAttribution(order.attribution), test: !process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_") })
-      : orderConfirmationEmail(details);
-    receipt = await db.eval<unknown[], Receipt>(PREPARE_CONFIRMATION, [key], [JSON.stringify({
-      status: "pending", startedAt: Date.now(), message: {
-        from, to: audience === "owner" ? "thomasdevilliers100@gmail.com" : email,
-        ...(audience === "owner" ? { cc: "marcpape7@icloud.com" } : {}),
-        ...message,
-      },
-    })]);
+    const message =
+      audience === "owner"
+        ? ownerOrderEmail({
+            ...details,
+            email,
+            customerName: typeof order.customerName === "string" ? order.customerName.trim() : "",
+            paidAt: order.paidAt,
+            cart,
+            unitPrice: paidUnitPrice(order.unitPrice),
+            deliveryFee:
+              expectedTotal +
+              (voucher?.amount ?? 0) -
+              ((cart.green + cart.cream) * paidUnitPrice(order.unitPrice) - details.bundleDiscount),
+            attribution: parseAttribution(order.attribution),
+            test: !process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_"),
+          })
+        : orderConfirmationEmail(details);
+    receipt = await db.eval<unknown[], Receipt>(
+      PREPARE_CONFIRMATION,
+      [key],
+      [
+        JSON.stringify({
+          status: "pending",
+          startedAt: Date.now(),
+          message: {
+            from,
+            to: audience === "owner" ? "thomasdevilliers100@gmail.com" : email,
+            ...(audience === "owner" ? { cc: "marcpape7@icloud.com" } : {}),
+            ...message,
+          },
+        }),
+      ],
+    );
   }
   if (receipt.status === "accepted") return;
   if (!Number.isFinite(receipt.startedAt) || Date.now() - receipt.startedAt >= RETRY_WINDOW) {
     // Resend forgets idempotency keys after 24h. Never risk a duplicate after an ambiguous send.
     throw new Error("order_confirmation_manual_review_required");
   }
-  const result = await new Resend(apiKey).emails.send(receipt.message, { idempotencyKey: `${family}/${hash}` });
+  const result = await new Resend(apiKey).emails.send(receipt.message, {
+    idempotencyKey: `${family}/${hash}`,
+  });
   if (result.error || !result.data?.id) throw new Error("order_confirmation_resend_not_accepted");
   // No TTL: late webhook replays must not recreate previously accepted confirmations.
   // Drop customer/address/message data once Resend has accepted the email.
@@ -128,8 +205,11 @@ export async function sendOwnerOrderNotification(order: ConfirmedOrder): Promise
 // Attempt both independently; the webhook retries if either email is pending.
 // Each recipient has a separate permanent receipt, so retries cannot resend the other.
 export async function sendOrderNotifications(order: ConfirmedOrder): Promise<void> {
-  const results = await Promise.allSettled([sendOrderConfirmation(order), sendOwnerOrderNotification(order)]);
-  const failed = results.find(result => result.status === "rejected");
+  const results = await Promise.allSettled([
+    sendOrderConfirmation(order),
+    sendOwnerOrderNotification(order),
+  ]);
+  const failed = results.find((result) => result.status === "rejected");
   if (failed?.status === "rejected") throw failed.reason;
 }
 
@@ -143,9 +223,12 @@ export async function tryOrderConfirmation(order: ConfirmedOrder): Promise<void>
 }
 
 export function logOrderConfirmationFailure(reference: string, error: unknown) {
-  const code = error instanceof Error && error.message.startsWith("order_confirmation_")
-    ? error.message : "order_confirmation_provider_or_storage_error";
+  const code =
+    error instanceof Error && error.message.startsWith("order_confirmation_")
+      ? error.message
+      : "order_confirmation_provider_or_storage_error";
   console.error("Order confirmation pending; webhook retry or manual review required", {
-    reference, code,
+    reference,
+    code,
   });
 }

@@ -23,7 +23,7 @@ export interface AdminOrder {
   items: OrderItem[];
   address: ShippingAddress;
   shippingMethod: string;
-  preorder?: import("../preorders").PreorderDetails;
+  preorder?: import("../inventory/preorders").PreorderDetails;
   canShip: boolean;
   reviewReason?: string;
   receipt: ShippingReceipt | null;

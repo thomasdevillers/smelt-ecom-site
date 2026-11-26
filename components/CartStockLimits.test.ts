@@ -3,18 +3,26 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 // Pins the pre-order campaign: these expectations (R450 bundles, consent, pre-order copy)
 // must not follow the live storefront switch. Normal-mode pricing: salesMode.test.ts.
-vi.mock("@/lib/salesMode", async original => ({ ...await original<typeof import("@/lib/salesMode")>(), PREORDER_MODE: true }));
+vi.mock("@/lib/salesMode", async (original) => ({
+  ...(await original<typeof import("@/lib/salesMode")>()),
+  PREORDER_MODE: true,
+}));
 import CartDrawer from "./CartDrawer";
-import CartPage from "@/app/cart/page";
+import CartPage from "@/app/(shop)/(public)/cart/page";
 import { useCart } from "@/lib/cart";
-import { useAvailability } from "@/lib/useAvailability";
-import type { Availability } from "@/lib/availability";
+import { useAvailability } from "@/lib/inventory/useAvailability";
+import type { Availability } from "@/lib/inventory/availability";
 
 vi.mock("@/lib/cart", () => ({ useCart: vi.fn() }));
-vi.mock("@/lib/useAvailability", () => ({ useAvailability: vi.fn() }));
+vi.mock("@/lib/inventory/useAvailability", () => ({ useAvailability: vi.fn() }));
 
 const stock: Availability = {
-  green: 2, cream: 4, localTest: true, preorder: { green: 0, cream: 0 }, batch: "2026-11-30", timing: "Pre-orders ship on 30 November.",
+  green: 2,
+  cream: 4,
+  localTest: true,
+  preorder: { green: 0, cream: 0 },
+  batch: "2026-11-30",
+  timing: "Pre-orders ship on 30 November.",
 };
 
 function availability(value: Availability | null, error = "") {
@@ -24,8 +32,13 @@ function availability(value: Availability | null, error = "") {
 describe.each([CartDrawer, CartPage])("%s stock limits", (Component) => {
   beforeEach(() => {
     vi.mocked(useCart).mockReturnValue({
-      cart: { green: 2, cream: 1 }, count: 3, subtotal: 1550,
-      dispatch: vi.fn(), isOpen: true, openCart: vi.fn(), closeCart: vi.fn(),
+      cart: { green: 2, cream: 1 },
+      count: 3,
+      subtotal: 1550,
+      dispatch: vi.fn(),
+      isOpen: true,
+      openCart: vi.fn(),
+      closeCart: vi.fn(),
     });
     availability(stock);
   });

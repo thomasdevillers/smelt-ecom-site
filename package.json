@@ -5,8 +5,14 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:test": "node scripts/testing/serve.mjs build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit",
+    "format": "prettier --write app components lib content scripts tests styles *.ts *.mts *.mjs *.json",
+    "format:check": "prettier --check app components lib content scripts tests styles *.ts *.mts *.mjs *.json",
+    "test:e2e": "playwright test",
+    "check": "npm run lint && npm run typecheck && npm test",
     "test": "vitest run",
     "email:shipping": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/send-shipping.ts",
     "admin:setup": "tsx scripts/setup-admin.ts",
@@ -29,16 +35,28 @@
     "migration:package": "tsx scripts/migration/package.ts",
     "migration:reconcile-provider": "tsx --env-file-if-exists=.env.local scripts/migration/reconcile-provider.ts"
   },
+  "engines": {
+    "node": ">=22.16.0"
+  },
+  "overrides": {
+    "@vercel/cli-config": {
+      "zod": "^4.6.6"
+    },
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.12"
+    }
+  },
   "dependencies": {
     "@paystack/inline-js": "^2.26.0",
     "@upstash/redis": "^1.38.4",
     "@vercel/analytics": "^2.0.1",
-    "@vercel/blob": "^2.8.0",
+    "@vercel/blob": "^2.9.0",
     "@vercel/speed-insights": "^2.0.0",
     "@zxing/browser": "^0.1.5",
+    "@zxing/library": "^0.21.3",
     "aws4fetch": "^1.0.20",
     "drizzle-orm": "^0.45.4",
-    "next": "^16.3.5",
+    "next": "^16.4.6",
     "pg": "^8.23.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -47,6 +65,8 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.17",
+    "@playwright/test": "^1.65.1",
+    "@types/google.maps": "^3.67.0",
     "@types/node": "^20",
     "@types/paystack__inline-js": "^1.0.3",
     "@types/pg": "^8.23.1",
@@ -54,7 +74,8 @@
     "@types/react-dom": "^19",
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",
-    "eslint-config-next": "^16.3.5",
+    "eslint-config-next": "^16.4.6",
+    "prettier": "^3.10.1",
     "tsx": "^4.23.0",
     "typescript": "^5",
     "vitest": "^4.1.9"

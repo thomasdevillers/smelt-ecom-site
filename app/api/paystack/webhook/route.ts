@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { parsePaystackEvent } from "@/lib/paystackEvent";
-import { paystackEventConfig, paystackEnvironment } from "@/lib/paystackEventConfig";
-import { handleLegacyPaystackEvent } from "@/lib/paystackLegacyEvent";
+import { parsePaystackEvent } from "@/lib/payments/paystackEvent";
+import { paystackEventConfig, paystackEnvironment } from "@/lib/payments/paystackEventConfig";
+import { handleLegacyPaystackEvent } from "@/lib/payments/paystackLegacyEvent";
 
 export const runtime = "nodejs";
 
@@ -12,16 +12,23 @@ export async function POST(request: Request) {
   const raw = await request.text();
   const signature = request.headers.get("x-paystack-signature") ?? "";
   const expected = createHmac("sha512", secret).update(raw).digest("hex");
-  if (!/^[a-f0-9]{128}$/i.test(signature) || !timingSafeEqual(Buffer.from(signature, "hex"), Buffer.from(expected, "hex")))
+  if (
+    !/^[a-f0-9]{128}$/i.test(signature) ||
+    !timingSafeEqual(Buffer.from(signature, "hex"), Buffer.from(expected, "hex"))
+  )
     return new Response("invalid signature", { status: 401 });
   let event;
-  try { event = parsePaystackEvent(raw); }
-  catch { return new Response("bad json", { status: 400 }); }
+  try {
+    event = parsePaystackEvent(raw);
+  } catch {
+    return new Response("bad json", { status: 400 });
+  }
   try {
     if (paystackEventConfig().store === "postgres") {
       const environment = paystackEnvironment(secret);
-      if (event.data?.domain !== undefined && event.data.domain !== environment) return new Response("invalid payment mode", { status: 400 });
-      const { persistPaystackEvent } = await import("@/lib/paystackEventWorker");
+      if (event.data?.domain !== undefined && event.data.domain !== environment)
+        return new Response("invalid payment mode", { status: 400 });
+      const { persistPaystackEvent } = await import("@/lib/payments/paystackEventWorker");
       await persistPaystackEvent(environment, raw);
       // A processing pause never prevents durable ingestion of in-flight payments.
       return new Response("ok", { status: 200 });

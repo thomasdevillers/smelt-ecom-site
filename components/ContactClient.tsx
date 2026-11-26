@@ -1,6 +1,6 @@
 import SectionLabel from "@/components/ui/SectionLabel";
 import { CONTACT } from "@/content/contact";
-import styles from "@/app/contact/contact.module.css";
+import styles from "@/app/(shop)/(public)/contact/contact.module.css";
 
 export default function ContactClient() {
   return (

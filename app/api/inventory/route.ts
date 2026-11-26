@@ -1,4 +1,4 @@
-import { getAvailability } from "@/lib/purchaseStore";
+import { getAvailability } from "@/lib/inventory/purchaseStore";
 
 export const runtime = "nodejs";
 

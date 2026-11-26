@@ -1,9 +1,48 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ hgetall: vi.fn(), hsetnx: vi.fn(), hget: vi.fn(), hdel: vi.fn(), eval: vi.fn(), get: vi.fn(), set: vi.fn(), del: vi.fn(), send: vi.fn(), emailGet: vi.fn(), cookies: { get: vi.fn(), set: vi.fn(), delete: vi.fn() }, fetch: vi.fn(), pipeline: { get: vi.fn(), hgetall: vi.fn(), exec: vi.fn() } }));
-vi.mock("@upstash/redis", () => ({ Redis: class { hgetall = mocks.hgetall; hsetnx = mocks.hsetnx; hget = mocks.hget; hdel = mocks.hdel; eval = mocks.eval; get = mocks.get; set = mocks.set; del = mocks.del; pipeline = () => mocks.pipeline; } }));
-vi.mock("resend", () => ({ Resend: class { emails = { send: mocks.send, get: mocks.emailGet }; } }));
+const mocks = vi.hoisted(() => ({
+  hgetall: vi.fn(),
+  hsetnx: vi.fn(),
+  hget: vi.fn(),
+  hdel: vi.fn(),
+  eval: vi.fn(),
+  get: vi.fn(),
+  set: vi.fn(),
+  del: vi.fn(),
+  send: vi.fn(),
+  emailGet: vi.fn(),
+  cookies: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
+  fetch: vi.fn(),
+  pipeline: { get: vi.fn(), hgetall: vi.fn(), exec: vi.fn() },
+}));
+vi.mock("@upstash/redis", () => ({
+  Redis: class {
+    hgetall = mocks.hgetall;
+    hsetnx = mocks.hsetnx;
+    hget = mocks.hget;
+    hdel = mocks.hdel;
+    eval = mocks.eval;
+    get = mocks.get;
+    set = mocks.set;
+    del = mocks.del;
+    pipeline = () => mocks.pipeline;
+  },
+}));
+vi.mock("resend", () => ({
+  Resend: class {
+    emails = { send: mocks.send, get: mocks.emailGet };
+  },
+}));
 vi.mock("next/headers", () => ({ cookies: async () => mocks.cookies }));
-import { normalizeOrder, getPaidOrder, listOrders, setOrderCompleted, completionKey, findPaidOrdersByEmail, markReviewMessageSent, reviewMessageSentKey } from "./orders";
+import {
+  normalizeOrder,
+  getPaidOrder,
+  listOrders,
+  setOrderCompleted,
+  completionKey,
+  findPaidOrdersByEmail,
+  markReviewMessageSent,
+  reviewMessageSentKey,
+} from "./orders";
 import { sendShipping, shippingStatus } from "./shipping";
 import { publicReceipt } from "./receipts";
 import { hasAdminSession, login, logout } from "./auth";
@@ -12,34 +51,104 @@ import { GET as ordersGET, PATCH as ordersPATCH } from "@/app/api/admin/orders/r
 import { GET as ordersExportGET } from "@/app/api/admin/orders/export/route";
 import { GET as analyticsGET } from "@/app/api/admin/analytics/route";
 import { POST as shippingPOST } from "@/app/api/admin/shipping/route";
-import { GET as reviewsGET, POST as reviewsPOST, PATCH as reviewsPATCH } from "@/app/api/admin/reviews/route";
+import {
+  GET as reviewsGET,
+  POST as reviewsPOST,
+  PATCH as reviewsPATCH,
+} from "@/app/api/admin/reviews/route";
 import type { ShippingReceipt } from "./types";
-const transaction = { reference: "order-1", status: "success", amount: 54000, currency: "ZAR", customer: { email: "customer@example.com" }, metadata: { cart: { green: 1 }, shippingAddress: { line1: "1 Test St", city: "Cape Town" }, customerName: "Test Customer" } };
-const pending = (): ShippingReceipt & { message: object } => ({ status: "pending", trackingNumber: "25249853610844", email: "customer@example.com", reference: "order-1", startedAt: Date.now(), source: "dashboard", message: { from: "Smelt <orders@example.com>", to: "customer@example.com", subject: "Original subject", html: "Original HTML", text: "Original text" } });
-const request = (body: object, origin = "https://saunahat.co.za") => new Request("https://saunahat.co.za/api/admin/shipping", { method: "POST", headers: { origin, "content-type": "application/json" }, body: JSON.stringify(body) });
+const transaction = {
+  reference: "order-1",
+  status: "success",
+  amount: 54000,
+  currency: "ZAR",
+  customer: { email: "customer@example.com" },
+  metadata: {
+    cart: { green: 1 },
+    shippingAddress: { line1: "1 Test St", city: "Cape Town" },
+    customerName: "Test Customer",
+  },
+};
+const pending = (): ShippingReceipt & { message: object } => ({
+  status: "pending",
+  trackingNumber: "25249853610844",
+  email: "customer@example.com",
+  reference: "order-1",
+  startedAt: Date.now(),
+  source: "dashboard",
+  message: {
+    from: "Smelt <orders@example.com>",
+    to: "customer@example.com",
+    subject: "Original subject",
+    html: "Original HTML",
+    text: "Original text",
+  },
+});
+const request = (body: object, origin = "https://saunahat.co.za") =>
+  new Request("https://saunahat.co.za/api/admin/shipping", {
+    method: "POST",
+    headers: { origin, "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
 beforeEach(() => {
   vi.resetAllMocks();
   vi.stubEnv("ADMIN_PASSWORD", "a-long-test-password-for-admin");
-  vi.stubEnv("UPSTASH_REDIS_REST_URL", "https://redis.example.com"); vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "test");
-  vi.stubEnv("PAYSTACK_SECRET_KEY", "sk_test_example"); vi.stubEnv("RESEND_API_KEY", "re_test_example"); vi.stubEnv("ORDER_FROM_EMAIL", "Smelt <orders@example.com>");
+  vi.stubEnv("UPSTASH_REDIS_REST_URL", "https://redis.example.com");
+  vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "test");
+  vi.stubEnv("PAYSTACK_SECRET_KEY", "sk_test_example");
+  vi.stubEnv("RESEND_API_KEY", "re_test_example");
+  vi.stubEnv("ORDER_FROM_EMAIL", "Smelt <orders@example.com>");
   vi.stubGlobal("fetch", mocks.fetch);
-  mocks.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ status: true, data: transaction }) });
-  mocks.eval.mockImplementation(async (_script, _keys, args) => args[0] ? JSON.parse(args[0]) : 1);
+  mocks.fetch.mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: async () => ({ status: true, data: transaction }),
+  });
+  mocks.eval.mockImplementation(async (_script, _keys, args) =>
+    args[0] ? JSON.parse(args[0]) : 1,
+  );
   mocks.hgetall.mockResolvedValue({});
   mocks.pipeline.exec.mockResolvedValue([]);
   mocks.send.mockResolvedValue({ data: { id: "email-1" }, error: null });
 });
 describe("order records", () => {
   it("supports current and historical metadata without repricing paid orders", () => {
-    expect(normalizeOrder(transaction)).toMatchObject({ canShip: true, email: "customer@example.com", shippingMethod: "aramex", amount: 54000 });
-    expect(normalizeOrder({ ...transaction, metadata: JSON.stringify({ items: [{ colour: "cream", name: "Cream", qty: 2 }] }) })).toMatchObject({ canShip: true, items: [{ qty: 2 }] });
-    expect(normalizeOrder({ ...transaction, amount: 12345 })).toMatchObject({ canShip: true, amount: 12345 });
+    expect(normalizeOrder(transaction)).toMatchObject({
+      canShip: true,
+      email: "customer@example.com",
+      shippingMethod: "aramex",
+      amount: 54000,
+    });
+    expect(
+      normalizeOrder({
+        ...transaction,
+        metadata: JSON.stringify({ items: [{ colour: "cream", name: "Cream", qty: 2 }] }),
+      }),
+    ).toMatchObject({ canShip: true, items: [{ qty: 2 }] });
+    expect(normalizeOrder({ ...transaction, amount: 12345 })).toMatchObject({
+      canShip: true,
+      amount: 12345,
+    });
   });
   it("blocks failed payments, missing items, invalid email and founder delivery", () => {
-    for (const change of [{ status: "failed" }, { metadata: {} }, { customer: { email: "bad" } }, { metadata: { ...transaction.metadata, shippingMethod: "founders" } }]) expect(normalizeOrder({ ...transaction, ...change }).canShip).toBe(false);
+    for (const change of [
+      { status: "failed" },
+      { metadata: {} },
+      { customer: { email: "bad" } },
+      { metadata: { ...transaction.metadata, shippingMethod: "founders" } },
+    ])
+      expect(normalizeOrder({ ...transaction, ...change }).canShip).toBe(false);
   });
   it("paginates and removes frozen message content from the returned receipt", async () => {
-    mocks.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ status: true, data: Array.from({ length: 60 }, (_, i) => ({ ...transaction, reference: `order-${i}` })), meta: { total: 60, pageCount: 1 } }) });
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        status: true,
+        data: Array.from({ length: 60 }, (_, i) => ({ ...transaction, reference: `order-${i}` })),
+        meta: { total: 60, pageCount: 1 },
+      }),
+    });
     mocks.pipeline.exec.mockResolvedValue([pending(), null]);
     const result = await listOrders(2);
     expect(result).toMatchObject({ total: 60, page: 2, pageCount: 3 });
@@ -48,15 +157,29 @@ describe("order records", () => {
     expect(mocks.fetch.mock.calls[0][0]).toContain("status=success");
   });
   it("finds only successful Paystack orders belonging to the supplied email", async () => {
-    mocks.fetch.mockImplementation(async (url: string) => url.includes("/customer/")
-      ? { ok: true, status: 200, json: async () => ({ status: true, data: { id: 42 } }) }
-      : { ok: true, status: 200, json: async () => ({ status: true, data: [
-          { ...transaction, reference: "newer", paid_at: "2026-09-20T12:00:00.000Z" },
-          { ...transaction, reference: "older", paid_at: "2026-09-19T12:00:00.000Z" },
-          { ...transaction, reference: "wrong-email", customer: { email: "other@example.com" } },
-        ], meta: { pageCount: 1 } }) });
+    mocks.fetch.mockImplementation(async (url: string) =>
+      url.includes("/customer/")
+        ? { ok: true, status: 200, json: async () => ({ status: true, data: { id: 42 } }) }
+        : {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              status: true,
+              data: [
+                { ...transaction, reference: "newer", paid_at: "2026-09-20T12:00:00.000Z" },
+                { ...transaction, reference: "older", paid_at: "2026-09-19T12:00:00.000Z" },
+                {
+                  ...transaction,
+                  reference: "wrong-email",
+                  customer: { email: "other@example.com" },
+                },
+              ],
+              meta: { pageCount: 1 },
+            }),
+          },
+    );
     const orders = await findPaidOrdersByEmail(" Customer@Example.com ");
-    expect(orders.map(order => order.reference)).toEqual(["newer", "older"]);
+    expect(orders.map((order) => order.reference)).toEqual(["newer", "older"]);
     expect(mocks.fetch.mock.calls[0][0]).toContain("/customer/customer%40example.com");
     expect(mocks.fetch.mock.calls[1][0]).toContain("customer=42");
     expect(mocks.fetch.mock.calls[1][0]).toContain("status=success");
@@ -67,25 +190,60 @@ describe("dashboard order search", () => {
     mocks.fetch.mockImplementation(async (input: string) => {
       const url = new URL(input);
       // A search term must never be sent to the exact-match verification endpoint.
-      if (url.pathname !== "/transaction") return { ok: false, status: 400, json: async () => ({ status: false, message: "Transaction reference not found." }) };
+      if (url.pathname !== "/transaction")
+        return {
+          ok: false,
+          status: 400,
+          json: async () => ({ status: false, message: "Transaction reference not found." }),
+        };
       const page = Number(url.searchParams.get("page"));
-      return { ok: true, status: 200, json: async () => ({ status: true,
-        data: page === 1 ? [{ ...transaction, reference: "unrelated", customer: { email: "other@example.com" }, metadata: { ...transaction.metadata, customerName: "Someone Else" } }]
-          : Array.from({ length: 30 }, (_, i) => ({ ...transaction, reference: `search-order-${i}` })),
-        meta: { total: 31, pageCount: 2 },
-      }) };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          status: true,
+          data:
+            page === 1
+              ? [
+                  {
+                    ...transaction,
+                    reference: "unrelated",
+                    customer: { email: "other@example.com" },
+                    metadata: { ...transaction.metadata, customerName: "Someone Else" },
+                  },
+                ]
+              : Array.from({ length: 30 }, (_, i) => ({
+                  ...transaction,
+                  reference: `search-order-${i}`,
+                })),
+          meta: { total: 31, pageCount: 2 },
+        }),
+      };
     });
   });
-  it.each(["  TEST CUSTOMER  ", "CUSTOMER@", "customer@example.com", "SEARCH-ORDER-"])("matches names, emails and references across provider pages: %s", async search => {
-    const result = await listOrders(2, search);
-    expect(result).toMatchObject({ total: 30, page: 2, pageCount: 2, activeTotal: 30, completedTotal: 0 });
-    expect(result.orders.map(order => order.reference)).toEqual(Array.from({ length: 5 }, (_, i) => `search-order-${i + 25}`));
-    expect(mocks.fetch).toHaveBeenCalledTimes(2);
-  });
+  it.each(["  TEST CUSTOMER  ", "CUSTOMER@", "customer@example.com", "SEARCH-ORDER-"])(
+    "matches names, emails and references across provider pages: %s",
+    async (search) => {
+      const result = await listOrders(2, search);
+      expect(result).toMatchObject({
+        total: 30,
+        page: 2,
+        pageCount: 2,
+        activeTotal: 30,
+        completedTotal: 0,
+      });
+      expect(result.orders.map((order) => order.reference)).toEqual(
+        Array.from({ length: 5 }, (_, i) => `search-order-${i + 25}`),
+      );
+      expect(mocks.fetch).toHaveBeenCalledTimes(2);
+    },
+  );
   it("returns an empty successful API response for an unmatched search", async () => {
     mocks.cookies.get.mockReturnValue({ value: "a".repeat(64) });
     mocks.get.mockResolvedValue({ credential: digest("a-long-test-password-for-admin") });
-    const response = await ordersGET(new Request("https://saunahat.co.za/api/admin/orders?search=missing-reference"));
+    const response = await ordersGET(
+      new Request("https://saunahat.co.za/api/admin/orders?search=missing-reference"),
+    );
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ orders: [], total: 0, page: 1, pageCount: 0 });
   });
@@ -93,10 +251,14 @@ describe("dashboard order search", () => {
     mocks.hgetall.mockResolvedValue({ "search-order-1": "2026-10-11T12:00:00.000Z" });
     const result = await listOrders(1, "test customer", "completed");
     expect(result).toMatchObject({ total: 1, activeTotal: 29, completedTotal: 1 });
-    expect(result.orders.map(order => order.reference)).toEqual(["search-order-1"]);
+    expect(result.orders.map((order) => order.reference)).toEqual(["search-order-1"]);
   });
   it("still reports real provider failures instead of showing no matches", async () => {
-    mocks.fetch.mockResolvedValue({ ok: false, status: 503, json: async () => ({ status: false }) });
+    mocks.fetch.mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: async () => ({ status: false }),
+    });
     await expect(listOrders(1, "customer")).rejects.toThrow("Could not load orders from Paystack");
   });
 });
@@ -105,26 +267,39 @@ describe("shipping lifecycle", () => {
     const result = await sendShipping("order-1", "25249853610844");
     expect(result).toMatchObject({ status: "accepted", id: "email-1" });
     expect(mocks.send).toHaveBeenCalledOnce();
-    expect(mocks.send.mock.calls[0][0]).toMatchObject({ to: "customer@example.com", subject: "Your Smelt order is on the move 📦" });
+    expect(mocks.send.mock.calls[0][0]).toMatchObject({
+      to: "customer@example.com",
+      subject: "Your Smelt order is on the move 📦",
+    });
     expect(mocks.send.mock.calls[0][0].html).toContain("waybill=25249853610844");
     expect(mocks.send.mock.calls[0][1].idempotencyKey).toMatch(/^shipping-/);
     expect(mocks.eval).toHaveBeenCalledTimes(2);
     expect(result).not.toHaveProperty("message");
   });
   it("does not resend accepted receipts, including imported manual sends", async () => {
-    mocks.eval.mockResolvedValue({ ...pending(), status: "accepted", source: "manual", id: "existing" });
+    mocks.eval.mockResolvedValue({
+      ...pending(),
+      status: "accepted",
+      source: "manual",
+      id: "existing",
+    });
     expect(await sendShipping("order-1", "25249853610844")).toMatchObject({ id: "existing" });
     expect(mocks.send).not.toHaveBeenCalled();
   });
   it("rejects changed waybills and old or unlinked ambiguous attempts", async () => {
-    for (const receipt of [{ ...pending(), trackingNumber: "111111" }, { ...pending(), startedAt: Date.now() - 24 * 60 * 60 * 1000 }, { ...pending(), reference: undefined, source: "manual" }]) {
+    for (const receipt of [
+      { ...pending(), trackingNumber: "111111" },
+      { ...pending(), startedAt: Date.now() - 24 * 60 * 60 * 1000 },
+      { ...pending(), reference: undefined, source: "manual" },
+    ]) {
       mocks.eval.mockResolvedValue(receipt);
       await expect(sendShipping("order-1", "25249853610844")).rejects.toThrow();
     }
     expect(mocks.send).not.toHaveBeenCalled();
   });
   it("retries a recent ambiguous attempt using its original frozen payload", async () => {
-    const saved = pending(); mocks.eval.mockResolvedValue(saved);
+    const saved = pending();
+    mocks.eval.mockResolvedValue(saved);
     await sendShipping("order-1", "25249853610844");
     expect(mocks.send.mock.calls[0][0]).toEqual(saved.message);
   });
@@ -135,42 +310,72 @@ describe("shipping lifecycle", () => {
   });
   it("does not contact the provider for invalid waybills or non-paid orders", async () => {
     await expect(sendShipping("order-1", "abc")).rejects.toThrow("waybill");
-    mocks.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ status: true, data: { ...transaction, status: "failed" } }) });
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: true, data: { ...transaction, status: "failed" } }),
+    });
     await expect(sendShipping("order-1", "25249853610844")).rejects.toThrow("successful payment");
-    expect(mocks.send).not.toHaveBeenCalled(); expect(mocks.eval).not.toHaveBeenCalled();
+    expect(mocks.send).not.toHaveBeenCalled();
+    expect(mocks.eval).not.toHaveBeenCalled();
   });
   it("refreshes provider status without sending another message", async () => {
     mocks.get.mockResolvedValue({ ...publicReceipt(pending()), status: "accepted", id: "email-1" });
-    mocks.emailGet.mockResolvedValue({ data: { to: ["customer@example.com"], last_event: "delivered" } });
+    mocks.emailGet.mockResolvedValue({
+      data: { to: ["customer@example.com"], last_event: "delivered" },
+    });
     expect(await shippingStatus("order-1")).toMatchObject({ lastEvent: "delivered" });
     expect(mocks.send).not.toHaveBeenCalled();
   });
 });
 describe("admin access", () => {
-  it("accepts an explicitly configured five-character password", async () => {
+  it("rejects a weak configured credential before issuing a session", async () => {
     vi.stubEnv("ADMIN_PASSWORD", "12345");
-    await login(request({}), "12345");
-    expect(mocks.cookies.set).toHaveBeenCalledWith("smelt_admin", expect.stringMatching(/^[a-f0-9]{64}$/), expect.objectContaining({ httpOnly: true }));
+    await expect(login(request({}), "12345")).rejects.toThrow("not been configured");
+    expect(mocks.cookies.set).not.toHaveBeenCalled();
   });
   it("protects order reads and sends without exposing data", async () => {
-    expect((await ordersGET(new Request("https://saunahat.co.za/api/admin/orders"))).status).toBe(401);
+    expect((await ordersGET(new Request("https://saunahat.co.za/api/admin/orders"))).status).toBe(
+      401,
+    );
     expect((await ordersExportGET()).status).toBe(401);
-    expect((await analyticsGET(new Request("https://saunahat.co.za/api/admin/analytics"))).status).toBe(401);
-    expect((await reviewsGET(new Request("https://saunahat.co.za/api/admin/reviews"))).status).toBe(401);
-    expect((await reviewsPATCH(request({ action: "markMessageSent", reference: "order-1" }))).status).toBe(401);
-    expect((await shippingPOST(request({ reference: "order-1", trackingNumber: "25249853610844" }))).status).toBe(401);
-    expect(mocks.fetch).not.toHaveBeenCalled(); expect(mocks.send).not.toHaveBeenCalled();
+    expect(
+      (await analyticsGET(new Request("https://saunahat.co.za/api/admin/analytics"))).status,
+    ).toBe(401);
+    expect((await reviewsGET(new Request("https://saunahat.co.za/api/admin/reviews"))).status).toBe(
+      401,
+    );
+    expect(
+      (await reviewsPATCH(request({ action: "markMessageSent", reference: "order-1" }))).status,
+    ).toBe(401);
+    expect(
+      (await shippingPOST(request({ reference: "order-1", trackingNumber: "25249853610844" })))
+        .status,
+    ).toBe(401);
+    expect(mocks.fetch).not.toHaveBeenCalled();
+    expect(mocks.send).not.toHaveBeenCalled();
   });
   it("rejects cross-origin mutations before authentication or email calls", async () => {
     expect((await shippingPOST(request({}, "https://evil.example"))).status).toBe(403);
     expect((await reviewsPOST(request({}, "https://evil.example"))).status).toBe(403);
-    expect((await reviewsPATCH(request({ action: "markMessageSent", reference: "order-1" }, "https://evil.example"))).status).toBe(403);
-    expect(mocks.get).not.toHaveBeenCalled(); expect(mocks.send).not.toHaveBeenCalled();
+    expect(
+      (
+        await reviewsPATCH(
+          request({ action: "markMessageSent", reference: "order-1" }, "https://evil.example"),
+        )
+      ).status,
+    ).toBe(403);
+    expect(mocks.get).not.toHaveBeenCalled();
+    expect(mocks.send).not.toHaveBeenCalled();
   });
   it("rate limits login and issues only opaque HttpOnly sessions", async () => {
     await expect(login(request({}), "wrong")).rejects.toThrow("Incorrect");
     await login(request({}), "a-long-test-password-for-admin");
-    expect(mocks.cookies.set).toHaveBeenCalledWith("smelt_admin", expect.stringMatching(/^[a-f0-9]{64}$/), expect.objectContaining({ httpOnly: true, sameSite: "strict", maxAge: 43200 }));
+    expect(mocks.cookies.set).toHaveBeenCalledWith(
+      "smelt_admin",
+      expect.stringMatching(/^[a-f0-9]{64}$/),
+      expect.objectContaining({ httpOnly: true, sameSite: "strict", maxAge: 43200 }),
+    );
     mocks.eval.mockResolvedValue(0);
     await expect(login(request({}), "a-long-test-password-for-admin")).rejects.toThrow("Too many");
   });
@@ -180,61 +385,117 @@ describe("admin access", () => {
     expect(await hasAdminSession()).toBe(true);
     vi.stubEnv("ADMIN_PASSWORD", "another-long-test-password");
     expect(await hasAdminSession()).toBe(false);
-    await logout(); expect(mocks.del).toHaveBeenCalledOnce(); expect(mocks.cookies.delete).toHaveBeenCalledWith("smelt_admin");
+    await logout();
+    expect(mocks.del).toHaveBeenCalledOnce();
+    expect(mocks.cookies.delete).toHaveBeenCalledWith("smelt_admin");
   });
 });
 
 describe("manual review-message tracking", () => {
   it("stores the admin-selected photo requirement on the invitation", async () => {
     mocks.cookies.get.mockReturnValue({ value: "a".repeat(64) });
-    mocks.get.mockImplementation(async key => key.startsWith("smelt:admin:session:") ? { credential: digest("a-long-test-password-for-admin") } : null);
+    mocks.get.mockImplementation(async (key) =>
+      key.startsWith("smelt:admin:session:")
+        ? { credential: digest("a-long-test-password-for-admin") }
+        : null,
+    );
     mocks.hget.mockResolvedValue("2026-10-01T10:00:00.000Z");
     for (const photosRequired of [false, true]) {
       const response = await reviewsPOST(request({ reference: "order-1", photosRequired }));
       expect(response.status).toBe(201);
-      expect(await response.json()).toMatchObject({ reviewUrl: expect.stringContaining("/review/"), photosRequired });
-      expect(mocks.set).toHaveBeenCalledWith(expect.stringContaining(":invite:"), expect.objectContaining({ reference: "order-1", photosRequired }), expect.any(Object));
+      expect(await response.json()).toMatchObject({
+        reviewUrl: expect.stringContaining("/review/"),
+        photosRequired,
+      });
+      expect(mocks.set).toHaveBeenCalledWith(
+        expect.stringContaining(":invite:"),
+        expect.objectContaining({ reference: "order-1", photosRequired }),
+        expect.any(Object),
+      );
     }
     const defaults = await reviewsPOST(request({ reference: "order-1" }));
     expect(await defaults.json()).toMatchObject({ photosRequired: true });
-    expect((await reviewsPOST(request({ reference: "order-1", photosRequired: "false" }))).status).toBe(400);
+    expect(
+      (await reviewsPOST(request({ reference: "order-1", photosRequired: "false" }))).status,
+    ).toBe(400);
     expect(mocks.send).not.toHaveBeenCalled();
   });
 
   it("retains the original send date on retries and returns it when orders reload", async () => {
     const saved = new Map<string, string>();
     const completedAt = "2026-10-01T10:00:00.000Z";
-    mocks.hget.mockImplementation(async (key, reference) => key === completionKey() ? completedAt : saved.get(reference) ?? null);
+    mocks.hget.mockImplementation(async (key, reference) =>
+      key === completionKey() ? completedAt : (saved.get(reference) ?? null),
+    );
     mocks.hsetnx.mockImplementation(async (_key, reference, value) => {
       if (saved.has(reference)) return 0;
-      saved.set(reference, value); return 1;
+      saved.set(reference, value);
+      return 1;
     });
     const sentAt = await markReviewMessageSent("order-1");
     expect(Number.isFinite(Date.parse(sentAt))).toBe(true);
     expect(await markReviewMessageSent("order-1")).toBe(sentAt);
-    expect(mocks.hsetnx).toHaveBeenCalledWith(reviewMessageSentKey(), "order-1", expect.any(String));
-    mocks.hgetall.mockImplementation(async key => key === completionKey() ? { "order-1": completedAt, "order-2": completedAt } : Object.fromEntries(saved));
-    mocks.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ status: true, data: [transaction, { ...transaction, reference: "order-2" }], meta: { total: 2, pageCount: 1 } }) });
+    expect(mocks.hsetnx).toHaveBeenCalledWith(
+      reviewMessageSentKey(),
+      "order-1",
+      expect.any(String),
+    );
+    mocks.hgetall.mockImplementation(async (key) =>
+      key === completionKey()
+        ? { "order-1": completedAt, "order-2": completedAt }
+        : Object.fromEntries(saved),
+    );
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        status: true,
+        data: [transaction, { ...transaction, reference: "order-2" }],
+        meta: { total: 2, pageCount: 1 },
+      }),
+    });
     const result = await listOrders(1, "", "completed");
-    expect(result.orders.find(order => order.reference === "order-1")?.reviewMessageSentAt).toBe(sentAt);
-    expect(result.orders.find(order => order.reference === "order-2")?.reviewMessageSentAt).toBeNull();
+    expect(result.orders.find((order) => order.reference === "order-1")?.reviewMessageSentAt).toBe(
+      sentAt,
+    );
+    expect(
+      result.orders.find((order) => order.reference === "order-2")?.reviewMessageSentAt,
+    ).toBeNull();
     expect(mocks.send).not.toHaveBeenCalled();
   });
   it("requires a completed paid order before saving a send date", async () => {
     mocks.hget.mockResolvedValue(null);
     await expect(markReviewMessageSent("order-1")).rejects.toThrow("Mark this order complete");
     expect(mocks.hsetnx).not.toHaveBeenCalled();
-    mocks.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ status: true, data: { ...transaction, status: "failed" } }) });
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: true, data: { ...transaction, status: "failed" } }),
+    });
     await expect(markReviewMessageSent("order-1")).rejects.toThrow("successful payment");
   });
   it("requires an existing review link and records the manual confirmation through the admin API", async () => {
     mocks.cookies.get.mockReturnValue({ value: "a".repeat(64) });
-    mocks.get.mockImplementation(async key => key.startsWith("smelt:admin:session:") ? { credential: digest("a-long-test-password-for-admin") } : null);
-    expect((await reviewsPATCH(request({ action: "markMessageSent", reference: "order-1" }))).status).toBe(409);
+    mocks.get.mockImplementation(async (key) =>
+      key.startsWith("smelt:admin:session:")
+        ? { credential: digest("a-long-test-password-for-admin") }
+        : null,
+    );
+    expect(
+      (await reviewsPATCH(request({ action: "markMessageSent", reference: "order-1" }))).status,
+    ).toBe(409);
     expect(mocks.hsetnx).not.toHaveBeenCalled();
-    mocks.get.mockImplementation(async key => key.startsWith("smelt:admin:session:") ? { credential: digest("a-long-test-password-for-admin") } : key.endsWith(":invite") ? "invite-digest" : null);
+    mocks.get.mockImplementation(async (key) =>
+      key.startsWith("smelt:admin:session:")
+        ? { credential: digest("a-long-test-password-for-admin") }
+        : key.endsWith(":invite")
+          ? "invite-digest"
+          : null,
+    );
     mocks.hget.mockResolvedValue("2026-10-28T10:00:00.000Z");
-    const response = await reviewsPATCH(request({ action: "markMessageSent", reference: "order-1" }));
+    const response = await reviewsPATCH(
+      request({ action: "markMessageSent", reference: "order-1" }),
+    );
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ reviewMessageSentAt: "2026-10-28T10:00:00.000Z" });
     expect(mocks.send).not.toHaveBeenCalled();
@@ -252,25 +513,53 @@ describe("order completion", () => {
     expect(mocks.hsetnx).toHaveBeenCalledWith(completionKey(), "order-1", expect.any(String));
     expect(mocks.send).not.toHaveBeenCalled();
   });
-  it.each([undefined, "older-order"])("rejects old customer history as completion evidence (reference: %s)", async reference => {
-    mocks.cookies.get.mockReturnValue({ value: "a".repeat(64) });
-    mocks.get.mockImplementation(async (key: string) => key.startsWith("smelt:admin:session:")
-      ? { credential: digest("a-long-test-password-for-admin") } : null);
-    mocks.hgetall.mockResolvedValue({ legacy: { ...pending(), status: "accepted", reference, id: "previous-email" } });
-    const response = await ordersPATCH(request({ reference: "order-1", completed: true, confirmPriorShipment: true }));
-    expect(response.status).toBe(409);
-    expect(mocks.hsetnx).not.toHaveBeenCalled();
-    expect(mocks.send).not.toHaveBeenCalled();
-  });
+  it.each([undefined, "older-order"])(
+    "rejects old customer history as completion evidence (reference: %s)",
+    async (reference) => {
+      mocks.cookies.get.mockReturnValue({ value: "a".repeat(64) });
+      mocks.get.mockImplementation(async (key: string) =>
+        key.startsWith("smelt:admin:session:")
+          ? { credential: digest("a-long-test-password-for-admin") }
+          : null,
+      );
+      mocks.hgetall.mockResolvedValue({
+        legacy: { ...pending(), status: "accepted", reference, id: "previous-email" },
+      });
+      const response = await ordersPATCH(
+        request({ reference: "order-1", completed: true, confirmPriorShipment: true }),
+      );
+      expect(response.status).toBe(409);
+      expect(mocks.hsetnx).not.toHaveBeenCalled();
+      expect(mocks.send).not.toHaveBeenCalled();
+    },
+  );
   it("reopens an order without deleting its shipping receipt or sending email", async () => {
     expect(await setOrderCompleted("order-1", false)).toBeNull();
     expect(mocks.hdel).toHaveBeenCalledWith(completionKey(), "order-1");
-    expect(mocks.del).not.toHaveBeenCalled(); expect(mocks.send).not.toHaveBeenCalled();
+    expect(mocks.del).not.toHaveBeenCalled();
+    expect(mocks.send).not.toHaveBeenCalled();
   });
   it("filters across Paystack pages before paginating active and completed orders", async () => {
-    mocks.fetch.mockImplementation(async (url: string) => ({ ok: true, status: 200, json: async () => ({ status: true,
-      data: Array.from({length: url.includes("page=1") ? 100 : 2}, (_, i) => ({ ...transaction, reference: `order-${url.includes("page=1") ? i : i+100}` })), meta: {total: 102, pageCount: 2} }) }));
-    mocks.hgetall.mockResolvedValue(Object.fromEntries(Array.from({length: 90}, (_, i) => [`order-${i}`, new Date(Date.UTC(2026, 8, 16, 12, 0, i)).toISOString()])));
+    mocks.fetch.mockImplementation(async (url: string) => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        status: true,
+        data: Array.from({ length: url.includes("page=1") ? 100 : 2 }, (_, i) => ({
+          ...transaction,
+          reference: `order-${url.includes("page=1") ? i : i + 100}`,
+        })),
+        meta: { total: 102, pageCount: 2 },
+      }),
+    }));
+    mocks.hgetall.mockResolvedValue(
+      Object.fromEntries(
+        Array.from({ length: 90 }, (_, i) => [
+          `order-${i}`,
+          new Date(Date.UTC(2026, 8, 16, 12, 0, i)).toISOString(),
+        ]),
+      ),
+    );
     const active = await listOrders(1);
     expect(active).toMatchObject({ total: 12, activeTotal: 12, completedTotal: 90, pageCount: 1 });
     expect(active.orders[0].reference).toBe("order-90");
@@ -278,7 +567,7 @@ describe("order completion", () => {
     const completed = await listOrders(2, "", "completed");
     expect(completed).toMatchObject({ total: 90, page: 2, pageCount: 4 });
     expect(completed.orders).toHaveLength(25);
-    expect(completed.orders.every(o => !!o.completedAt)).toBe(true);
+    expect(completed.orders.every((o) => !!o.completedAt)).toBe(true);
     expect(completed.orders[0].reference).toBe("order-64");
     expect(completed.orders[24].reference).toBe("order-40");
     const completedOldest = await listOrders(2, "", "completed", "oldest");
@@ -286,24 +575,41 @@ describe("order completion", () => {
     expect(completedOldest.orders[24].reference).toBe("order-49");
   });
   it("protects completion mutations with session and origin checks", async () => {
-    expect((await ordersPATCH(request({ reference: "order-1", completed: true }))).status).toBe(401);
+    expect((await ordersPATCH(request({ reference: "order-1", completed: true }))).status).toBe(
+      401,
+    );
     expect((await ordersPATCH(request({}, "https://evil.example"))).status).toBe(403);
     expect(mocks.hsetnx).not.toHaveBeenCalled();
   });
 });
 
 describe("pre-order fulfilment totals", () => {
-  const preorder = { batch: "2026-10-22", arrival: "22 October 2026", quantities: { cream: 2, green: 1 } };
+  const preorder = {
+    batch: "2026-10-22",
+    arrival: "22 October 2026",
+    quantities: { cream: 2, green: 1 },
+  };
   it("counts pre-order units across provider and dashboard pages, excluding completed and regular orders", async () => {
-    mocks.fetch.mockImplementation(async (url: string) => ({ ok: true, status: 200, json: async () => ({ status: true,
-      data: Array.from({ length: url.includes("page=1") ? 100 : 2 }, (_, i) => {
-        const index = url.includes("page=1") ? i : i + 100;
-        return { ...transaction, reference: `order-${index}`, metadata: {
-          ...transaction.metadata, cart: { cream: 3, green: 4 },
-          ...(index !== 0 ? { preorder } : {}),
-        } };
-      }), meta: { total: 102, pageCount: 2 },
-    }) }));
+    mocks.fetch.mockImplementation(async (url: string) => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        status: true,
+        data: Array.from({ length: url.includes("page=1") ? 100 : 2 }, (_, i) => {
+          const index = url.includes("page=1") ? i : i + 100;
+          return {
+            ...transaction,
+            reference: `order-${index}`,
+            metadata: {
+              ...transaction.metadata,
+              cart: { cream: 3, green: 4 },
+              ...(index !== 0 ? { preorder } : {}),
+            },
+          };
+        }),
+        meta: { total: 102, pageCount: 2 },
+      }),
+    }));
     mocks.hgetall.mockResolvedValue({ "order-1": "2026-10-11T12:00:00.000Z" });
     for (const view of ["active", "preorders", "completed"] as const) {
       const result = await listOrders(2, "", view);
@@ -312,31 +618,82 @@ describe("pre-order fulfilment totals", () => {
     }
   });
   it("returns zero counts for an unknown customer", async () => {
-    mocks.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ status: true, data: [transaction], meta: { total: 1, pageCount: 1 } }) });
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: true, data: [transaction], meta: { total: 1, pageCount: 1 } }),
+    });
     expect(await listOrders(1, "unknown@example.com")).toMatchObject({
-      total: 0, preorderToFulfil: { cream: 0, green: 0 },
+      total: 0,
+      preorderToFulfil: { cream: 0, green: 0 },
     });
   });
   it("counts only the remaining allocation for an order-reference search", async () => {
-    const order = { ...transaction, reference: "smeltp-partial", metadata: { ...transaction.metadata, preorder } };
-    mocks.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ status: true, data: [order], meta: { total: 1, pageCount: 1 } }) });
+    const order = {
+      ...transaction,
+      reference: "smeltp-partial",
+      metadata: { ...transaction.metadata, preorder },
+    };
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: true, data: [order], meta: { total: 1, pageCount: 1 } }),
+    });
     mocks.hget.mockResolvedValue({ status: "paid", preorderGreen: 0, preorderCream: 1 });
-    expect(await listOrders(1, order.reference)).toMatchObject({ preorderToFulfil: { cream: 1, green: 0 } });
+    expect(await listOrders(1, order.reference)).toMatchObject({
+      preorderToFulfil: { cream: 1, green: 0 },
+    });
     mocks.hgetall.mockResolvedValue({ [order.reference]: "2026-10-11T12:00:00.000Z" });
-    expect(await listOrders(1, order.reference)).toMatchObject({ preorderToFulfil: { cream: 0, green: 0 } });
+    expect(await listOrders(1, order.reference)).toMatchObject({
+      preorderToFulfil: { cream: 0, green: 0 },
+    });
     mocks.hgetall.mockResolvedValue({});
-    expect(await listOrders(1, order.reference)).toMatchObject({ preorderToFulfil: { cream: 1, green: 0 } });
+    expect(await listOrders(1, order.reference)).toMatchObject({
+      preorderToFulfil: { cream: 1, green: 0 },
+    });
   });
 });
 
 describe("pre-orders supplied from returned stock", () => {
-  const paidPreorder = { ...transaction, reference: "smeltp-returned-stock", metadata: { ...transaction.metadata, preorder: { batch: "2026-10-22", arrival: "22 October 2026", quantities: { green: 1, cream: 0 } } } };
+  const paidPreorder = {
+    ...transaction,
+    reference: "smeltp-returned-stock",
+    metadata: {
+      ...transaction.metadata,
+      preorder: {
+        batch: "2026-10-22",
+        arrival: "22 October 2026",
+        quantities: { green: 1, cream: 0 },
+      },
+    },
+  };
   it("makes the corrected order shippable and removes it from the pre-order filter", async () => {
-    mocks.hget.mockResolvedValue({ status: "paid", green: 1, cream: 0, preorderGreen: 0, preorderCream: 0 });
-    mocks.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ status: true, data: paidPreorder }) });
-    expect(await getPaidOrder(paidPreorder.reference)).toMatchObject({ canShip: true, preorder: undefined });
-    mocks.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ status: true, data: [paidPreorder], meta: { total: 1, pageCount: 1 } }) });
-    expect(await listOrders(1, "", "preorders")).toMatchObject({ total: 0, orders: [], preorderToFulfil: { cream: 0, green: 0 } });
+    mocks.hget.mockResolvedValue({
+      status: "paid",
+      green: 1,
+      cream: 0,
+      preorderGreen: 0,
+      preorderCream: 0,
+    });
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: true, data: paidPreorder }),
+    });
+    expect(await getPaidOrder(paidPreorder.reference)).toMatchObject({
+      canShip: true,
+      preorder: undefined,
+    });
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: true, data: [paidPreorder], meta: { total: 1, pageCount: 1 } }),
+    });
+    expect(await listOrders(1, "", "preorders")).toMatchObject({
+      total: 0,
+      orders: [],
+      preorderToFulfil: { cream: 0, green: 0 },
+    });
     expect((await listOrders(1)).orders[0]).toMatchObject({ canShip: true, preorder: undefined });
   });
 });

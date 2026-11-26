@@ -10,9 +10,11 @@ type Database = PgDatabase<PgQueryResultHKT, typeof schema>;
 export function reviewRepository(db: Database, environment: string) {
   return {
     async find(id: string) {
-      const [row] = await db.select().from(schema.reviews).where(and(
-        eq(schema.reviews.environment, environment), eq(schema.reviews.id, id),
-      )).limit(1);
+      const [row] = await db
+        .select()
+        .from(schema.reviews)
+        .where(and(eq(schema.reviews.environment, environment), eq(schema.reviews.id, id)))
+        .limit(1);
       return row?.record ?? null;
     },
     async published(id: string) {
@@ -21,9 +23,16 @@ export function reviewRepository(db: Database, environment: string) {
     },
     async insert(record: ReviewRecord) {
       // Caller owns the transaction containing invitation/claim changes.
-      await db.insert(schema.reviews).values({ environment, id: record.id,
-        orderReference: record.orderReference, status: record.status,
-        rating: record.rating, record, submittedAt: record.submittedAt, publishedAt: record.publishedAt });
+      await db.insert(schema.reviews).values({
+        environment,
+        id: record.id,
+        orderReference: record.orderReference,
+        status: record.status,
+        rating: record.rating,
+        record,
+        submittedAt: record.submittedAt,
+        publishedAt: record.publishedAt,
+      });
     },
   };
 }
@@ -31,16 +40,27 @@ export function reviewRepository(db: Database, environment: string) {
 export function customHatRepository(db: Database, environment: string) {
   return {
     async find(id: string) {
-      const [row] = await db.select().from(schema.customRequests).where(and(
-        eq(schema.customRequests.environment, environment), eq(schema.customRequests.id, id),
-      )).limit(1);
+      const [row] = await db
+        .select()
+        .from(schema.customRequests)
+        .where(
+          and(eq(schema.customRequests.environment, environment), eq(schema.customRequests.id, id)),
+        )
+        .limit(1);
       return row ?? null;
     },
     async ownsFile(requestId: string, fileKey: string) {
-      const [row] = await db.select({ fileKey: schema.customFiles.fileKey }).from(schema.customFiles).where(and(
-        eq(schema.customFiles.environment, environment), eq(schema.customFiles.requestId, requestId),
-        eq(schema.customFiles.fileKey, fileKey),
-      )).limit(1);
+      const [row] = await db
+        .select({ fileKey: schema.customFiles.fileKey })
+        .from(schema.customFiles)
+        .where(
+          and(
+            eq(schema.customFiles.environment, environment),
+            eq(schema.customFiles.requestId, requestId),
+            eq(schema.customFiles.fileKey, fileKey),
+          ),
+        )
+        .limit(1);
       return Boolean(row);
     },
   };

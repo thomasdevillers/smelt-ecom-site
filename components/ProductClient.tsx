@@ -8,35 +8,57 @@ import Faq from "@/components/Faq";
 import ProductReviews from "@/components/ProductReviews";
 import ProductReviewSummary from "@/components/ProductReviewSummary";
 import type { PublishedReviews } from "@/lib/reviews";
-import type { Availability } from "@/lib/preorders";
+import type { Availability } from "@/lib/inventory/preorders";
 import RestockSignup from "@/components/RestockSignup";
 import AskAboutHat from "@/components/AskAboutHat";
 import SectionLabel from "@/components/ui/SectionLabel";
 import { COLOURS, PRODUCT, type Colour } from "@/lib/product";
-import { BASE_PRICE, shippingFee, formatMoney, bundleSubtotal, bundleDeliveredSaving } from "@/lib/pricing";
+import {
+  BASE_PRICE,
+  shippingFee,
+  formatMoney,
+  bundleSubtotal,
+  bundleDeliveredSaving,
+} from "@/lib/pricing";
 import { useCart } from "@/lib/cart";
-import { BUNDLE_GREEN_COUNTS, PURCHASE_QUANTITIES, bundleChoiceLabel, canAddSelection, type PurchaseQuantity } from "@/lib/bundleChoices";
+import {
+  BUNDLE_GREEN_COUNTS,
+  PURCHASE_QUANTITIES,
+  bundleChoiceLabel,
+  canAddSelection,
+  type PurchaseQuantity,
+} from "@/lib/bundleChoices";
 import type { CartState } from "@/lib/cartReducer";
 import { META_CURRENCY, metaVariantContent } from "@/lib/meta";
 import { trackMetaEvent } from "@/lib/metaPixel";
 import { trackVercelEvent, vercelProductData } from "@/lib/vercelAnalytics";
-import styles from "@/app/product/product.module.css";
-import { useAvailability } from "@/lib/useAvailability";
+import styles from "@/app/(shop)/(public)/product/product.module.css";
+import { useAvailability } from "@/lib/inventory/useAvailability";
 import { PREORDER_MODE } from "@/lib/salesMode";
 import PreorderPrice from "./PreorderPrice";
 
-function ProductLinkSelection({ onSelect }: { onSelect: (colour: Colour, quantity: PurchaseQuantity) => void }) {
+function ProductLinkSelection({
+  onSelect,
+}: {
+  onSelect: (colour: Colour, quantity: PurchaseQuantity) => void;
+}) {
   const params = useSearchParams();
   const colour = params.get("colour") === "cream" ? "cream" : "green";
   const order = params.get("order");
-  const quantity: PurchaseQuantity = order === "bundle" || order === "2" ? 2 : order === "3" ? 3 : order === "4" ? 4 : 1;
+  const quantity: PurchaseQuantity =
+    order === "bundle" || order === "2" ? 2 : order === "3" ? 3 : order === "4" ? 4 : 1;
   useEffect(() => {
     onSelect(colour, quantity);
   }, [colour, quantity, onSelect]);
   return null;
 }
 
-export default function ProductClient({ reviewData, initialStock = null, initialColour = "green", initialQuantity = 1 }: {
+export default function ProductClient({
+  reviewData,
+  initialStock = null,
+  initialColour = "green",
+  initialQuantity = 1,
+}: {
   reviewData: PublishedReviews | null;
   initialStock?: Availability | null;
   initialColour?: Colour;
@@ -61,13 +83,15 @@ export default function ProductClient({ reviewData, initialStock = null, initial
   const selection: CartState = isBundle
     ? { green: bundleGreen, cream: quantity - bundleGreen }
     : { green: colour === "green" ? 1 : 0, cream: colour === "cream" ? 1 : 0 };
-  const bundleChoices = quantity >= 2 && quantity <= 4 ? BUNDLE_GREEN_COUNTS[quantity as 2 | 3 | 4] : [];
+  const bundleChoices =
+    quantity >= 2 && quantity <= 4 ? BUNDLE_GREEN_COUNTS[quantity as 2 | 3 | 4] : [];
   const selectionLabel = isBundle ? bundleChoiceLabel(bundleGreen, quantity) : v.name;
   const selectionInStock = stock !== null && canAddSelection(selection, cart, stock);
   const requested = { green: cart.green + selection.green, cream: cart.cream + selection.cream };
   const waitlistAvailable = !PREORDER_MODE && stock !== null && !selectionInStock;
-  const selectedColours = COLOURS.filter(c => selection[c] > 0);
-  const isPreorder = stock !== null && selectedColours.some(c => cart[c] + selection[c] > stock[c]);
+  const selectedColours = COLOURS.filter((c) => selection[c] > 0);
+  const isPreorder =
+    stock !== null && selectedColours.some((c) => cart[c] + selection[c] > stock[c]);
   const add = () => {
     if (!selectionInStock) return;
     if (isBundle) dispatch({ type: "addBundle", quantities: selection });
@@ -83,22 +107,38 @@ export default function ProductClient({ reviewData, initialStock = null, initial
   const bundleStatus = (green: number) => {
     if (!stock) return "Checking stock…";
     const mix = { green, cream: quantity - green };
-    if (!canAddSelection(mix, cart, stock)) return PREORDER_MODE ? "Fully reserved" : "Not enough stock";
+    if (!canAddSelection(mix, cart, stock))
+      return PREORDER_MODE ? "Fully reserved" : "Not enough stock";
     if (PREORDER_MODE) return "Pre-order";
-    return COLOURS.some(c => mix[c] > 0 && cart[c] + mix[c] > stock[c]) ? "Includes pre-order" : "In stock";
+    return COLOURS.some((c) => mix[c] > 0 && cart[c] + mix[c] > stock[c])
+      ? "Includes pre-order"
+      : "In stock";
   };
   const selectionStatus = (c: Colour) => {
     if (!stock) return "Checking stock…";
     const qty = selection[c];
-    if (stock[c] + stock.preorder[c] < cart[c] + qty) return PREORDER_MODE ? "Fully reserved" : "Not enough stock";
+    if (stock[c] + stock.preorder[c] < cart[c] + qty)
+      return PREORDER_MODE ? "Fully reserved" : "Not enough stock";
     if (PREORDER_MODE) return "Pre-order";
     const ready = Math.min(qty, Math.max(0, stock[c] - cart[c]));
-    return ready === qty ? `${stock[c]} left` : ready > 0 ? `${ready} in stock · ${qty - ready} on pre-order` : "Pre-order";
+    return ready === qty
+      ? `${stock[c]} left`
+      : ready > 0
+        ? `${ready} in stock · ${qty - ready} on pre-order`
+        : "Pre-order";
   };
-  const unavailableLabel = PREORDER_MODE ? "Pre-orders fully reserved" : !isBundle && stock?.[colour] === 0
-    ? "Out of stock"
-    : "Not enough stock";
-  const addLabel = isPreorder ? (isBundle ? `Pre-order ${quantity} hats` : "Pre-order") : isBundle ? `Add ${quantity} hats` : "Add to bag";
+  const unavailableLabel = PREORDER_MODE
+    ? "Pre-orders fully reserved"
+    : !isBundle && stock?.[colour] === 0
+      ? "Out of stock"
+      : "Not enough stock";
+  const addLabel = isPreorder
+    ? isBundle
+      ? `Pre-order ${quantity} hats`
+      : "Pre-order"
+    : isBundle
+      ? `Add ${quantity} hats`
+      : "Add to bag";
 
   useEffect(() => {
     if (viewed.current) return;
@@ -115,10 +155,11 @@ export default function ProductClient({ reviewData, initialStock = null, initial
     });
   }, []);
 
-
   return (
     <main className={styles.page}>
-      <Suspense fallback={null}><ProductLinkSelection onSelect={selectFromLink} /></Suspense>
+      <Suspense fallback={null}>
+        <ProductLinkSelection onSelect={selectFromLink} />
+      </Suspense>
       <div className={styles.grid}>
         <ProductGallery key={colour} colour={colour} onColourChange={setColour} />
 
@@ -131,142 +172,268 @@ export default function ProductClient({ reviewData, initialStock = null, initial
               "Helps protect hair and scalp from direct heat",
               "Made from 100% merino wool",
               "Made for regular sauna sessions",
-            ].map(benefit => (
+            ].map((benefit) => (
               <li key={benefit}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
-                  <path d="m5 12 4 4L19 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    d="m5 12 4 4L19 6"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
                 <span>{benefit}</span>
               </li>
             ))}
           </ul>
-          {PREORDER_MODE ? <PreorderPrice /> : <div className={styles.price}>{formatMoney(BASE_PRICE)}</div>}
-          {process.env.NEXT_PUBLIC_ASK_HAT_ENABLED !== "false" && <div className={styles.productAssistant}><AskAboutHat /></div>}
+          {PREORDER_MODE ? (
+            <PreorderPrice />
+          ) : (
+            <div className={styles.price}>{formatMoney(BASE_PRICE)}</div>
+          )}
+          {process.env.NEXT_PUBLIC_ASK_HAT_ENABLED !== "false" && (
+            <div className={styles.productAssistant}>
+              <AskAboutHat />
+            </div>
+          )}
 
           <fieldset className={styles.purchaseOptions}>
             <legend className={styles.optLabel}>Choose your order</legend>
-            {PURCHASE_QUANTITIES.map(qty => (
-              <label key={qty} className={`${styles.purchaseCard} ${qty >= 3 ? styles.purchaseCardWithBanner : ""} ${(quantity === qty || (moreOpen && qty === 4)) ? styles.purchaseCardOn : ""}`}>
-                {qty >= 3 && <em className={styles.purchaseBanner}>{qty === 4 ? "Best value" : "Most popular"}</em>}
+            {PURCHASE_QUANTITIES.map((qty) => (
+              <label
+                key={qty}
+                className={`${styles.purchaseCard} ${qty >= 3 ? styles.purchaseCardWithBanner : ""} ${quantity === qty || (moreOpen && qty === 4) ? styles.purchaseCardOn : ""}`}
+              >
+                {qty >= 3 && (
+                  <em className={styles.purchaseBanner}>
+                    {qty === 4 ? "Best value" : "Most popular"}
+                  </em>
+                )}
                 <input
                   type="radio"
                   name="purchaseOption"
                   value={qty}
-                  checked={(quantity === qty || (moreOpen && qty === 4))}
+                  checked={quantity === qty || (moreOpen && qty === 4)}
                   onClick={() => {
                     if (moreOpen && qty === 4) chooseQuantity(4);
                   }}
                   onChange={() => chooseQuantity(qty)}
                 />
                 <span>
-                  <strong>{qty === 1 ? "One hat" : qty === 2 ? "Two-hat bundle" : `${qty}-hat bundle`}{qty > 1 && <em>Save {formatMoney(bundleDeliveredSaving(qty))}</em>}</strong>
-                  <small>{qty === 1
-                    ? `${formatMoney(BASE_PRICE)} · ${singleDelivery ? `${formatMoney(singleDelivery)} delivery` : "Free delivery"}`
-                    : "Free delivery"}</small>
+                  <strong>
+                    {qty === 1 ? "One hat" : qty === 2 ? "Two-hat bundle" : `${qty}-hat bundle`}
+                    {qty > 1 && <em>Save {formatMoney(bundleDeliveredSaving(qty))}</em>}
+                  </strong>
+                  <small>
+                    {qty === 1
+                      ? `${formatMoney(BASE_PRICE)} · ${singleDelivery ? `${formatMoney(singleDelivery)} delivery` : "Free delivery"}`
+                      : "Free delivery"}
+                  </small>
                 </span>
-                <b>{formatMoney(qty === 1 ? BASE_PRICE + singleDelivery : bundleSubtotal(qty))} total</b>
+                <b>
+                  {formatMoney(qty === 1 ? BASE_PRICE + singleDelivery : bundleSubtotal(qty))} total
+                </b>
               </label>
             ))}
           </fieldset>
-          {quantity >= 3 && <p className={styles.savingsNote}>Savings compared with {formatMoney(BASE_PRICE)} per hat plus R90 delivery.</p>}
+          {quantity >= 3 && (
+            <p className={styles.savingsNote}>
+              Savings compared with {formatMoney(BASE_PRICE)} per hat plus R90 delivery.
+            </p>
+          )}
 
-          {moreOpen ? <div id="more-hats" className={styles.moreQuantities}>
-            <p>Choose your mix · 4 or more hats</p>
-            <button type="button" className={styles.backToMixes} onClick={() => chooseQuantity(4)}>Back to colour mixes</button>
-            {COLOURS.map(c => {
-              const max = stock ? Math.max(0, Math.min(99, stock[c] + stock.preorder[c]) - cart[c]) : 0;
-              const update = (delta: number) => {
-                setQuantity(quantity + delta);
-                if (c === "green") setBundleGreen(bundleGreen + delta);
-                setColour(c);
-              };
-              return <div key={c} className={styles.moreRow}>
-                <span><i style={{ backgroundColor: PRODUCT.variants[c].swatch }} aria-hidden="true" />{PRODUCT.variants[c].name}</span>
-                <div className={styles.moreStepper}>
-                  <button type="button" aria-label={`Remove one ${c} hat`} disabled={quantity <= 4 || selection[c] === 0} onClick={() => update(-1)}>−</button>
-                  <output aria-label={`${c} hats`}>{selection[c]}</output>
-                  <button type="button" aria-label={`Add one ${c} hat`} disabled={selection[c] >= max} onClick={() => update(1)}>+</button>
-                </div>
-              </div>;
-            })}
-            <p aria-live="polite">{quantity} hats · {formatMoney(total)} · {formatMoney(bundleSubtotal(4) / 4)} per hat</p>
-          </div> : !isBundle ? <div className={styles.opt}>
-            <div className={styles.optLabel}>Colourway</div>
-            <div className={`${styles.bundleChoices} ${styles.bundleChoicesLarge}`}>
-              {COLOURS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  className={`${styles.bundleChoice} ${colour === c ? styles.bundleChoiceOn : ""}`}
-                  onClick={() => setColour(c)}
-                  aria-pressed={colour === c}
-                >
-                  <span className={styles.bundleSwatches} aria-hidden="true">
-                    <i style={{ backgroundColor: PRODUCT.variants[c].swatch }} />
-                  </span>
-                  <span>{PRODUCT.variants[c].name}</span>
-                  {stock && <small>{PREORDER_MODE ? (stock.preorder[c] > 0 ? "Pre-order" : "Fully reserved") : stock[c] === 0 ? "Out of stock" : `${stock[c]} left`}</small>}
-                </button>
-              ))}
-            </div>
-          </div> : <div className={styles.opt}>
-            <div className={styles.optLabel}>Choose your {quantity} hats</div>
-            <div className={`${styles.bundleChoices} ${quantity >= 3 ? styles.bundleChoicesLarge : ""}`}>
-              {bundleChoices.map(green => {
-                const mix = { green, cream: quantity - green };
+          {moreOpen ? (
+            <div id="more-hats" className={styles.moreQuantities}>
+              <p>Choose your mix · 4 or more hats</p>
+              <button
+                type="button"
+                className={styles.backToMixes}
+                onClick={() => chooseQuantity(4)}
+              >
+                Back to colour mixes
+              </button>
+              {COLOURS.map((c) => {
+                const max = stock
+                  ? Math.max(0, Math.min(99, stock[c] + stock.preorder[c]) - cart[c])
+                  : 0;
+                const update = (delta: number) => {
+                  setQuantity(quantity + delta);
+                  if (c === "green") setBundleGreen(bundleGreen + delta);
+                  setColour(c);
+                };
                 return (
-                  <button
-                    key={green}
-                    type="button"
-                    className={`${styles.bundleChoice} ${bundleGreen === green ? styles.bundleChoiceOn : ""}`}
-                    onClick={() => {
-                      setBundleGreen(green);
-                      setColour(green === 0 ? "cream" : "green");
-                    }}
-                    aria-pressed={bundleGreen === green}
-                  >
-                    <span className={styles.bundleSwatches} aria-hidden="true">
-                      {COLOURS.flatMap(c => Array.from({ length: mix[c] }, (_, i) => (
-                        <i key={`${c}-${i}`} style={{ backgroundColor: PRODUCT.variants[c].swatch }} />
-                      )))}
+                  <div key={c} className={styles.moreRow}>
+                    <span>
+                      <i
+                        style={{ backgroundColor: PRODUCT.variants[c].swatch }}
+                        aria-hidden="true"
+                      />
+                      {PRODUCT.variants[c].name}
                     </span>
-                    <span>{bundleChoiceLabel(green, quantity)}</span>
-                    <small>{bundleStatus(green)}</small>
-                  </button>
+                    <div className={styles.moreStepper}>
+                      <button
+                        type="button"
+                        aria-label={`Remove one ${c} hat`}
+                        disabled={quantity <= 4 || selection[c] === 0}
+                        onClick={() => update(-1)}
+                      >
+                        −
+                      </button>
+                      <output aria-label={`${c} hats`}>{selection[c]}</output>
+                      <button
+                        type="button"
+                        aria-label={`Add one ${c} hat`}
+                        disabled={selection[c] >= max}
+                        onClick={() => update(1)}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
                 );
               })}
-              {quantity === 4 && <button
-                type="button"
-                className={styles.bundleChoice}
-                onClick={() => setMoreOpen(true)}
-                aria-controls="more-hats"
-              >
-                <span className={styles.bundleSwatches} aria-hidden="true">
-                  {COLOURS.map(c => <i key={c} style={{ backgroundColor: PRODUCT.variants[c].swatch }} />)}
-                </span>
-                <span>More than 4 hats</span>
-                <small>{formatMoney(bundleSubtotal(4) / 4)} per hat · Mix your colours</small>
-              </button>}
+              <p aria-live="polite">
+                {quantity} hats · {formatMoney(total)} · {formatMoney(bundleSubtotal(4) / 4)} per
+                hat
+              </p>
             </div>
-          </div>}
+          ) : !isBundle ? (
+            <div className={styles.opt}>
+              <div className={styles.optLabel}>Colourway</div>
+              <div className={`${styles.bundleChoices} ${styles.bundleChoicesLarge}`}>
+                {COLOURS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    className={`${styles.bundleChoice} ${colour === c ? styles.bundleChoiceOn : ""}`}
+                    onClick={() => setColour(c)}
+                    aria-pressed={colour === c}
+                  >
+                    <span className={styles.bundleSwatches} aria-hidden="true">
+                      <i style={{ backgroundColor: PRODUCT.variants[c].swatch }} />
+                    </span>
+                    <span>{PRODUCT.variants[c].name}</span>
+                    {stock && (
+                      <small>
+                        {PREORDER_MODE
+                          ? stock.preorder[c] > 0
+                            ? "Pre-order"
+                            : "Fully reserved"
+                          : stock[c] === 0
+                            ? "Out of stock"
+                            : `${stock[c]} left`}
+                      </small>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className={styles.opt}>
+              <div className={styles.optLabel}>Choose your {quantity} hats</div>
+              <div
+                className={`${styles.bundleChoices} ${quantity >= 3 ? styles.bundleChoicesLarge : ""}`}
+              >
+                {bundleChoices.map((green) => {
+                  const mix = { green, cream: quantity - green };
+                  return (
+                    <button
+                      key={green}
+                      type="button"
+                      className={`${styles.bundleChoice} ${bundleGreen === green ? styles.bundleChoiceOn : ""}`}
+                      onClick={() => {
+                        setBundleGreen(green);
+                        setColour(green === 0 ? "cream" : "green");
+                      }}
+                      aria-pressed={bundleGreen === green}
+                    >
+                      <span className={styles.bundleSwatches} aria-hidden="true">
+                        {COLOURS.flatMap((c) =>
+                          Array.from({ length: mix[c] }, (_, i) => (
+                            <i
+                              key={`${c}-${i}`}
+                              style={{ backgroundColor: PRODUCT.variants[c].swatch }}
+                            />
+                          )),
+                        )}
+                      </span>
+                      <span>{bundleChoiceLabel(green, quantity)}</span>
+                      <small>{bundleStatus(green)}</small>
+                    </button>
+                  );
+                })}
+                {quantity === 4 && (
+                  <button
+                    type="button"
+                    className={styles.bundleChoice}
+                    onClick={() => setMoreOpen(true)}
+                    aria-controls="more-hats"
+                  >
+                    <span className={styles.bundleSwatches} aria-hidden="true">
+                      {COLOURS.map((c) => (
+                        <i key={c} style={{ backgroundColor: PRODUCT.variants[c].swatch }} />
+                      ))}
+                    </span>
+                    <span>More than 4 hats</span>
+                    <small>{formatMoney(bundleSubtotal(4) / 4)} per hat · Mix your colours</small>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
-          {isBundle && <div className={styles.bundleStock} aria-live="polite" aria-atomic="true">
-            <strong>Your bundle · {quantity} hats</strong>
-            <ul>{selectedColours.map(c => (
-              <li key={c}><span>{selection[c]} × {PRODUCT.variants[c].name}</span><span>{selectionStatus(c)}</span></li>
-            ))}</ul>
-            {selectionInStock && <p>All hats ship together. Free delivery.</p>}
-          </div>}
+          {isBundle && (
+            <div className={styles.bundleStock} aria-live="polite" aria-atomic="true">
+              <strong>Your bundle · {quantity} hats</strong>
+              <ul>
+                {selectedColours.map((c) => (
+                  <li key={c}>
+                    <span>
+                      {selection[c]} × {PRODUCT.variants[c].name}
+                    </span>
+                    <span>{selectionStatus(c)}</span>
+                  </li>
+                ))}
+              </ul>
+              {selectionInStock && <p>All hats ship together. Free delivery.</p>}
+            </div>
+          )}
 
-          {waitlistAvailable ? <RestockSignup id="product-waitlist" key={`${requested.green}:${requested.cream}`} quantities={requested} /> : <button className={styles.add} onClick={add} disabled={!selectionInStock}>
-            {stock === null ? "Checking stock…" : !selectionInStock ? unavailableLabel : `${addLabel} · ${formatMoney(total)}`}
-          </button>}
+          {waitlistAvailable ? (
+            <RestockSignup
+              id="product-waitlist"
+              key={`${requested.green}:${requested.cream}`}
+              quantities={requested}
+            />
+          ) : (
+            <button className={styles.add} onClick={add} disabled={!selectionInStock}>
+              {stock === null
+                ? "Checking stock…"
+                : !selectionInStock
+                  ? unavailableLabel
+                  : `${addLabel} · ${formatMoney(total)}`}
+            </button>
+          )}
 
-          {stockError && <p role="alert">{stockError} <button onClick={() => void refresh()}>Retry</button></p>}
+          {stockError && (
+            <p role="alert">
+              {stockError} <button onClick={() => void refresh()}>Retry</button>
+            </p>
+          )}
           <div className={styles.reassure}>
-            <span>{PREORDER_MODE || isPreorder
-              ? "Shipping takes 1–3 business days once the hats arrive."
-              : "In-stock orders dispatched from Cape Town within 1–3 business days"}</span>
+            <span>
+              {PREORDER_MODE || isPreorder
+                ? "Shipping takes 1–3 business days once the hats arrive."
+                : "In-stock orders dispatched from Cape Town within 1–3 business days"}
+            </span>
           </div>
         </div>
       </div>
@@ -276,12 +443,30 @@ export default function ProductClient({ reviewData, initialStock = null, initial
       <InTheWild />
       <Faq />
       <div className={styles.stickyBar}>
-        <div className={styles.stickyInfo}>{selectionLabel} · {formatMoney(total)}</div>
-        <button className={styles.stickyAdd} onClick={waitlistAvailable ? () => {
-          const form = document.getElementById('product-waitlist');
-          form?.scrollIntoView({ block: 'center' });
-          form?.querySelector('input')?.focus({ preventScroll: true });
-        } : add} disabled={stock === null || (!selectionInStock && !waitlistAvailable)}>{stock === null ? "Checking…" : selectionInStock ? addLabel : waitlistAvailable ? 'Notify me' : unavailableLabel}</button>
+        <div className={styles.stickyInfo}>
+          {selectionLabel} · {formatMoney(total)}
+        </div>
+        <button
+          className={styles.stickyAdd}
+          onClick={
+            waitlistAvailable
+              ? () => {
+                  const form = document.getElementById("product-waitlist");
+                  form?.scrollIntoView({ block: "center" });
+                  form?.querySelector("input")?.focus({ preventScroll: true });
+                }
+              : add
+          }
+          disabled={stock === null || (!selectionInStock && !waitlistAvailable)}
+        >
+          {stock === null
+            ? "Checking…"
+            : selectionInStock
+              ? addLabel
+              : waitlistAvailable
+                ? "Notify me"
+                : unavailableLabel}
+        </button>
       </div>
     </main>
   );

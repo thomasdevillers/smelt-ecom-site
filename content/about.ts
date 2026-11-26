@@ -16,14 +16,23 @@ export const ABOUT = {
     {
       name: "Marc",
       role: "Co-founder",
-      image: "/images/founder-2.jpeg",
+      image: "/images/founder-2.webp",
       bio: "The one who actually pushed us to make it real instead of just complaining. Runs the shop, the stitching, and every word on the site. Prefers a civil 85°C and a slow exit.",
     },
   ],
   values: [
-    { title: "One product, done properly", body: "We don't do ranges. We do one hat, in two colourways, in the best felt we can get." },
-    { title: "Embroidered, never printed", body: "Prints crack in the heat. Thread doesn't. Every hat is stitched, front and back." },
-    { title: "Warm regards, always", body: "It's on the back of the hat and it's how we run the business. Look after people." },
+    {
+      title: "One product, done properly",
+      body: "We don't do ranges. We do one hat, in two colourways, in the best felt we can get.",
+    },
+    {
+      title: "Embroidered, never printed",
+      body: "Prints crack in the heat. Thread doesn't. Every hat is stitched, front and back.",
+    },
+    {
+      title: "Warm regards, always",
+      body: "It's on the back of the hat and it's how we run the business. Look after people.",
+    },
   ],
   signoff: "See you at 90°C.",
 };

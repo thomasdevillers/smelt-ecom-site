@@ -5,18 +5,62 @@ import { useState } from "react";
 import { COLOURS, PRODUCT, type Colour } from "@/lib/product";
 import styles from "./ProductGallery.module.css";
 
-export default function ProductGallery({ colour, onColourChange }: {
+export default function ProductGallery({
+  colour,
+  onColourChange,
+}: {
   colour: Colour;
   onColourChange: (colour: Colour) => void;
 }) {
   const [selected, setSelected] = useState(0);
   const variant = PRODUCT.variants[colour];
   const media = [
-    { id: "front", label: "Front", src: `/images/product-gallery-${colour}front.png`, alt: `${variant.name} Smelt sauna hat, front embroidery`, width: 1254, height: 1254, lifestyle: false },
-    { id: "back", label: "Back", src: `/images/product-gallery-${colour}back.png`, alt: `${variant.name} Smelt sauna hat, back embroidery`, width: 1254, height: 1254, lifestyle: false },
-    { id: "sauna", label: "In the sauna", src: "/images/MarcTomFront.jpg", alt: "Forest Green and Natural Cream Smelt sauna hats being worn in a sauna", width: 800, height: 1000, lifestyle: true },
-    { id: "fit", label: "Fit", src: "/images/TomSide.jpeg", alt: "Natural Cream Smelt sauna hat shown from the side while being worn", width: 800, height: 1000, lifestyle: true },
-    { id: "worn", label: "Worn", src: "/images/cream-hat-sauna-closeup.webp", alt: "Woman wearing a Natural Cream Smelt sauna hat in a wooden sauna", width: 1086, height: 1448, lifestyle: true, objectPosition: "center top" },
+    {
+      id: "front",
+      label: "Front",
+      src: `/images/product-gallery-${colour}front.webp`,
+      alt: `${variant.name} Smelt sauna hat, front embroidery`,
+      width: 1254,
+      height: 1254,
+      lifestyle: false,
+    },
+    {
+      id: "back",
+      label: "Back",
+      src: `/images/product-gallery-${colour}back.webp`,
+      alt: `${variant.name} Smelt sauna hat, back embroidery`,
+      width: 1254,
+      height: 1254,
+      lifestyle: false,
+    },
+    {
+      id: "sauna",
+      label: "In the sauna",
+      src: "/images/MarcTomFront.jpg",
+      alt: "Forest Green and Natural Cream Smelt sauna hats being worn in a sauna",
+      width: 800,
+      height: 1000,
+      lifestyle: true,
+    },
+    {
+      id: "fit",
+      label: "Fit",
+      src: "/images/TomSide.jpeg",
+      alt: "Natural Cream Smelt sauna hat shown from the side while being worn",
+      width: 800,
+      height: 1000,
+      lifestyle: true,
+    },
+    {
+      id: "worn",
+      label: "Worn",
+      src: "/images/cream-hat-sauna-closeup.webp",
+      alt: "Woman wearing a Natural Cream Smelt sauna hat in a wooden sauna",
+      width: 1086,
+      height: 1448,
+      lifestyle: true,
+      objectPosition: "center top",
+    },
   ];
   const active = media[selected] ?? media[0];
 
@@ -39,7 +83,7 @@ export default function ProductGallery({ colour, onColourChange }: {
       </div>
 
       <div className={styles.colourChoices} role="group" aria-label="Hat colour">
-        {COLOURS.map(choice => (
+        {COLOURS.map((choice) => (
           <button
             key={choice}
             type="button"
@@ -47,7 +91,11 @@ export default function ProductGallery({ colour, onColourChange }: {
             aria-pressed={colour === choice}
             onClick={() => onColourChange(choice)}
           >
-            <span className={styles.swatch} style={{ backgroundColor: PRODUCT.variants[choice].swatch }} aria-hidden="true" />
+            <span
+              className={styles.swatch}
+              style={{ backgroundColor: PRODUCT.variants[choice].swatch }}
+              aria-hidden="true"
+            />
             <span>{PRODUCT.variants[choice].name}</span>
           </button>
         ))}
