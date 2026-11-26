@@ -149,9 +149,9 @@ export function publicReview(review: ReviewRecord): PublicReview | null {
 export function reviewSummary(reviews: PublicReview[]): ReviewSummary {
   const distribution: ReviewSummary["distribution"] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   for (const review of reviews) distribution[review.rating as 1 | 2 | 3 | 4 | 5]++;
-  const average = reviews.length
-    ? Math.round((reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length) * 10) /
-      10
-    : 0;
+  // Truncate (never round up) to one decimal so a 4.96 average shows as 4.9, not 5.0.
+  // Integer maths avoids float drift: sum * 10 / count is exact when it divides evenly.
+  const ratingSum = reviews.reduce((sum, review) => sum + review.rating, 0);
+  const average = reviews.length ? Math.floor((ratingSum * 10) / reviews.length) / 10 : 0;
   return { total: reviews.length, average, distribution };
 }

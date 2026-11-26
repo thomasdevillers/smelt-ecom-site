@@ -810,4 +810,24 @@ describe("review validation and aggregate calculations", () => {
       distribution: { 1: 0, 2: 0, 3: 0, 4: 2, 5: 1 },
     });
   });
+
+  it("never rounds the average up to the next decimal", () => {
+    const base: Omit<PublicReview, "rating"> = {
+      id: "1",
+      displayName: "A",
+      body: "Good",
+      colours: ["green"],
+      photos: [],
+      verifiedPurchase: true,
+      publishedAt: "2026-09-17T00:00:00.000Z",
+    };
+    // 25 five-star + 1 four-star = 4.96..., which must show as 4.9 rather than 5.0.
+    const reviews: PublicReview[] = Array.from({ length: 26 }, (_, index) => ({
+      ...base,
+      id: String(index),
+      rating: index === 0 ? 4 : 5,
+    }));
+    expect(reviewSummary(reviews).average).toBe(4.9);
+    expect(reviewSummary(reviews.slice(1)).average).toBe(5);
+  });
 });
