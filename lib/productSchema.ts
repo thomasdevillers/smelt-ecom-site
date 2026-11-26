@@ -75,6 +75,7 @@ export function productGroupLd(stock: Availability | null, reviews: PublishedRev
           url,
           priceCurrency: "ZAR",
           price: BASE_PRICE,
+          validFrom: "2026-11-25T00:00:00+02:00",
           ...(availability ? { availability } : {}),
           itemCondition: "https://schema.org/NewCondition",
           hasMerchantReturnPolicy: {
@@ -89,6 +90,16 @@ export function productGroupLd(stock: Availability | null, reviews: PublishedRev
             "@type": "OfferShippingDetails",
             shippingRate: { "@type": "MonetaryAmount", value: SHIPPING_FEE, currency: "ZAR" },
             shippingDestination: { "@type": "DefinedRegion", addressCountry: "ZA" },
+            deliveryTime: {
+              "@type": "ShippingDeliveryTime",
+              handlingTime: { "@type": "QuantitativeValue", minValue: 1, maxValue: 3, unitCode: "DAY" },
+              // Include regional and outlying destinations in the nationwide estimate.
+              transitTime: { "@type": "QuantitativeValue", minValue: 1, maxValue: 5, unitCode: "DAY" },
+              businessDays: {
+                "@type": "OpeningHoursSpecification",
+                dayOfWeek: ["https://schema.org/Monday", "https://schema.org/Tuesday", "https://schema.org/Wednesday", "https://schema.org/Thursday", "https://schema.org/Friday"],
+              },
+            },
           },
         },
       };

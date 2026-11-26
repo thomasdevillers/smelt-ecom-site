@@ -55,8 +55,18 @@ describe("product group structured data", () => {
       expect(variant.image).toHaveLength(2);
       expect(variant.image.every(image => image.startsWith("https://") && image.includes(`hat-${colour}-`))).toBe(true);
       expect(variant.offers.price).toBe(BASE_PRICE);
+      expect(variant.offers.validFrom).toBe("2026-11-25T00:00:00+02:00");
       expect(variant.offers.priceCurrency).toBe("ZAR");
       expect(variant.offers.shippingDetails.shippingRate.value).toBe(SHIPPING_FEE);
+      expect(variant.offers.shippingDetails.deliveryTime).toEqual({
+        "@type": "ShippingDeliveryTime",
+        handlingTime: { "@type": "QuantitativeValue", minValue: 1, maxValue: 3, unitCode: "DAY" },
+        transitTime: { "@type": "QuantitativeValue", minValue: 1, maxValue: 5, unitCode: "DAY" },
+        businessDays: {
+          "@type": "OpeningHoursSpecification",
+          dayOfWeek: ["https://schema.org/Monday", "https://schema.org/Tuesday", "https://schema.org/Wednesday", "https://schema.org/Thursday", "https://schema.org/Friday"],
+        },
+      });
       expect(variant.offers.hasMerchantReturnPolicy.merchantReturnDays).toBe(7);
       expect(variant.offers).not.toHaveProperty("priceValidUntil");
     }

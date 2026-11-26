@@ -11,6 +11,7 @@
     "email:shipping": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/send-shipping.ts",
     "admin:setup": "tsx scripts/setup-admin.ts",
     "reviews:rank": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/rank-reviews.ts",
+    "reviews:google": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/export-google-reviews.ts",
     "admin:import-shipping": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/import-shipping-receipts.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/migration/postgres-migrate.ts",
