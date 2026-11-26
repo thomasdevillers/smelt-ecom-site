@@ -3,7 +3,7 @@
 Run `npm run reviews:google` with `.env.local` pointing at the live review store.
 The upload file is `.local/google-merchant/product-reviews.xml` (excluded from Git).
 This is a read-only export of all published live reviews, not just positive reviews.
-It also merges the 25 reviews and metadata in the root `reviews.md`. Keep their
+It also merges the 25 reviews and metadata in `content/manual-reviews.json`. Keep their
 numbering stable: numbers form permanent review IDs. Duplicate text stops the
 export. Manual reviews are marked as verified purchases based on the merchant's
 confirmation that they came personally via WhatsApp from verified buyers, and use the general
