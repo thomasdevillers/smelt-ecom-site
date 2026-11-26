@@ -1,45 +1,56 @@
 # Smelt
 
-Mobile-first e-commerce site for Smelt sauna hats. Next.js (App Router) + TypeScript.
+South African sauna-hat shop and fulfilment dashboard. Built with Next.js App Router, React, TypeScript, and CSS Modules.
 
-## Develop
-    npm install
-    npm run dev        # http://localhost:3000
+## Start here
 
-> Note: if port 3000 is already in use, start on another port with `PORT=3100 npm run dev`.
+Use Node.js 22.16+ and npm.
 
-During `npm run dev`, the product page shows labelled sample reviews with varied lengths, ratings, and local placeholder photos. The title summary uses the same sample data. These read-only fixtures never enter the review database; production always loads published customer reviews.
+```sh
+npm ci
+cp .env.local.example .env.local
+npm run dev
+```
 
-## Test & build
-    npm test           # pricing + cart unit tests (Vitest)
-    npm run build      # production build
+The storefront opens at http://localhost:3000; the back office is `/admin`. Use separate development services and Paystack test credentials. Product reviews are labelled fixtures in development. Checkout and other integrations need the services described in [development](docs/development.md).
 
-## Edit content
-- Prices / bundle tiers / free-ship threshold: `lib/pricing.ts`
-- Product data & images: `lib/product.ts`
-- Founder story (has [FILL IN] markers): `content/about.ts`
-- Colours / fonts / radii: `styles/tokens.css`
+## Common edits
 
-## Structure
-- `app/` — routes: `/` (home), `/product`, `/about`, `/cart`, `/checkout`
-- `components/` — UI sections (Hero, Bundles, Reels, CartDrawer, …) + `ui/` primitives
-- `lib/` — `pricing.ts`, `product.ts`, `cartReducer.ts`, `cart.tsx` (context)
-- `public/images/` — product shots, founder photos, logos
+| Change | Location |
+| --- | --- |
+| Prices, bundle rules, delivery charges | `lib/pricing.ts` |
+| Product names, colours, images | `lib/product.ts` |
+| Stock/preorder display mode | `lib/salesMode.ts` — see [operations](docs/operations.md) |
+| Story, policies, care, articles | `content/` |
+| Merchant-supplied review export data | `content/manual-reviews.json` |
+| Colours, fonts, spacing tokens | `styles/tokens.css` |
+| Public pages | `app/(shop)/(public)/` |
+| Private customer links | `app/(shop)/(private)/` |
+| Admin interface | `app/admin/` |
+| Scheduled jobs | `vercel.json` and `app/api/cron/` |
 
-## Orders
+Parentheses in route folders organize layouts; they do not appear in URLs.
 
-Paystack is the source of truth for paid orders. Customer details, delivery
-address, cart contents, and quantities are attached to each Paystack transaction
-as metadata and custom fields. Stock and fulfilment are tracked manually; the
-site does not require a database.
+## Checks
 
-## Deploy (Vercel)
-1. Push this repo to GitHub.
-2. Import it at vercel.com → framework auto-detected as Next.js.
-3. Configure the Paystack environment variables from `.env.local.example`.
-4. Deploy.
+```sh
+npm run check         # lint, generated route types, TypeScript, unit/database tests
+npm run format:check
+npm run build         # ordinary production build
+npm run build:test    # production build with local provider credentials disabled
+npx playwright install chromium
+npm run test:e2e      # isolated browser tests against that test build
+```
 
-## v1 notes
-- Checkout takes real payments through Paystack.
-- Cart persists to localStorage (`smelt-cart-v1`).
-- Bundle discounts are computed **per colour** (5% off at qty 2, 10% off at qty 3).
+Browser tests mock API/provider boundaries; they never make real payments or send email. CI runs these checks on pull requests. Redis/recovery integration tests use explicit, disposable test infrastructure; see [development](docs/development.md).
+
+## Understand the project
+
+- [Architecture](docs/architecture.md): request flow, folder responsibilities, service ownership.
+- [Development](docs/development.md): configuration, testing, formatting, local files.
+- [Operations](docs/operations.md): deployment, scheduled jobs, shipping and storefront changes.
+- [Migration status](docs/migration-status.md): current recorded stores and outstanding production work.
+- [Google review feed](docs/google-product-reviews.md) and [product research](docs/product-research.md): feature instructions.
+- [Historical archive](docs/archive/README.md): past designs, migration decisions and evidence.
+
+The application uses PostgreSQL **and** Redis. Paystack handles payments; Resend sends mail; Blob and R2 store customer files. See the migration status before changing storage switches.
