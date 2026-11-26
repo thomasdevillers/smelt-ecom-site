@@ -21,7 +21,11 @@ export function trackHatAssistantEvent(
   properties: { needsHuman?: boolean } = {},
 ): void {
   if (typeof window === "undefined") return;
-  try { track(event, properties); } catch { /* Assistant use must not depend on analytics. */ }
+  try {
+    track(event, properties);
+  } catch {
+    /* Assistant use must not depend on analytics. */
+  }
 }
 
 export function vercelProductData(colour: Colour, quantity: number): Properties {
@@ -48,23 +52,45 @@ export function trackVercelEvent(event: EventName, properties: Properties): bool
 
 /** Call only with the successful server verifier response. Reference stays local. */
 export function trackVercelPurchase(input: {
-  paid?: boolean; reference?: string; amountRand?: number; currency?: string;
+  paid?: boolean;
+  reference?: string;
+  amountRand?: number;
+  currency?: string;
   items?: { colour: string; qty: number }[];
 }): void {
-  if (typeof window === "undefined" || input.paid !== true || !input.reference ||
-      !Number.isFinite(input.amountRand) || input.amountRand! <= 0 || input.currency !== "ZAR") return;
+  if (
+    typeof window === "undefined" ||
+    input.paid !== true ||
+    !input.reference ||
+    !Number.isFinite(input.amountRand) ||
+    input.amountRand! <= 0 ||
+    input.currency !== "ZAR"
+  )
+    return;
   const key = `smelt-vercel-purchase-${input.reference}`;
   if (purchases.has(key)) return;
-  try { if (sessionStorage.getItem(key)) return; } catch { /* Memory fallback. */ }
+  try {
+    if (sessionStorage.getItem(key)) return;
+  } catch {
+    /* Memory fallback. */
+  }
   const cart: CartState = { green: 0, cream: 0 };
   for (const item of input.items ?? []) {
-    if ((item.colour === "green" || item.colour === "cream") && Number.isInteger(item.qty) && item.qty > 0) {
+    if (
+      (item.colour === "green" || item.colour === "cream") &&
+      Number.isInteger(item.qty) &&
+      item.qty > 0
+    ) {
       cart[item.colour] += item.qty;
     }
   }
   if (!cartCount(cart)) return;
   if (trackVercelEvent("Purchase", vercelCartData(cart))) {
     purchases.add(key);
-    try { sessionStorage.setItem(key, "1"); } catch { /* Memory fallback. */ }
+    try {
+      sessionStorage.setItem(key, "1");
+    } catch {
+      /* Memory fallback. */
+    }
   }
 }

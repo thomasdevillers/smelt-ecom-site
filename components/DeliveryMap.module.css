@@ -24,15 +24,20 @@
   color: var(--paper);
 }
 
-.icon svg { width: 23px; height: 23px; }
-.addressDetails { min-width: 0; }
+.icon svg {
+  width: 23px;
+  height: 23px;
+}
+.addressDetails {
+  min-width: 0;
+}
 
 .eyebrow {
   margin: 0 0 7px;
   color: var(--ink);
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: .12em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
@@ -41,14 +46,14 @@
   font-family: var(--font-bricolage), sans-serif;
   font-size: clamp(19px, 4vw, 23px);
   font-weight: 700;
-  letter-spacing: -.025em;
+  letter-spacing: -0.025em;
   line-height: 1.15;
 }
 
 .address {
   display: grid;
   gap: 3px;
-  color: rgba(14, 59, 42, .82);
+  color: rgba(14, 59, 42, 0.82);
   font-size: 13px;
   font-style: normal;
   line-height: 1.6;
@@ -68,8 +73,14 @@
   text-underline-offset: 4px;
 }
 
-.link:hover { color: var(--ink-deep); text-decoration-thickness: 2px; }
-.link:focus-visible { outline-offset: 4px; border-radius: 2px; }
+.link:hover {
+  color: var(--ink-deep);
+  text-decoration-thickness: 2px;
+}
+.link:focus-visible {
+  outline-offset: 4px;
+  border-radius: 2px;
+}
 
 .map {
   display: block;
@@ -77,7 +88,7 @@
   height: 280px;
   border: 0;
   border-top: var(--border-ink-soft);
-  background: rgba(14, 59, 42, .06);
+  background: rgba(14, 59, 42, 0.06);
 }
 
 .srOnly {
@@ -92,8 +103,20 @@
 }
 
 @media (max-width: 399px) {
-  .details { gap: 10px; padding: 18px 14px; }
-  .icon { flex-basis: 34px; width: 34px; height: 34px; }
-  .icon svg { width: 20px; height: 20px; }
-  .map { height: 250px; }
+  .details {
+    gap: 10px;
+    padding: 18px 14px;
+  }
+  .icon {
+    flex-basis: 34px;
+    width: 34px;
+    height: 34px;
+  }
+  .icon svg {
+    width: 20px;
+    height: 20px;
+  }
+  .map {
+    height: 250px;
+  }
 }

@@ -1,8 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { activeAttribution, ATTRIBUTION_WINDOW_MS, attributionChannel, attributionLabel, captureTouch, mergeAttribution, parseAttribution } from "./attribution";
+import {
+  activeAttribution,
+  ATTRIBUTION_WINDOW_MS,
+  attributionChannel,
+  attributionLabel,
+  captureTouch,
+  mergeAttribution,
+  parseAttribution,
+} from "./attribution";
 
 const now = Date.parse("2026-10-06T10:00:00Z");
-const visit = (query = "", referrer = "", time = now, path = "/product") => captureTouch(new URL(`https://saunahat.co.za${path}${query}`), referrer, time)!;
+const visit = (query = "", referrer = "", time = now, path = "/product") =>
+  captureTouch(new URL(`https://saunahat.co.za${path}${query}`), referrer, time)!;
 
 describe("order attribution", () => {
   it("needs only the Meta tag and groups all other recorded visits as Organic", () => {
@@ -15,15 +24,34 @@ describe("order attribution", () => {
   it("preserves the Meta visit through later organic/email visits without extending the window", () => {
     const initial = mergeAttribution(null, visit("?utm_source=meta"), now)!;
     const later = now + ATTRIBUTION_WINDOW_MS - 1000;
-    const retained = mergeAttribution(initial, visit("?utm_source=smelt&utm_medium=email", "", later), later)!;
+    const retained = mergeAttribution(
+      initial,
+      visit("?utm_source=smelt&utm_medium=email", "", later),
+      later,
+    )!;
     expect(retained.lastTouch).toEqual(initial.lastTouch);
     const expiredAt = now + ATTRIBUTION_WINDOW_MS;
-    const fresh = mergeAttribution(retained, visit("", "https://google.com/search", expiredAt), expiredAt);
+    const fresh = mergeAttribution(
+      retained,
+      visit("", "https://google.com/search", expiredAt),
+      expiredAt,
+    );
     expect(attributionLabel(fresh?.lastTouch)).toBe("Organic");
   });
   it("prioritizes paid campaign tags over referrers and normalizes Meta placements", () => {
-    const touch = visit("?utm_source=ig&utm_medium=paid_social&utm_campaign=october&utm_content=video&utm_id=123", "https://l.facebook.com/link?private=1");
-    expect(touch).toMatchObject({ source: "instagram", medium: "paid_social", campaign: "october", content: "video", campaignId: "123", referrerHost: "l.facebook.com", landingPath: "/product" });
+    const touch = visit(
+      "?utm_source=ig&utm_medium=paid_social&utm_campaign=october&utm_content=video&utm_id=123",
+      "https://l.facebook.com/link?private=1",
+    );
+    expect(touch).toMatchObject({
+      source: "instagram",
+      medium: "paid_social",
+      campaign: "october",
+      content: "video",
+      campaignId: "123",
+      referrerHost: "l.facebook.com",
+      landingPath: "/product",
+    });
     expect(attributionChannel(touch)).toBe("meta");
     expect(attributionLabel(touch)).toBe("Meta");
   });
@@ -52,30 +80,77 @@ describe("order attribution", () => {
     const first = visit("", "https://google.com/search", now - 1000);
     const paid = visit("?utm_source=facebook&utm_medium=paid_social");
     const attribution = mergeAttribution(mergeAttribution(null, first, now), paid, now);
-    expect(mergeAttribution(attribution, visit("", "https://saunahat.co.za/product", now + 1000), now + 1000)).toEqual(attribution);
-    expect(attribution).toMatchObject({ firstTouch: { source: "google" }, lastTouch: { source: "facebook" } });
-    expect(mergeAttribution(attribution, visit("?utm_source=smelt&utm_medium=email", "", now + 2000), now + 2000)?.lastTouch.source).toBe("facebook");
+    expect(
+      mergeAttribution(
+        attribution,
+        visit("", "https://saunahat.co.za/product", now + 1000),
+        now + 1000,
+      ),
+    ).toEqual(attribution);
+    expect(attribution).toMatchObject({
+      firstTouch: { source: "google" },
+      lastTouch: { source: "facebook" },
+    });
+    expect(
+      mergeAttribution(
+        attribution,
+        visit("?utm_source=smelt&utm_medium=email", "", now + 2000),
+        now + 2000,
+      )?.lastTouch.source,
+    ).toBe("facebook");
   });
   it("expires each browser touch after 30 days without extending an old campaign on direct returns", () => {
-    const attribution = mergeAttribution(null, visit("?utm_source=facebook&utm_medium=paid_social"), now);
+    const attribution = mergeAttribution(
+      null,
+      visit("?utm_source=facebook&utm_medium=paid_social"),
+      now,
+    );
     expect(activeAttribution(attribution, now + ATTRIBUTION_WINDOW_MS)).toBeNull();
     expect(parseAttribution(attribution)).toEqual(attribution); // historical orders remain readable
-    const refreshed = mergeAttribution(attribution, visit("", "", now + ATTRIBUTION_WINDOW_MS), now + ATTRIBUTION_WINDOW_MS);
+    const refreshed = mergeAttribution(
+      attribution,
+      visit("", "", now + ATTRIBUTION_WINDOW_MS),
+      now + ATTRIBUTION_WINDOW_MS,
+    );
     expect(refreshed?.lastTouch.source).toBe("direct");
-    const recent = mergeAttribution(attribution, visit("?utm_source=meta", "", now + 1000), now + 1000);
+    const recent = mergeAttribution(
+      attribution,
+      visit("?utm_source=meta", "", now + 1000),
+      now + 1000,
+    );
     expect(activeAttribution(recent, now + ATTRIBUTION_WINDOW_MS)?.firstTouch.source).toBe("meta");
   });
   it("ignores payment-return sources and excludes admin, API and unsubscribe entry points", () => {
-    for (const path of ["/admin", "/api/checkout", "/checkout/success", "/email/unsubscribe/secret"]) {
-      expect(captureTouch(new URL(`https://saunahat.co.za${path}?utm_source=paystack`), "", now)).toBeNull();
+    for (const path of [
+      "/admin",
+      "/api/checkout",
+      "/checkout/success",
+      "/email/unsubscribe/secret",
+    ]) {
+      expect(
+        captureTouch(new URL(`https://saunahat.co.za${path}?utm_source=paystack`), "", now),
+      ).toBeNull();
     }
     expect(visit("", "https://checkout.paystack.com/test").source).toBe("direct");
     expect(visit("", "https://www.saunahat.co.za/cart").source).toBe("direct");
   });
   it("stores only a route name for private recovery links and allowlisted metadata", () => {
-    const touch = visit("?utm_source=smelt&utm_medium=email&email=private@example.com", "", now, "/checkout/recover/private-token");
+    const touch = visit(
+      "?utm_source=smelt&utm_medium=email&email=private@example.com",
+      "",
+      now,
+      "/checkout/recover/private-token",
+    );
     const attribution = mergeAttribution(null, touch, now)!;
-    const parsed = parseAttribution({ ...attribution, secret: "private", lastTouch: { ...touch, phone: "private", landingPath: "/checkout/offer/private-code?email=private" } });
+    const parsed = parseAttribution({
+      ...attribution,
+      secret: "private",
+      lastTouch: {
+        ...touch,
+        phone: "private",
+        landingPath: "/checkout/offer/private-code?email=private",
+      },
+    });
     expect(parsed?.lastTouch.landingPath).toBe("/checkout/offer");
     expect(parseAttribution(parsed)).toEqual(parsed);
     expect(JSON.stringify(parsed)).not.toContain("private");
@@ -83,9 +158,30 @@ describe("order attribution", () => {
   it("rejects malformed, future and out-of-order attribution and bounds campaign values", () => {
     expect(parseAttribution({ version: 1, firstTouch: null, lastTouch: {} })).toBeNull();
     const touch = visit("?utm_source=facebook&utm_medium=paid_social");
-    expect(parseAttribution({ version: 1, firstTouch: { ...touch, capturedAt: new Date(now + 1000).toISOString() }, lastTouch: touch })).toBeNull();
-    expect(activeAttribution({ version: 1, firstTouch: { ...touch, capturedAt: "2027-01-01" }, lastTouch: { ...touch, capturedAt: "2027-01-01" } }, now)).toBeNull();
-    expect(parseAttribution({ version: 1, firstTouch: touch, lastTouch: { ...touch, campaign: "a".repeat(1000) } })?.lastTouch.campaign).toHaveLength(160);
+    expect(
+      parseAttribution({
+        version: 1,
+        firstTouch: { ...touch, capturedAt: new Date(now + 1000).toISOString() },
+        lastTouch: touch,
+      }),
+    ).toBeNull();
+    expect(
+      activeAttribution(
+        {
+          version: 1,
+          firstTouch: { ...touch, capturedAt: "2027-01-01" },
+          lastTouch: { ...touch, capturedAt: "2027-01-01" },
+        },
+        now,
+      ),
+    ).toBeNull();
+    expect(
+      parseAttribution({
+        version: 1,
+        firstTouch: touch,
+        lastTouch: { ...touch, campaign: "a".repeat(1000) },
+      })?.lastTouch.campaign,
+    ).toHaveLength(160);
     expect(attributionLabel(null)).toBe("Not recorded");
   });
 });

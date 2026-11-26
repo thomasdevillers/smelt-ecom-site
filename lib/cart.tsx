@@ -1,6 +1,13 @@
 "use client";
 import { createContext, useContext, useEffect, useReducer, useState, useCallback } from "react";
-import { cartReducer, emptyCart, cartCount, cartSubtotal, type CartState, type CartAction } from "./cartReducer";
+import {
+  cartReducer,
+  emptyCart,
+  cartCount,
+  cartSubtotal,
+  type CartState,
+  type CartAction,
+} from "./cartReducer";
 import { META_CURRENCY, metaCartContents, metaVariantContent, metaVariantName } from "./meta";
 import { trackMetaEvent } from "./metaPixel";
 import { trackVercelEvent, vercelCartData, vercelProductData } from "./vercelAnalytics";
@@ -48,8 +55,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const value = cartSubtotal(action.quantities);
       trackVercelEvent("AddToCart", vercelCartData(action.quantities));
       trackMetaEvent("AddToCart", {
-        content_name: "Smelt Sauna Hat bundle", content_ids: contents.map(c => c.id),
-        contents, content_type: "product", currency: META_CURRENCY, value,
+        content_name: "Smelt Sauna Hat bundle",
+        content_ids: contents.map((c) => c.id),
+        contents,
+        content_type: "product",
+        currency: META_CURRENCY,
+        value,
       });
     }
     if (action.type === "add" && action.qty > 0) {
@@ -68,7 +79,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <CartContext.Provider
-      value={{ cart, dispatch, count: cartCount(cart), subtotal: cartSubtotal(cart), isOpen, openCart, closeCart }}
+      value={{
+        cart,
+        dispatch,
+        count: cartCount(cart),
+        subtotal: cartSubtotal(cart),
+        isOpen,
+        openCart,
+        closeCart,
+      }}
     >
       {children}
     </CartContext.Provider>

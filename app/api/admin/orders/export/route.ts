@@ -18,5 +18,7 @@ export async function GET() {
         "X-Content-Type-Options": "nosniff",
       },
     });
-  } catch (error) { return adminFailure(error); }
+  } catch (error) {
+    return adminFailure(error);
+  }
 }

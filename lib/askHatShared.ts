@@ -28,8 +28,13 @@ export function isHatSource(value: unknown): value is HatSourceId {
 
 /** Bound history and reject client-supplied system/tool messages. */
 export function parseHatMessages(input: unknown): HatMessage[] | null {
-  if (!Array.isArray(input) || input.length === 0 || input.length > HAT_HISTORY_MAX_MESSAGES
-    || input.length % 2 === 0) return null;
+  if (
+    !Array.isArray(input) ||
+    input.length === 0 ||
+    input.length > HAT_HISTORY_MAX_MESSAGES ||
+    input.length % 2 === 0
+  )
+    return null;
   const messages: HatMessage[] = [];
   let length = 0;
   for (const [index, value] of input.entries()) {
@@ -49,10 +54,21 @@ export function parseHatMessages(input: unknown): HatMessage[] | null {
 export function parseHatAnswer(input: unknown): HatAnswer | null {
   if (!input || typeof input !== "object") return null;
   const value = input as Record<string, unknown>;
-  if (typeof value.answer !== "string" || !value.answer.trim() || value.answer.length > 2400
-    || !Array.isArray(value.sources) || value.sources.length > 4
-    || !value.sources.every(isHatSource) || typeof value.needsHuman !== "boolean") return null;
+  if (
+    typeof value.answer !== "string" ||
+    !value.answer.trim() ||
+    value.answer.length > 2400 ||
+    !Array.isArray(value.sources) ||
+    value.sources.length > 4 ||
+    !value.sources.every(isHatSource) ||
+    typeof value.needsHuman !== "boolean"
+  )
+    return null;
   // An unsupported question can be handed to the founders, but factual answers need a source.
   if (!value.sources.length && !value.needsHuman) return null;
-  return { answer: value.answer.trim(), sources: [...new Set(value.sources)], needsHuman: value.needsHuman };
+  return {
+    answer: value.answer.trim(),
+    sources: [...new Set(value.sources)],
+    needsHuman: value.needsHuman,
+  };
 }

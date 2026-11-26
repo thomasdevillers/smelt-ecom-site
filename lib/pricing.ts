@@ -8,7 +8,8 @@ export type ShippingMethod = (typeof SHIPPING_METHODS)[number];
 export const SHIPPING_OPTIONS = {
   aramex: {
     label: "Express shipping",
-    description: "Dispatched in 1–3 business days. Transit is 1–3 business days to main centres and 3–5 to regional or outlying areas.",
+    description:
+      "Dispatched in 1–3 business days. Transit is 1–3 business days to main centres and 3–5 to regional or outlying areas.",
   },
   founders: {
     label: "Hand delivered by founders",
@@ -32,8 +33,17 @@ export const THREE_HAT_PRICE = PREORDER_MODE ? 1200 : BASE_PRICE * 3 - 100;
 export const FOUR_HAT_PRICE = BASE_PRICE * 4 - 200;
 
 /** Keep the four-hat rate for larger orders; retain pack rules for older payments. */
-export function bundleSubtotal(qty: number, price = BASE_PRICE, version: string = PRICING_VERSION): number {
-  const threePrice = version === LEGACY_PRICING_VERSION ? 1250 : (version === PRICING_VERSION || version === PREORDER_PACK_PRICING_VERSION) && price === 450 ? 1200 : price * 3 - 100;
+export function bundleSubtotal(
+  qty: number,
+  price = BASE_PRICE,
+  version: string = PRICING_VERSION,
+): number {
+  const threePrice =
+    version === LEGACY_PRICING_VERSION
+      ? 1250
+      : (version === PRICING_VERSION || version === PREORDER_PACK_PRICING_VERSION) && price === 450
+        ? 1200
+        : price * 3 - 100;
   const fourPrice = version === LEGACY_PRICING_VERSION ? 1600 : price * 4 - 200;
   if (version === PRICING_VERSION && qty >= 4) return qty * (fourPrice / 4);
   const packs = Math.floor(qty / 4);
@@ -41,7 +51,11 @@ export function bundleSubtotal(qty: number, price = BASE_PRICE, version: string 
   return packs * fourPrice + (remainder === 3 ? threePrice : remainder * price);
 }
 
-export function bundleDiscount(qty: number, price = BASE_PRICE, version: string = PRICING_VERSION): number {
+export function bundleDiscount(
+  qty: number,
+  price = BASE_PRICE,
+  version: string = PRICING_VERSION,
+): number {
   return qty * price - bundleSubtotal(qty, price, version);
 }
 
@@ -62,7 +76,12 @@ export function lineTotal(qty: number): number {
 
 /** "R1 578" style formatting: integer Rand with space thousands separators. */
 export function formatMoney(n: number): string {
-  return "R" + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return (
+    "R" +
+    Math.round(n)
+      .toString()
+      .replace(/\B(?=(\d{3})+(?!\d))/g, " ")
+  );
 }
 
 export function qualifiesForFreeShipping(qty: number): boolean {
@@ -74,6 +93,10 @@ export function shippingFee(qty: number, method: ShippingMethod = "aramex"): num
   return qualifiesForFreeShipping(qty) ? 0 : SHIPPING_FEE;
 }
 
-export function grandTotal(subtotal: number, qty: number, method: ShippingMethod = "aramex"): number {
+export function grandTotal(
+  subtotal: number,
+  qty: number,
+  method: ShippingMethod = "aramex",
+): number {
   return subtotal + shippingFee(qty, method);
 }

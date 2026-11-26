@@ -2,9 +2,11 @@ import { renderEmail } from "./layout";
 import { orderItemsTable } from "./components";
 import type { OrderItem } from "../orderTypes";
 
-export function paymentFailedEmail(d: {
-  items?: OrderItem[]; retryUrl: string;
-}): { subject: string; html: string; text: string } {
+export function paymentFailedEmail(d: { items?: OrderItem[]; retryUrl: string }): {
+  subject: string;
+  html: string;
+  text: string;
+} {
   const blocks = [
     `<p>It looks like your payment didn't go through — no charge was made.</p>`,
     `<p>Your hat is still waiting. Pick up right where you left off whenever you're ready.</p>`,

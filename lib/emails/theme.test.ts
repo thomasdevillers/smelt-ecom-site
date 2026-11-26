@@ -18,8 +18,11 @@ describe("email theme", () => {
 
   it("uses the production origin when SITE_URL is missing", () => {
     vi.stubEnv("SITE_URL", "");
-    try { expect(absoluteUrl("/care")).toBe("https://saunahat.co.za/care"); }
-    finally { vi.unstubAllEnvs(); }
+    try {
+      expect(absoluteUrl("/care")).toBe("https://saunahat.co.za/care");
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("strips a trailing slash on the base", () => {

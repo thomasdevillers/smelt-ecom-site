@@ -15,15 +15,26 @@ export function trackGoogleAdsPurchase(input: {
   amountRand?: number;
   currency?: string;
 }): void {
-  if (typeof window === "undefined" || input.paid !== true ||
-      typeof input.reference !== "string" || !input.reference.trim() ||
-      typeof input.amountRand !== "number" || !Number.isFinite(input.amountRand) ||
-      input.amountRand <= 0 || input.currency !== "ZAR") return;
+  if (
+    typeof window === "undefined" ||
+    input.paid !== true ||
+    typeof input.reference !== "string" ||
+    !input.reference.trim() ||
+    typeof input.amountRand !== "number" ||
+    !Number.isFinite(input.amountRand) ||
+    input.amountRand <= 0 ||
+    input.currency !== "ZAR"
+  )
+    return;
 
   const key = `smelt-google-ads-purchase-${input.reference}`;
   const send = () => {
     if (!window.gtag || purchases.has(key)) return;
-    try { if (sessionStorage.getItem(key)) return; } catch { /* Memory fallback. */ }
+    try {
+      if (sessionStorage.getItem(key)) return;
+    } catch {
+      /* Memory fallback. */
+    }
     try {
       window.gtag("event", "conversion", {
         send_to: "AW-18503032708/soqaCOy2w5YdEIS_9_ZE",
@@ -32,8 +43,14 @@ export function trackGoogleAdsPurchase(input: {
         transaction_id: input.reference,
       });
       purchases.add(key);
-      try { sessionStorage.setItem(key, "1"); } catch { /* Memory fallback. */ }
-    } catch { /* Tracking must never interrupt payment confirmation. */ }
+      try {
+        sessionStorage.setItem(key, "1");
+      } catch {
+        /* Memory fallback. */
+      }
+    } catch {
+      /* Tracking must never interrupt payment confirmation. */
+    }
   };
 
   if (window.gtag) {

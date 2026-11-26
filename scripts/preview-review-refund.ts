@@ -3,7 +3,8 @@ import { resolve, join } from "node:path";
 import { reviewRefundRequestEmail } from "../lib/emails/reviewRefundRequest";
 
 async function main() {
-  if (process.argv.length > 2) throw new Error("This script creates a sample preview only and accepts no arguments.");
+  if (process.argv.length > 2)
+    throw new Error("This script creates a sample preview only and accepts no arguments.");
   const message = reviewRefundRequestEmail({
     name: "Preview Customer",
     reviewUrl: "https://example.invalid/review/preview-only",
@@ -19,6 +20,8 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.message : "Could not create the review refund preview.");
+  console.error(
+    error instanceof Error ? error.message : "Could not create the review refund preview.",
+  );
   process.exitCode = 1;
 });

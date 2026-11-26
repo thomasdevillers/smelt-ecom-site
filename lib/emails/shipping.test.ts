@@ -20,7 +20,11 @@ describe("shippingEmail", () => {
 
   it("supports names, order items and a configured care-guide origin", () => {
     vi.stubEnv("SITE_URL", "https://shop.example.com/");
-    const e = shippingEmail({ name: "Sam <Smith>", trackingNumber: "123", items: [{ colour: "green", name: "Forest Green", qty: 1 }] });
+    const e = shippingEmail({
+      name: "Sam <Smith>",
+      trackingNumber: "123",
+      items: [{ colour: "green", name: "Forest Green", qty: 1 }],
+    });
     expect(e.html).toContain("Hi Sam &lt;Smith&gt;,");
     expect(e.html).toContain("Forest Green");
     expect(e.html).toContain("https://shop.example.com/care");
@@ -39,6 +43,8 @@ describe("shippingEmail", () => {
 
   it("rejects missing tracking numbers and unsafe tracking URLs", () => {
     expect(() => shippingEmail({ trackingNumber: " " })).toThrow("tracking number");
-    expect(() => shippingEmail({ trackingNumber: "123", trackingUrl: "javascript:alert(1)" })).toThrow("HTTP or HTTPS");
+    expect(() =>
+      shippingEmail({ trackingNumber: "123", trackingUrl: "javascript:alert(1)" }),
+    ).toThrow("HTTP or HTTPS");
   });
 });

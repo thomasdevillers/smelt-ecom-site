@@ -5,7 +5,11 @@ vi.mock("@/lib/research/store", () => ({ researchStore: () => ({ list: mocks.lis
 import { AdminError } from "@/lib/admin/store";
 import { GET } from "./route";
 describe("private admin research results", () => {
-  beforeEach(() => { vi.clearAllMocks(); mocks.auth.mockResolvedValue(undefined); mocks.list.mockResolvedValue({ responses: [], total: 0 }); });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.auth.mockResolvedValue(undefined);
+    mocks.list.mockResolvedValue({ responses: [], total: 0 });
+  });
   it("requires admin authentication before reading responses", async () => {
     mocks.auth.mockRejectedValue(new AdminError("Please sign in.", 401));
     expect((await GET(new Request("https://saunahat.co.za/api/admin/research"))).status).toBe(401);

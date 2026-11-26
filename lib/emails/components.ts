@@ -5,8 +5,7 @@ import type { ShippingAddress } from "../address";
 const cell = `font-family:${FONT_STACK};font-size:15px;color:${COLORS.ink};padding:8px 0;`;
 
 export function orderItemsTable(items: OrderItem[]): string {
-  if (!items.length)
-    return `<p class="email-text" style="${cell}">(no line items recorded)</p>`;
+  if (!items.length) return `<p class="email-text" style="${cell}">(no line items recorded)</p>`;
   const rows = items
     .map(
       (i) =>

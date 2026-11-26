@@ -10,6 +10,10 @@ export async function POST(request: Request, context: { params: Promise<{ token:
     requireSameOrigin(request);
     const body = await readAdminBody(request);
     const { token } = await context.params;
-    return adminJson(await reserveCustomHatUpload(token, { contentType: body.contentType, size: body.size }));
-  } catch (error) { return customHatFailure(error); }
+    return adminJson(
+      await reserveCustomHatUpload(token, { contentType: body.contentType, size: body.size }),
+    );
+  } catch (error) {
+    return customHatFailure(error);
+  }
 }

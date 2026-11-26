@@ -3,7 +3,9 @@ import { POLICIES } from "@/content/policies";
 import styles from "./Policies.module.css";
 
 export default function Policies() {
-  const [defectiveBeforeEmail, defectiveAfterEmail = ""] = POLICIES.returns.defective.split("Email returns@saunahat.co.za");
+  const [defectiveBeforeEmail, defectiveAfterEmail = ""] = POLICIES.returns.defective.split(
+    "Email returns@saunahat.co.za",
+  );
 
   return (
     <section id="policies" className={styles.section}>

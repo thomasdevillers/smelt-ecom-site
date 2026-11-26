@@ -4,22 +4,35 @@ import { createCoupon, listCoupons, setCouponActive, setCouponMinimum } from "@/
 
 export const runtime = "nodejs";
 export async function GET() {
-  try { await requireAdmin(); return adminJson({ coupons: await listCoupons() }); }
-  catch (error) { return adminFailure(error); }
+  try {
+    await requireAdmin();
+    return adminJson({ coupons: await listCoupons() });
+  } catch (error) {
+    return adminFailure(error);
+  }
 }
 export async function POST(request: Request) {
   try {
-    requireSameOrigin(request); await requireAdmin();
+    requireSameOrigin(request);
+    await requireAdmin();
     const body = await readAdminBody(request);
-    return adminJson({ coupon: await createCoupon(body.code, body.amount, body.maxUses, body.minHats) }, 201);
-  } catch (error) { return adminFailure(error); }
+    return adminJson(
+      { coupon: await createCoupon(body.code, body.amount, body.maxUses, body.minHats) },
+      201,
+    );
+  } catch (error) {
+    return adminFailure(error);
+  }
 }
 export async function PATCH(request: Request) {
   try {
-    requireSameOrigin(request); await requireAdmin();
+    requireSameOrigin(request);
+    await requireAdmin();
     const body = await readAdminBody(request);
     if ("minHats" in body) await setCouponMinimum(body.code, body.minHats);
     else await setCouponActive(body.code, body.active);
     return adminJson({ saved: true });
-  } catch (error) { return adminFailure(error); }
+  } catch (error) {
+    return adminFailure(error);
+  }
 }

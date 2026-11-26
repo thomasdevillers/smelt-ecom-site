@@ -24,20 +24,33 @@ if daily == 0 then redis.call('EXPIRE', KEYS[2], 172800) end
 return 0
 `;
 
-export async function reserveHatRequest(request: Request): Promise<"allowed" | "visitor" | "daily"> {
+export async function reserveHatRequest(
+  request: Request,
+): Promise<"allowed" | "visitor" | "daily"> {
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) throw new Error("hat_limits_unavailable");
-  const db = new Redis({ url, token, retry: { retries: 0 }, signal: () => AbortSignal.timeout(5000) });
-  const ip = request.headers.get("x-vercel-forwarded-for")?.split(",")[0].trim()
-    || request.headers.get("x-forwarded-for")?.split(",")[0].trim() || "local";
+  const db = new Redis({
+    url,
+    token,
+    retry: { retries: 0 },
+    signal: () => AbortSignal.timeout(5000),
+  });
+  const ip =
+    request.headers.get("x-vercel-forwarded-for")?.split(",")[0].trim() ||
+    request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+    "local";
   const hash = createHash("sha256").update(ip).digest("hex");
   const prefix = `smelt:ask-hat:v1:${process.env.VERCEL_ENV || "local"}`;
   const day = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const result = await db.eval(RESERVE_HAT_REQUEST, [`${prefix}:visitor:${hash}`, `${prefix}:day:${day}`], [
-    positiveInteger(process.env.ASK_HAT_HOURLY_LIMIT, 10, 1000),
-    positiveInteger(process.env.ASK_HAT_DAILY_LIMIT, 100, 100000),
-  ]);
+  const result = await db.eval(
+    RESERVE_HAT_REQUEST,
+    [`${prefix}:visitor:${hash}`, `${prefix}:day:${day}`],
+    [
+      positiveInteger(process.env.ASK_HAT_HOURLY_LIMIT, 10, 1000),
+      positiveInteger(process.env.ASK_HAT_DAILY_LIMIT, 100, 100000),
+    ],
+  );
   if (result === 0) return "allowed";
   if (result === 1) return "visitor";
   if (result === 2) return "daily";
@@ -62,7 +75,10 @@ type ProviderResponse = {
   usage?: { input_tokens?: number; output_tokens?: number };
 };
 
-export async function generateHatAnswer(messages: HatMessage[], knowledge: ReturnType<typeof hatKnowledge>): Promise<HatAnswer> {
+export async function generateHatAnswer(
+  messages: HatMessage[],
+  knowledge: ReturnType<typeof hatKnowledge>,
+): Promise<HatAnswer> {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error("hat_key_unavailable");
   const model = process.env.ASK_HAT_MODEL?.trim() || HAT_MODEL;
@@ -75,21 +91,29 @@ export async function generateHatAnswer(messages: HatMessage[], knowledge: Retur
       max_output_tokens: 700,
       instructions,
       input: [
-        { role: "developer", content: `Current reference facts (JSON):\n${JSON.stringify(knowledge)}` },
+        {
+          role: "developer",
+          content: `Current reference facts (JSON):\n${JSON.stringify(knowledge)}`,
+        },
         ...messages,
       ],
-      text: { format: {
-        type: "json_schema", name: "hat_answer", strict: true,
-        schema: {
-          type: "object", additionalProperties: false,
-          properties: {
-            answer: { type: "string" },
-            sources: { type: "array", items: { type: "string", enum: Object.keys(HAT_SOURCES) } },
-            needsHuman: { type: "boolean" },
+      text: {
+        format: {
+          type: "json_schema",
+          name: "hat_answer",
+          strict: true,
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              answer: { type: "string" },
+              sources: { type: "array", items: { type: "string", enum: Object.keys(HAT_SOURCES) } },
+              needsHuman: { type: "boolean" },
+            },
+            required: ["answer", "sources", "needsHuman"],
           },
-          required: ["answer", "sources", "needsHuman"],
         },
-      } },
+      },
     }),
     signal: AbortSignal.timeout(20000),
     cache: "no-store",
@@ -99,15 +123,25 @@ export async function generateHatAnswer(messages: HatMessage[], knowledge: Retur
     console.error("Ask hat provider rejected request", { status: response.status });
     throw new Error("hat_provider_unavailable");
   }
-  const data = await response.json() as ProviderResponse;
+  const data = (await response.json()) as ProviderResponse;
   if (data.status !== "completed") throw new Error("hat_response_incomplete");
-  const text = data.output?.filter(item => item.type === "message" && item.role === "assistant")
-    .flatMap(item => item.content ?? []).filter(part => part.type === "output_text")
-    .map(part => part.text ?? "").join("");
+  const text = data.output
+    ?.filter((item) => item.type === "message" && item.role === "assistant")
+    .flatMap((item) => item.content ?? [])
+    .filter((part) => part.type === "output_text")
+    .map((part) => part.text ?? "")
+    .join("");
   let answer: HatAnswer | null;
-  try { answer = parseHatAnswer(JSON.parse(text || "")); }
-  catch { throw new Error("hat_response_invalid"); }
+  try {
+    answer = parseHatAnswer(JSON.parse(text || ""));
+  } catch {
+    throw new Error("hat_response_invalid");
+  }
   if (!answer) throw new Error("hat_response_invalid");
-  console.info("Ask hat answer generated", { model, inputTokens: data.usage?.input_tokens, outputTokens: data.usage?.output_tokens });
+  console.info("Ask hat answer generated", {
+    model,
+    inputTokens: data.usage?.input_tokens,
+    outputTokens: data.usage?.output_tokens,
+  });
   return answer;
 }

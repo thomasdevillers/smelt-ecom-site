@@ -4,9 +4,17 @@ const cleanup = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/reviewCustomMaintenance", () => ({ cleanupReviewTemporaryState: cleanup }));
 import { GET } from "./route";
 
-beforeEach(() => { vi.resetAllMocks(); vi.stubEnv("CRON_SECRET", "synthetic-secret"); });
-afterEach(() => { vi.unstubAllEnvs(); });
-const request = (secret = "synthetic-secret") => new Request("https://synthetic.invalid/api/cron/review-cleanup", { headers: { authorization: `Bearer ${secret}` } });
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.stubEnv("CRON_SECRET", "synthetic-secret");
+});
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+const request = (secret = "synthetic-secret") =>
+  new Request("https://synthetic.invalid/api/cron/review-cleanup", {
+    headers: { authorization: `Bearer ${secret}` },
+  });
 
 describe("review temporary-state cleanup authorization", () => {
   it("rejects missing or incorrect authorization before touching storage", async () => {
@@ -20,7 +28,12 @@ describe("review temporary-state cleanup authorization", () => {
     const response = await GET(request());
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(await response.json()).toEqual({ enabled: true, invitations: 1, uploads: 2, retries: 3 });
+    expect(await response.json()).toEqual({
+      enabled: true,
+      invitations: 1,
+      uploads: 2,
+      retries: 3,
+    });
   });
   it("fails safely without exposing database errors", async () => {
     cleanup.mockRejectedValue(new Error("synthetic private details"));

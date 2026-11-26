@@ -1,12 +1,12 @@
 :root {
-  --paper: #F6F1E3;
-  --paper-warm: #FBF7EC;
-  --ink: #0E3B2A;
-  --ink-deep: #0A2C20;
-  --terracotta: #E4633C;
-  --peach: #F2A98C;
+  --paper: #f6f1e3;
+  --paper-warm: #fbf7ec;
+  --ink: #0e3b2a;
+  --ink-deep: #0a2c20;
+  --terracotta: #e4633c;
+  --peach: #f2a98c;
   /* Terracotta darkened for small text on paper (WCAG AA 4.5:1). */
-  --terracotta-text: #A9401F;
+  --terracotta-text: #a9401f;
 
   --radius-card: 24px;
   --radius-pill: 999px;

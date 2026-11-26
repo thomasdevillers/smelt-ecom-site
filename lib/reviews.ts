@@ -67,12 +67,16 @@ export interface ReviewSubmission {
   consent: true;
 }
 
-const clean = (value: unknown) => typeof value === "string" ? value.trim() : "";
+const clean = (value: unknown) => (typeof value === "string" ? value.trim() : "");
 
-export function validateReviewSubmission(input: unknown, options: { photosRequired?: boolean } = {}): ReviewSubmission {
-  const value = input && typeof input === "object" && !Array.isArray(input)
-    ? input as Record<string, unknown>
-    : {};
+export function validateReviewSubmission(
+  input: unknown,
+  options: { photosRequired?: boolean } = {},
+): ReviewSubmission {
+  const value =
+    input && typeof input === "object" && !Array.isArray(input)
+      ? (input as Record<string, unknown>)
+      : {};
   const rating = Number(value.rating);
   const body = clean(value.body);
   const anonymous = value.anonymous === true;
@@ -92,7 +96,9 @@ export function validateReviewSubmission(input: unknown, options: { photosRequir
   if (value.consent !== true)
     throw new Error("Please confirm that we may publish your review and photos.");
   if (options.photosRequired !== false && photoUrls.length === 0)
-    throw new Error("Add at least one photo of your hats to submit your review and qualify for the refund.");
+    throw new Error(
+      "Add at least one photo of your hats to submit your review and qualify for the refund.",
+    );
 
   return { rating, body, displayName, anonymous, photoUrls, consent: true };
 }
@@ -101,8 +107,14 @@ export function photoFromInvitation(url: string, uploadKey: string): ReviewPhoto
   try {
     const parsed = new URL(url);
     const pathname = decodeURIComponent(parsed.pathname.replace(/^\//, ""));
-    if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.port ||
-      !/^[a-z0-9_-]+\.(?:public|private)\.blob\.vercel-storage\.com$/i.test(parsed.hostname)) return null;
+    if (
+      parsed.protocol !== "https:" ||
+      parsed.username ||
+      parsed.password ||
+      parsed.port ||
+      !/^[a-z0-9_-]+\.(?:public|private)\.blob\.vercel-storage\.com$/i.test(parsed.hostname)
+    )
+      return null;
     const filename = pathname.slice(`reviews/pending/${uploadKey}/`.length);
     const isPhotoPath = /^[^/]+\.(?:webp|jpg)(?:-[A-Za-z0-9_-]+)?$/i.test(filename);
     if (!pathname.startsWith(`reviews/pending/${uploadKey}/`) || !isPhotoPath) return null;
@@ -124,7 +136,10 @@ export function publicReview(review: ReviewRecord): PublicReview | null {
     rating: review.rating,
     body: review.body,
     colours: review.colours,
-    photos: review.photos.map((photo, index) => ({ ...photo, url: reviewPhotoUrl(review.id, index) })),
+    photos: review.photos.map((photo, index) => ({
+      ...photo,
+      url: reviewPhotoUrl(review.id, index),
+    })),
     verifiedPurchase: true,
     incentivized: review.incentivized === true,
     publishedAt: review.publishedAt,
@@ -135,7 +150,8 @@ export function reviewSummary(reviews: PublicReview[]): ReviewSummary {
   const distribution: ReviewSummary["distribution"] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   for (const review of reviews) distribution[review.rating as 1 | 2 | 3 | 4 | 5]++;
   const average = reviews.length
-    ? Math.round((reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length) * 10) / 10
+    ? Math.round((reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length) * 10) /
+      10
     : 0;
   return { total: reviews.length, average, distribution };
 }

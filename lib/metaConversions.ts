@@ -31,8 +31,7 @@ function clean(value: unknown, maxLength = 1000): string | undefined {
 function requestIp(request?: Request): string | undefined {
   if (!request) return undefined;
   return clean(
-    request.headers.get("x-forwarded-for")?.split(",")[0] ??
-      request.headers.get("x-real-ip"),
+    request.headers.get("x-forwarded-for")?.split(",")[0] ?? request.headers.get("x-real-ip"),
     100,
   );
 }
@@ -45,8 +44,7 @@ export function buildMetaPurchaseEvent(input: MetaPurchaseInput) {
     : Math.floor(parsedPaidAt / 1000);
   const userData: Record<string, unknown> = {};
   const userAgent =
-    clean(input.request?.headers.get("user-agent")) ??
-    clean(input.client?.clientUserAgent);
+    clean(input.request?.headers.get("user-agent")) ?? clean(input.client?.clientUserAgent);
   const ip = requestIp(input.request);
   const fbp = clean(input.client?.fbp, 200);
   const fbc = clean(input.client?.fbc, 200);

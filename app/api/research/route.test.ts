@@ -3,10 +3,25 @@ const store = vi.hoisted(() => ({ allow: vi.fn(), save: vi.fn() }));
 vi.mock("@/lib/research/store", () => ({ researchStore: () => store }));
 import { POST } from "./route";
 
-const input = { token: "ab".repeat(32), version: 1, revision: 1, completed: false, answers: { frequency: "About weekly" } };
-const request = (body: unknown = input, origin = "https://saunahat.co.za") => new Request("https://saunahat.co.za/api/research", { method: "POST", headers: { origin, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+const input = {
+  token: "ab".repeat(32),
+  version: 1,
+  revision: 1,
+  completed: false,
+  answers: { frequency: "About weekly" },
+};
+const request = (body: unknown = input, origin = "https://saunahat.co.za") =>
+  new Request("https://saunahat.co.za/api/research", {
+    method: "POST",
+    headers: { origin, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 describe("public research autosave", () => {
-  beforeEach(() => { vi.clearAllMocks(); store.allow.mockResolvedValue(true); store.save.mockResolvedValue(1); });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    store.allow.mockResolvedValue(true);
+    store.save.mockResolvedValue(1);
+  });
   it("saves partial responses under a digest, never the browser token", async () => {
     const response = await POST(request());
     expect(response.status).toBe(200);
@@ -23,8 +38,14 @@ describe("public research autosave", () => {
   });
   it("rejects malformed, oversized and invalid data", async () => {
     expect((await POST(request({ ...input, answers: { invalid: "value" } }))).status).toBe(400);
-    expect((await POST(request({ ...input, answers: { comment: "a".repeat(25_000) } }))).status).toBe(413);
-    const invalid = new Request("https://saunahat.co.za/api/research", { method: "POST", headers: { origin: "https://saunahat.co.za", "Content-Type": "application/json" }, body: "{" });
+    expect(
+      (await POST(request({ ...input, answers: { comment: "a".repeat(25_000) } }))).status,
+    ).toBe(413);
+    const invalid = new Request("https://saunahat.co.za/api/research", {
+      method: "POST",
+      headers: { origin: "https://saunahat.co.za", "Content-Type": "application/json" },
+      body: "{",
+    });
     expect((await POST(invalid)).status).toBe(400);
     expect(store.save).not.toHaveBeenCalled();
   });

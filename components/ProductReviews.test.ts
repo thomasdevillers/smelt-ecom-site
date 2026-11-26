@@ -4,25 +4,36 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { reviewSummary, type PublicReview } from "@/lib/reviews";
 import ProductReviews from "./ProductReviews";
 
-vi.mock("react", async importOriginal => ({
-  ...await importOriginal<typeof import("react")>(),
+vi.mock("react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react")>()),
   useState: vi.fn(),
 }));
 
 const helpful: PublicReview = {
-  id: "helpful", displayName: "Helpful reviewer", rating: 4, body: "Specific fit and care advice.",
-  colours: ["green"], photos: [], verifiedPurchase: true, publishedAt: "2026-10-01",
+  id: "helpful",
+  displayName: "Helpful reviewer",
+  rating: 4,
+  body: "Specific fit and care advice.",
+  colours: ["green"],
+  photos: [],
+  verifiedPurchase: true,
+  publishedAt: "2026-10-01",
 };
-const recent: PublicReview = { ...helpful, id: "recent", displayName: "Recent reviewer", publishedAt: "2026-11-01" };
+const recent: PublicReview = {
+  ...helpful,
+  id: "recent",
+  displayName: "Recent reviewer",
+  publishedAt: "2026-11-01",
+};
 const reviews = [helpful, recent];
 
 function render(sort: "helpful" | "newest", serverSort: "helpful" | "newest" = "helpful") {
-  vi.mocked(useState)
-    .mockReturnValueOnce([null, vi.fn()])
-    .mockReturnValueOnce([sort, vi.fn()]);
-  return renderToStaticMarkup(createElement(ProductReviews, {
-    data: { reviews, summary: reviewSummary(reviews), sort: serverSort },
-  }));
+  vi.mocked(useState).mockReturnValueOnce([null, vi.fn()]).mockReturnValueOnce([sort, vi.fn()]);
+  return renderToStaticMarkup(
+    createElement(ProductReviews, {
+      data: { reviews, summary: reviewSummary(reviews), sort: serverSort },
+    }),
+  );
 }
 
 afterEach(() => vi.resetAllMocks());

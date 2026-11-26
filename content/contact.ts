@@ -6,7 +6,11 @@ export const CONTACT = {
   intro:
     "We're a two-person operation in Cape Town, so you'll always reach an actual founder. Drop us a line and we'll get back to you within a day or two.",
   methods: [
-    { label: "General enquiries", value: "hello@saunahat.co.za", href: "mailto:hello@saunahat.co.za" },
+    {
+      label: "General enquiries",
+      value: "hello@saunahat.co.za",
+      href: "mailto:hello@saunahat.co.za",
+    },
     { label: "Returns", value: "returns@saunahat.co.za", href: "mailto:returns@saunahat.co.za" },
     { label: "Phone", value: "083 787 5826", href: "tel:+27837875826" },
     ...SOCIAL_LINKS,

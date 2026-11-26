@@ -9,8 +9,8 @@ export default function Hero() {
         <div className={styles.eyebrow}>Sauna hats · Warm regards from Cape Town</div>
         <h1 className={styles.h1}>A hat for people who peak at 90°C.</h1>
         <p className={styles.sub}>
-          100% merino wool felt sauna hats in Forest Green or Natural Cream.
-          Embroidered, not printed. Shipped nationwide across South Africa from Cape Town.
+          100% merino wool felt sauna hats in Forest Green or Natural Cream. Embroidered, not
+          printed. Shipped nationwide across South Africa from Cape Town.
         </p>
         <div className={styles.ctas}>
           <Button href="/product" variant="solid">
@@ -29,7 +29,9 @@ export default function Hero() {
           loading="eager"
           fetchPriority="high"
         />
-        <figcaption className={styles.caption}>A good place to do a whole lot of nothing.</figcaption>
+        <figcaption className={styles.caption}>
+          A good place to do a whole lot of nothing.
+        </figcaption>
       </figure>
     </section>
   );

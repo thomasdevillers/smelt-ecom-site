@@ -4,11 +4,7 @@ interface StarMarkProps {
   style?: React.CSSProperties;
 }
 
-export default function StarMark({
-  className,
-  size = 14,
-  style,
-}: StarMarkProps) {
+export default function StarMark({ className, size = 14, style }: StarMarkProps) {
   return (
     <svg
       width={size}

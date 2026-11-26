@@ -12,8 +12,25 @@ interface Props {
   ariaLabel?: string;
 }
 
-export default function Button({ children, href, onClick, variant = "solid", type = "button", full, ariaLabel }: Props) {
+export default function Button({
+  children,
+  href,
+  onClick,
+  variant = "solid",
+  type = "button",
+  full,
+  ariaLabel,
+}: Props) {
   const cls = `${styles.btn} ${styles[variant]} ${full ? styles.full : ""}`;
-  if (href) return <Link href={href} className={cls} aria-label={ariaLabel}>{children}</Link>;
-  return <button className={cls} onClick={onClick} type={type} aria-label={ariaLabel}>{children}</button>;
+  if (href)
+    return (
+      <Link href={href} className={cls} aria-label={ariaLabel}>
+        {children}
+      </Link>
+    );
+  return (
+    <button className={cls} onClick={onClick} type={type} aria-label={ariaLabel}>
+      {children}
+    </button>
+  );
 }

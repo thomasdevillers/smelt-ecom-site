@@ -4,9 +4,21 @@ import { captureTouch, mergeAttribution } from "../attribution";
 import { GUIDES } from "@/content/guides";
 
 const touchTime = Date.parse("2026-09-12T10:00:00Z");
-const attribution = mergeAttribution(null, captureTouch(new URL("https://saunahat.co.za/product?utm_source=facebook&utm_medium=paid_social"), "", touchTime), touchTime);
+const attribution = mergeAttribution(
+  null,
+  captureTouch(
+    new URL("https://saunahat.co.za/product?utm_source=facebook&utm_medium=paid_social"),
+    "",
+    touchTime,
+  ),
+  touchTime,
+);
 
-const json = (body: unknown, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
+const json = (body: unknown, status = 200) => ({
+  ok: status >= 200 && status < 300,
+  status,
+  json: async () => body,
+});
 
 describe("conversion analytics", () => {
   beforeEach(() => {
@@ -14,62 +26,167 @@ describe("conversion analytics", () => {
     vi.stubEnv("VERCEL_ANALYTICS_PROJECT_ID", "prj_smelt");
     vi.stubEnv("VERCEL_ANALYTICS_TEAM_ID", "team_smelt");
     vi.stubEnv("PAYSTACK_SECRET_KEY", "sk_live_example");
-    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
-      const url = new URL(String(input));
-      if (url.hostname === "api.paystack.co") return json({ status: true, meta: { pageCount: 1 }, data: [
-        { reference: "previous", status: "success", amount: 45000, currency: "ZAR", paid_at: "2026-09-05T10:00:00Z", metadata: { cart: { green: 1 } } },
-        { reference: "current-1", status: "success", amount: 45000, currency: "ZAR", paid_at: "2026-09-12T10:00:00Z", metadata: { cart: { green: 1 }, attribution } },
-        { reference: "current-1", status: "success", amount: 45000, currency: "ZAR", paid_at: "2026-09-12T10:00:00Z", metadata: { cart: { green: 1 }, attribution } },
-        { reference: "current-2", status: "success", amount: 90000, currency: "ZAR", paid_at: "2026-09-14T10:00:00Z", metadata: { cart: { cream: 2 } } },
-        { reference: "other-business", status: "success", amount: 200000, currency: "ZAR", paid_at: "2026-09-14T10:00:00Z", metadata: {} },
-      ] });
-      const filter = url.searchParams.get("filter");
-      if (filter?.startsWith("requestPath in")) {
-        const previous = url.searchParams.get("since")?.startsWith("2026-09-04");
-        return url.searchParams.get("by") === "day"
-          ? json({ data: [{ timestamp: previous ? "2026-09-05T00:00:00.000Z" : "2026-09-12T00:00:00.000Z", pageviews: previous ? 8 : 30, visitors: previous ? 4 : 12 }] })
-          : json({ data: [
-            { requestPath: `/articles/${GUIDES[0].slug}`, pageviews: previous ? 8 : 20, visitors: previous ? 4 : 10 },
-            ...previous ? [] : [{ requestPath: `/articles/${GUIDES[1].slug}`, pageviews: 10, visitors: 7 }],
-          ] });
-      }
-      const values = filter?.includes("ViewContent") ? [8, 15]
-        : filter?.includes("AddToCart") ? [4, 6]
-        : filter?.includes("InitiateCheckout") ? [2, 3]
-        : filter?.includes("PaymentOpened") ? [2, 3]
-        : filter?.includes("PaymentCancelled") ? [1, 1]
-        : filter?.includes("CheckoutError") ? [1, 2]
-        : [10, 20];
-      return json({ data: [
-        { timestamp: "2026-09-05T00:00:00.000Z", visitors: values[0] },
-        { timestamp: "2026-09-12T00:00:00.000Z", visitors: values[1] },
-      ] });
-    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const url = new URL(String(input));
+        if (url.hostname === "api.paystack.co")
+          return json({
+            status: true,
+            meta: { pageCount: 1 },
+            data: [
+              {
+                reference: "previous",
+                status: "success",
+                amount: 45000,
+                currency: "ZAR",
+                paid_at: "2026-09-05T10:00:00Z",
+                metadata: { cart: { green: 1 } },
+              },
+              {
+                reference: "current-1",
+                status: "success",
+                amount: 45000,
+                currency: "ZAR",
+                paid_at: "2026-09-12T10:00:00Z",
+                metadata: { cart: { green: 1 }, attribution },
+              },
+              {
+                reference: "current-1",
+                status: "success",
+                amount: 45000,
+                currency: "ZAR",
+                paid_at: "2026-09-12T10:00:00Z",
+                metadata: { cart: { green: 1 }, attribution },
+              },
+              {
+                reference: "current-2",
+                status: "success",
+                amount: 90000,
+                currency: "ZAR",
+                paid_at: "2026-09-14T10:00:00Z",
+                metadata: { cart: { cream: 2 } },
+              },
+              {
+                reference: "other-business",
+                status: "success",
+                amount: 200000,
+                currency: "ZAR",
+                paid_at: "2026-09-14T10:00:00Z",
+                metadata: {},
+              },
+            ],
+          });
+        const filter = url.searchParams.get("filter");
+        if (filter?.startsWith("requestPath in")) {
+          const previous = url.searchParams.get("since")?.startsWith("2026-09-04");
+          return url.searchParams.get("by") === "day"
+            ? json({
+                data: [
+                  {
+                    timestamp: previous ? "2026-09-05T00:00:00.000Z" : "2026-09-12T00:00:00.000Z",
+                    pageviews: previous ? 8 : 30,
+                    visitors: previous ? 4 : 12,
+                  },
+                ],
+              })
+            : json({
+                data: [
+                  {
+                    requestPath: `/articles/${GUIDES[0].slug}`,
+                    pageviews: previous ? 8 : 20,
+                    visitors: previous ? 4 : 10,
+                  },
+                  ...(previous
+                    ? []
+                    : [{ requestPath: `/articles/${GUIDES[1].slug}`, pageviews: 10, visitors: 7 }]),
+                ],
+              });
+        }
+        const values = filter?.includes("ViewContent")
+          ? [8, 15]
+          : filter?.includes("AddToCart")
+            ? [4, 6]
+            : filter?.includes("InitiateCheckout")
+              ? [2, 3]
+              : filter?.includes("PaymentOpened")
+                ? [2, 3]
+                : filter?.includes("PaymentCancelled")
+                  ? [1, 1]
+                  : filter?.includes("CheckoutError")
+                    ? [1, 2]
+                    : [10, 20];
+        return json({
+          data: [
+            { timestamp: "2026-09-05T00:00:00.000Z", visitors: values[0] },
+            { timestamp: "2026-09-12T00:00:00.000Z", visitors: values[1] },
+          ],
+        });
+      }),
+    );
   });
-  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
 
   it("logs upstream errors and the failing batch without exposing credentials or response data", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     const original = vi.mocked(fetch).getMockImplementation()!;
-    vi.mocked(fetch).mockImplementation((...args) => new URL(String(args[0])).hostname === "api.paystack.co" ? original(...args) : Promise.resolve(json({
-      error: { code: "invalid_range", message: "Range rejected for vercel-token" },
-      visitors: [{ private: "must not be logged" }],
-    }, 400) as Response));
-    await expect(getConversionAnalytics(90, new Date("2026-09-17T10:00:00Z"))).rejects.toThrow("Could not load traffic data from Vercel");
-    expect(log).toHaveBeenCalledWith("Vercel analytics request failed", expect.objectContaining({
-      dataset: "visits", since: "2026-06-20", until: "2026-08-20", by: "day",
-      status: 400, reason: "upstream_error", errorCode: "invalid_range", errorMessage: "Range rejected for [REDACTED]",
-    }));
-    expect(log).toHaveBeenCalledWith("Vercel analytics request failed", expect.objectContaining({ since: "2026-03-22", until: "2026-05-22" }));
-    expect(JSON.stringify(log.mock.calls)).not.toMatch(/vercel-token|Authorization|must not be logged/);
+    vi.mocked(fetch).mockImplementation((...args) =>
+      new URL(String(args[0])).hostname === "api.paystack.co"
+        ? original(...args)
+        : Promise.resolve(
+            json(
+              {
+                error: { code: "invalid_range", message: "Range rejected for vercel-token" },
+                visitors: [{ private: "must not be logged" }],
+              },
+              400,
+            ) as Response,
+          ),
+    );
+    await expect(getConversionAnalytics(90, new Date("2026-09-17T10:00:00Z"))).rejects.toThrow(
+      "Could not load traffic data from Vercel",
+    );
+    expect(log).toHaveBeenCalledWith(
+      "Vercel analytics request failed",
+      expect.objectContaining({
+        dataset: "visits",
+        since: "2026-06-20",
+        until: "2026-08-20",
+        by: "day",
+        status: 400,
+        reason: "upstream_error",
+        errorCode: "invalid_range",
+        errorMessage: "Range rejected for [REDACTED]",
+      }),
+    );
+    expect(log).toHaveBeenCalledWith(
+      "Vercel analytics request failed",
+      expect.objectContaining({ since: "2026-03-22", until: "2026-05-22" }),
+    );
+    expect(JSON.stringify(log.mock.calls)).not.toMatch(
+      /vercel-token|Authorization|must not be logged/,
+    );
   });
 
   it("logs malformed provider data without logging its contents", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     const original = vi.mocked(fetch).getMockImplementation()!;
-    vi.mocked(fetch).mockImplementation((...args) => new URL(String(args[0])).hostname === "api.paystack.co" ? original(...args) : Promise.resolve(json({ data: { private: "must not be logged" } }) as Response));
-    await expect(getConversionAnalytics(90)).rejects.toThrow("Could not load traffic data from Vercel");
-    expect(log).toHaveBeenCalledWith("Vercel analytics request failed", expect.objectContaining({ status: 200, reason: "invalid_data_shape" }));
+    vi.mocked(fetch).mockImplementation((...args) =>
+      new URL(String(args[0])).hostname === "api.paystack.co"
+        ? original(...args)
+        : Promise.resolve(json({ data: { private: "must not be logged" } }) as Response),
+    );
+    await expect(getConversionAnalytics(90)).rejects.toThrow(
+      "Could not load traffic data from Vercel",
+    );
+    expect(log).toHaveBeenCalledWith(
+      "Vercel analytics request failed",
+      expect.objectContaining({ status: 200, reason: "invalid_data_shape" }),
+    );
     expect(JSON.stringify(log.mock.calls)).not.toContain("must not be logged");
   });
 
@@ -78,86 +195,207 @@ describe("conversion analytics", () => {
     const error = new DOMException("Request timed out", "TimeoutError");
     vi.mocked(fetch).mockRejectedValue(error);
     await expect(getConversionAnalytics(90)).rejects.toBe(error);
-    expect(log).toHaveBeenCalledWith("Vercel analytics request failed", expect.objectContaining({ reason: "fetch_failed", errorName: "TimeoutError" }));
+    expect(log).toHaveBeenCalledWith(
+      "Vercel analytics request failed",
+      expect.objectContaining({ reason: "fetch_failed", errorName: "TimeoutError" }),
+    );
   });
 
   it("combines daily Vercel visitors with deduplicated successful Paystack orders", async () => {
     const result = await getConversionAnalytics(7, new Date("2026-09-17T10:00:00Z"));
     expect(result).toMatchObject({
-      mode: "live", days: 7,
-      previous: { start: "2026-09-04", end: "2026-09-10", visitors: 10, productViews: 8, addToCarts: 4, checkoutStarts: 2, paymentOpened: 2, paymentCancelled: 1, checkoutErrors: 1, orders: 1, revenue: 45000 },
-      current: { start: "2026-09-11", end: "2026-09-17", visitors: 20, productViews: 15, addToCarts: 6, checkoutStarts: 3, paymentOpened: 3, paymentCancelled: 1, checkoutErrors: 2, orders: 2, revenue: 135000 },
+      mode: "live",
+      days: 7,
+      previous: {
+        start: "2026-09-04",
+        end: "2026-09-10",
+        visitors: 10,
+        productViews: 8,
+        addToCarts: 4,
+        checkoutStarts: 2,
+        paymentOpened: 2,
+        paymentCancelled: 1,
+        checkoutErrors: 1,
+        orders: 1,
+        revenue: 45000,
+      },
+      current: {
+        start: "2026-09-11",
+        end: "2026-09-17",
+        visitors: 20,
+        productViews: 15,
+        addToCarts: 6,
+        checkoutStarts: 3,
+        paymentOpened: 3,
+        paymentCancelled: 1,
+        checkoutErrors: 2,
+        orders: 2,
+        revenue: 135000,
+      },
     });
     expect(result.current.channels).toEqual([
       { channel: "unrecorded", orders: 1, revenue: 90000 },
       { channel: "meta", orders: 1, revenue: 45000 },
     ]);
-    expect(result.previous.channels).toEqual([{ channel: "unrecorded", orders: 1, revenue: 45000 }]);
+    expect(result.previous.channels).toEqual([
+      { channel: "unrecorded", orders: 1, revenue: 45000 },
+    ]);
     const calls = vi.mocked(fetch).mock.calls.map(([input]) => String(input));
-    const vercelCalls = calls.filter(url => url.includes("api.vercel.com"));
+    const vercelCalls = calls.filter((url) => url.includes("api.vercel.com"));
     expect(vercelCalls).toHaveLength(18);
-    expect(vercelCalls.find(url => url.includes("/visits/"))).toContain("requestPath+ne+%27%2Fadmin%27");
-    expect(vercelCalls.every(value => new URL(value).searchParams.get("limit") === "100")).toBe(true);
-    expect(new Set(vercelCalls.filter(value => !new URL(value).searchParams.get("filter")?.startsWith("requestPath in")).map(value => new URL(value).searchParams.get("since"))).size).toBe(2);
-    expect(calls.find(url => url.includes("api.paystack.co"))).toContain("status=success");
+    expect(vercelCalls.find((url) => url.includes("/visits/"))).toContain(
+      "requestPath+ne+%27%2Fadmin%27",
+    );
+    expect(vercelCalls.every((value) => new URL(value).searchParams.get("limit") === "100")).toBe(
+      true,
+    );
+    expect(
+      new Set(
+        vercelCalls
+          .filter(
+            (value) => !new URL(value).searchParams.get("filter")?.startsWith("requestPath in"),
+          )
+          .map((value) => new URL(value).searchParams.get("since")),
+      ).size,
+    ).toBe(2);
+    expect(calls.find((url) => url.includes("api.paystack.co"))).toContain("status=success");
   });
 
-  it.each([7, 28, 90] as const)("loads every day of a %i-day report within Vercel's daily limit", async days => {
-    const original = vi.mocked(fetch).getMockImplementation()!;
-    const dailyQueries: URL[] = [];
-    vi.mocked(fetch).mockImplementation((...args) => {
-      const url = new URL(String(args[0]));
-      if (url.hostname !== "api.vercel.com" || url.searchParams.get("by") !== "day") return original(...args);
-      dailyQueries.push(url);
-      const since = url.searchParams.get("since")!.slice(0, 10);
-      const until = url.searchParams.get("until")!.slice(0, 10);
-      const count = (Date.parse(until) - Date.parse(since)) / 86_400_000 + 1;
-      if (count > 62) return Promise.resolve(json({ error: { code: "invalid_group_by", message: "Can only query up to 62 days of data." } }, 400) as Response);
-      return Promise.resolve(json({ data: Array.from({ length: count }, (_, index) => ({
-        timestamp: new Date(Date.parse(since) + index * 86_400_000).toISOString(),
-        visitors: 1, pageviews: 3,
-      })) }) as Response);
-    });
+  it.each([7, 28, 90] as const)(
+    "loads every day of a %i-day report within Vercel's daily limit",
+    async (days) => {
+      const original = vi.mocked(fetch).getMockImplementation()!;
+      const dailyQueries: URL[] = [];
+      vi.mocked(fetch).mockImplementation((...args) => {
+        const url = new URL(String(args[0]));
+        if (url.hostname !== "api.vercel.com" || url.searchParams.get("by") !== "day")
+          return original(...args);
+        dailyQueries.push(url);
+        const since = url.searchParams.get("since")!.slice(0, 10);
+        const until = url.searchParams.get("until")!.slice(0, 10);
+        const count = (Date.parse(until) - Date.parse(since)) / 86_400_000 + 1;
+        if (count > 62)
+          return Promise.resolve(
+            json(
+              {
+                error: {
+                  code: "invalid_group_by",
+                  message: "Can only query up to 62 days of data.",
+                },
+              },
+              400,
+            ) as Response,
+          );
+        return Promise.resolve(
+          json({
+            data: Array.from({ length: count }, (_, index) => ({
+              timestamp: new Date(Date.parse(since) + index * 86_400_000).toISOString(),
+              visitors: 1,
+              pageviews: 3,
+            })),
+          }) as Response,
+        );
+      });
 
-    const result = await getConversionAnalytics(days, new Date("2026-09-17T10:00:00Z"));
-    for (const period of [result.current, result.previous]) {
-      expect(period).toMatchObject({ visitors: days, productViews: days, addToCarts: days, checkoutStarts: days, paymentOpened: days, paymentCancelled: days, checkoutErrors: days });
-    }
-    expect(result.articlesError).toBeNull();
-    expect(result.articles).toMatchObject({ current: { visitors: days, views: days * 3 }, previous: { visitors: days, views: days * 3 } });
-    expect(dailyQueries).toHaveLength(days > 62 ? 32 : 16);
-    const visitQueries = dailyQueries.filter(url => url.searchParams.get("filter") === "requestPath ne '/admin'");
-    expect(visitQueries.map(url => [url.searchParams.get("since"), url.searchParams.get("until")])).toEqual(days === 90 ? [
-      ["2026-06-20", "2026-08-20"], ["2026-08-21", "2026-09-17"],
-      ["2026-03-22", "2026-05-22"], ["2026-05-23", "2026-06-19"],
-    ] : [[result.current.start, result.current.end], [result.previous.start, result.previous.end]]);
-    for (const url of dailyQueries.filter(query => query.searchParams.get("filter")?.startsWith("requestPath in"))) {
-      expect(url.searchParams.get("since")).toMatch(/T00:00:00\.000Z$/);
-      expect(url.searchParams.get("until")).toMatch(/T23:59:59\.999Z$/);
-    }
-  });
+      const result = await getConversionAnalytics(days, new Date("2026-09-17T10:00:00Z"));
+      for (const period of [result.current, result.previous]) {
+        expect(period).toMatchObject({
+          visitors: days,
+          productViews: days,
+          addToCarts: days,
+          checkoutStarts: days,
+          paymentOpened: days,
+          paymentCancelled: days,
+          checkoutErrors: days,
+        });
+      }
+      expect(result.articlesError).toBeNull();
+      expect(result.articles).toMatchObject({
+        current: { visitors: days, views: days * 3 },
+        previous: { visitors: days, views: days * 3 },
+      });
+      expect(dailyQueries).toHaveLength(days > 62 ? 32 : 16);
+      const visitQueries = dailyQueries.filter(
+        (url) => url.searchParams.get("filter") === "requestPath ne '/admin'",
+      );
+      expect(
+        visitQueries.map((url) => [url.searchParams.get("since"), url.searchParams.get("until")]),
+      ).toEqual(
+        days === 90
+          ? [
+              ["2026-06-20", "2026-08-20"],
+              ["2026-08-21", "2026-09-17"],
+              ["2026-03-22", "2026-05-22"],
+              ["2026-05-23", "2026-06-19"],
+            ]
+          : [
+              [result.current.start, result.current.end],
+              [result.previous.start, result.previous.end],
+            ],
+      );
+      for (const url of dailyQueries.filter((query) =>
+        query.searchParams.get("filter")?.startsWith("requestPath in"),
+      )) {
+        expect(url.searchParams.get("since")).toMatch(/T00:00:00\.000Z$/);
+        expect(url.searchParams.get("until")).toMatch(/T23:59:59\.999Z$/);
+      }
+    },
+  );
 
   it("reports article views and the combined audience without summing per-article readers", async () => {
     const result = await getConversionAnalytics(7, new Date("2026-09-17T10:00:00Z"));
     expect(result.articlesError).toBeNull();
-    expect(result.articles).toMatchObject({ current: { views: 30, visitors: 12 }, previous: { views: 8, visitors: 4 } });
+    expect(result.articles).toMatchObject({
+      current: { views: 30, visitors: 12 },
+      previous: { views: 8, visitors: 4 },
+    });
     expect(result.articles!.current.pages).toHaveLength(GUIDES.length);
-    expect(result.articles!.current.pages[0]).toMatchObject({ title: GUIDES[0].h1, views: 20, visitors: 10 });
-    expect(result.articles!.current.pages[1]).toMatchObject({ title: GUIDES[1].h1, views: 10, visitors: 7 });
-    expect(result.articles!.current.pages.find(page => page.path === `/articles/${GUIDES[2].slug}`)).toMatchObject({ views: 0, visitors: 0 });
-    const calls = vi.mocked(fetch).mock.calls.map(([input]) => new URL(String(input))).filter(url => url.searchParams.get("filter")?.startsWith("requestPath in"));
+    expect(result.articles!.current.pages[0]).toMatchObject({
+      title: GUIDES[0].h1,
+      views: 20,
+      visitors: 10,
+    });
+    expect(result.articles!.current.pages[1]).toMatchObject({
+      title: GUIDES[1].h1,
+      views: 10,
+      visitors: 7,
+    });
+    expect(
+      result.articles!.current.pages.find((page) => page.path === `/articles/${GUIDES[2].slug}`),
+    ).toMatchObject({ views: 0, visitors: 0 });
+    const calls = vi
+      .mocked(fetch)
+      .mock.calls.map(([input]) => new URL(String(input)))
+      .filter((url) => url.searchParams.get("filter")?.startsWith("requestPath in"));
     expect(calls).toHaveLength(4);
     for (const url of calls) {
       expect(url.searchParams.get("filter")).not.toContain("'/articles'");
-      for (const guide of GUIDES) expect(url.searchParams.get("filter")).toContain(`'/articles/${guide.slug}'`);
+      for (const guide of GUIDES)
+        expect(url.searchParams.get("filter")).toContain(`'/articles/${guide.slug}'`);
     }
-    expect(calls.find(url => url.searchParams.get("since") === "2026-09-11T00:00:00.000Z")?.searchParams.get("until")).toBe("2026-09-17T23:59:59.999Z");
-    expect(calls.find(url => url.searchParams.get("since") === "2026-09-04T00:00:00.000Z")?.searchParams.get("until")).toBe("2026-09-10T23:59:59.999Z");
+    expect(
+      calls
+        .find((url) => url.searchParams.get("since") === "2026-09-11T00:00:00.000Z")
+        ?.searchParams.get("until"),
+    ).toBe("2026-09-17T23:59:59.999Z");
+    expect(
+      calls
+        .find((url) => url.searchParams.get("since") === "2026-09-04T00:00:00.000Z")
+        ?.searchParams.get("until"),
+    ).toBe("2026-09-10T23:59:59.999Z");
   });
 
-  it.each([json({ error: "unavailable" }, 503), json({ data: { pageviews: "30", visitors: 12 } }), json({ data: null })])("keeps sales available when article stats fail or are malformed", async response => {
+  it.each([
+    json({ error: "unavailable" }, 503),
+    json({ data: { pageviews: "30", visitors: 12 } }),
+    json({ data: null }),
+  ])("keeps sales available when article stats fail or are malformed", async (response) => {
     const original = vi.mocked(fetch).getMockImplementation()!;
-    vi.mocked(fetch).mockImplementation((...args) => new URL(String(args[0])).searchParams.get("filter")?.startsWith("requestPath in") ? Promise.resolve(response as Response) : original(...args));
+    vi.mocked(fetch).mockImplementation((...args) =>
+      new URL(String(args[0])).searchParams.get("filter")?.startsWith("requestPath in")
+        ? Promise.resolve(response as Response)
+        : original(...args),
+    );
     const result = await getConversionAnalytics(7, new Date("2026-09-17T10:00:00Z"));
     expect(result.current.orders).toBe(2);
     expect(result.articles).toBeNull();
@@ -168,12 +406,15 @@ describe("conversion analytics", () => {
     const original = vi.mocked(fetch).getMockImplementation()!;
     vi.mocked(fetch).mockImplementation((...args) => {
       const url = new URL(String(args[0]));
-      if (url.searchParams.get("filter")?.startsWith("requestPath in")) return Promise.resolve(json({ data: [] }) as Response);
+      if (url.searchParams.get("filter")?.startsWith("requestPath in"))
+        return Promise.resolve(json({ data: [] }) as Response);
       return original(...args);
     });
     const result = await getConversionAnalytics(7, new Date("2026-09-17T10:00:00Z"));
     expect(result.articles?.current).toMatchObject({ views: 0, visitors: 0 });
-    expect(result.articles?.current.pages.every(page => page.views === 0 && page.visitors === 0)).toBe(true);
+    expect(
+      result.articles?.current.pages.every((page) => page.views === 0 && page.visitors === 0),
+    ).toBe(true);
   });
 
   it("fails with a useful setup message before making provider requests", async () => {

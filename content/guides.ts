@@ -71,7 +71,8 @@ const GREEN_BACK: GuideFigure = {
 const CREAM_BACK: GuideFigure = {
   src: "/images/hat-cream-back.jpeg",
   alt: "Smelt Natural Cream wool felt sauna hat photographed from the back",
-  caption: "Felt is matted rather than knitted, so there are no stitch holes for heat to get through.",
+  caption:
+    "Felt is matted rather than knitted, so there are no stitch holes for heat to get through.",
   width: 1200,
   height: 1200,
 };
@@ -530,7 +531,7 @@ export const GUIDES: Guide[] = [
       {
         heading: "Why there is only one size",
         body: [
-          "We get this question a lot, usually as \"it feels a bit big, do you have a smaller one?\" The answer is no, on purpose. Sauna hats are traditionally made in one standard size, and every Smelt hat is made to the same pattern: 113cm around the base.",
+          'We get this question a lot, usually as "it feels a bit big, do you have a smaller one?" The answer is no, on purpose. Sauna hats are traditionally made in one standard size, and every Smelt hat is made to the same pattern: 113cm around the base.',
           "A sauna hat doesn't work like a cap or a beanie, which hold onto your head at one fixed line. It's a relaxed bell of felt that rests on the top of your head and hangs down from there. A smaller head lets it sit lower, a larger head holds it a little higher, and in both cases it ends up covering what it needs to cover. That is how one hat fits most heads.",
           "Sized sauna hats would actually make things worse. A hat cut to your exact head size would sit tighter, and a tight hat compresses the felt, which squeezes out the trapped air that does the insulating. There is more on that in [how to choose a sauna hat](/articles/how-to-choose-a-sauna-hat).",
         ],
@@ -689,9 +690,7 @@ export const GUIDES: Guide[] = [
       },
       {
         heading: "When to skip wetting entirely",
-        body: [
-          "Cases where we would not bother, or would actively avoid it.",
-        ],
+        body: ["Cases where we would not bother, or would actively avoid it."],
         list: [
           "A steam room or any very humid room, where evaporation has nowhere to go.",
           "A short session, ten minutes or less, where the hat was never going to get properly hot anyway.",
@@ -857,9 +856,7 @@ export const GUIDES: Guide[] = [
       },
       {
         heading: "The smaller ones",
-        body: [
-          "Less consequential, still worth not doing.",
-        ],
+        body: ["Less consequential, still worth not doing."],
         list: [
           "Taking your phone in. Heat and humidity are genuinely bad for it, and it is bad manners in a shared room.",
           "A big meal immediately before. Digestion and heat stress compete for blood flow, and you will feel it.",

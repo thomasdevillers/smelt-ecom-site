@@ -16,7 +16,9 @@ export function preorderAnnouncementEmail(): { subject: string; html: string; te
       ],
       cta: {
         label: "Pre-order your Smelt",
-        url: escapeHtml(marketingEmailUrl(absoluteUrl("/product"), "waitlist_preorder", "preorder_button")),
+        url: escapeHtml(
+          marketingEmailUrl(absoluteUrl("/product"), "waitlist_preorder", "preorder_button"),
+        ),
       },
       afterCtaBlocks: [
         "<p>Joining the waitlist didn’t reserve a hat. Place your pre-order to secure yours.</p>",

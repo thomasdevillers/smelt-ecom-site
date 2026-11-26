@@ -10,7 +10,10 @@ export default function Footer() {
         <div className={styles.grid}>
           <div>
             <div className={styles.brand}>Smelt</div>
-            <p className={styles.blurb}>Sauna hats shipped nationwide from Cape Town. Less heat on your head, more time on the bench.</p>
+            <p className={styles.blurb}>
+              Sauna hats shipped nationwide from Cape Town. Less heat on your head, more time on the
+              bench.
+            </p>
             <div className={styles.socialHandle}>{SOCIAL_HANDLE}</div>
             <SocialLinks />
           </div>

@@ -28,7 +28,10 @@ async function readPhoto(stream: ReadableStream<Uint8Array>, signal: AbortSignal
     if (!size) throw new Error("Review photo is empty.");
     const bytes = new Uint8Array(size);
     let offset = 0;
-    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
     return bytes;
   } finally {
     signal.removeEventListener("abort", onAbort!);
@@ -37,21 +40,29 @@ async function readPhoto(stream: ReadableStream<Uint8Array>, signal: AbortSignal
   }
 }
 
-export async function GET(_request: Request, context: { params: Promise<{ id: string; index: string }> }) {
+export async function GET(
+  _request: Request,
+  context: { params: Promise<{ id: string; index: string }> },
+) {
   try {
     const { id, index } = await context.params;
     if (!/^[0-2]$/.test(index)) return new Response(null, { status: 404, headers });
     // Recheck moderation on every read, including after approval is revoked.
     let photo = await getReviewPhoto(id, Number(index));
-    if (!photo && await hasAdminSession()) photo = await getReviewPhoto(id, Number(index), true);
+    if (!photo && (await hasAdminSession())) photo = await getReviewPhoto(id, Number(index), true);
     if (!photo) return new Response(null, { status: 404, headers });
     const hostname = new URL(photo.url).hostname;
     if (!/^[a-z0-9_-]+\.(?:public|private)\.blob\.vercel-storage\.com$/i.test(hostname))
       return new Response(null, { status: 404, headers });
     const signal = AbortSignal.timeout(10_000);
-    const blob = await get(photo.url, { access: hostname.includes(".private.") ? "private" : "public", abortSignal: signal });
+    const blob = await get(photo.url, {
+      access: hostname.includes(".private.") ? "private" : "public",
+      abortSignal: signal,
+    });
     if (!blob || blob.statusCode !== 200) return new Response(null, { status: 404, headers });
-    const contentType = /\.jpg(?:-[A-Za-z0-9_-]+)?$/i.test(photo.pathname) ? "image/jpeg" : "image/webp";
+    const contentType = /\.jpg(?:-[A-Za-z0-9_-]+)?$/i.test(photo.pathname)
+      ? "image/jpeg"
+      : "image/webp";
     // Finish reading inside the error boundary so a failed upstream stream
     // returns a retryable status instead of breaking an already-started 200.
     const bytes = await readPhoto(blob.stream, signal);

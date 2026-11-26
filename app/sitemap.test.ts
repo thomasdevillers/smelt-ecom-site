@@ -7,7 +7,7 @@ describe("sitemap update dates", () => {
   it("records the homepage and product SEO updates explicitly", () => {
     const entries = sitemap();
     for (const path of ["/", "/product"]) {
-      const entry = entries.find(item => item.url === `${SITE_URL}${path}`);
+      const entry = entries.find((item) => item.url === `${SITE_URL}${path}`);
       expect(entry?.lastModified).toEqual(new Date("2026-11-10"));
     }
   });
@@ -15,13 +15,13 @@ describe("sitemap update dates", () => {
   it("preserves each guide's editorial update date", () => {
     const entries = sitemap();
     for (const guide of GUIDES) {
-      const entry = entries.find(item => item.url === `${SITE_URL}/articles/${guide.slug}`);
+      const entry = entries.find((item) => item.url === `${SITE_URL}/articles/${guide.slug}`);
       expect(entry?.lastModified).toEqual(new Date(guide.updated));
     }
   });
 
   it("does not invent update dates for unchanged pages", () => {
-    const entry = sitemap().find(item => item.url === `${SITE_URL}/our-story`);
+    const entry = sitemap().find((item) => item.url === `${SITE_URL}/our-story`);
     expect(entry).not.toHaveProperty("lastModified");
   });
 });

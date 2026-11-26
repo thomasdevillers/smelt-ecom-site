@@ -18,5 +18,7 @@ export async function GET(request: Request) {
     const page = Number(params.get("page") ?? "1");
     if (!Number.isSafeInteger(page) || page < 1) throw new AdminError("Invalid page.");
     return adminJson(await listHatConversations(page));
-  } catch (error) { return adminFailure(error); }
+  } catch (error) {
+    return adminFailure(error);
+  }
 }

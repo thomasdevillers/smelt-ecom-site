@@ -10,23 +10,40 @@ describe("review WhatsApp links", () => {
 
   it("prefills the customer's name and exact review link", () => {
     const reviewUrl = "https://saunahat.co.za/review/private-token";
-    const result = reviewWhatsAppUrl({ phone: "0837875826", customerName: "Tumi Customer", reviewUrl });
+    const result = reviewWhatsAppUrl({
+      phone: "0837875826",
+      customerName: "Tumi Customer",
+      reviewUrl,
+    });
     const url = new URL(result!);
     expect(url.origin + url.pathname).toBe("https://wa.me/27837875826");
     expect(url.searchParams.get("text")).toContain("Hey Tumi");
     expect(url.searchParams.get("text")).toContain(reviewUrl);
     expect(url.searchParams.get("text")).toContain("photos of your hats");
-    expect(url.searchParams.get("text")).toContain("refund you R50 per hat you bought in that order");
+    expect(url.searchParams.get("text")).toContain(
+      "refund you R50 per hat you bought in that order",
+    );
     expect(url.searchParams.get("text")).toContain("whatever rating you give");
     expect(url.searchParams.get("text")).not.toMatch(/next order|optional photos/);
   });
 
   it("does not create a link for a missing or invalid phone number", () => {
-    expect(reviewWhatsAppUrl({ phone: "", customerName: "Tumi", reviewUrl: "https://example.com/review" })).toBeNull();
+    expect(
+      reviewWhatsAppUrl({
+        phone: "",
+        customerName: "Tumi",
+        reviewUrl: "https://example.com/review",
+      }),
+    ).toBeNull();
   });
 
   it("makes photos optional in the custom invitation while retaining the R50-per-hat offer", () => {
-    const result = reviewWhatsAppUrl({ phone: "0837875826", customerName: "Tumi", reviewUrl: "https://example.com/review/custom-token", photosRequired: false });
+    const result = reviewWhatsAppUrl({
+      phone: "0837875826",
+      customerName: "Tumi",
+      reviewUrl: "https://example.com/review/custom-token",
+      photosRequired: false,
+    });
     const message = new URL(result!).searchParams.get("text");
     expect(message).toContain("Photos are completely optional.");
     expect(message).toContain("R50 per hat");

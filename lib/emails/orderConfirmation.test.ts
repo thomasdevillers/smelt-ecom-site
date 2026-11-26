@@ -3,9 +3,16 @@ import { orderConfirmationEmail } from "./orderConfirmation";
 
 describe("orderConfirmationEmail", () => {
   const e = orderConfirmationEmail({
-    reference: "ref_123", total: "R1 044",
+    reference: "ref_123",
+    total: "R1 044",
     items: [{ colour: "green", name: "Forest Green", qty: 2 }],
-    address: { line1: "1 Main Rd", city: "Cape Town", postalCode: "8001", province: "WC", country: "South Africa" },
+    address: {
+      line1: "1 Main Rd",
+      city: "Cape Town",
+      postalCode: "8001",
+      province: "WC",
+      country: "South Africa",
+    },
   });
   it("has a warm subject", () => {
     expect(e.subject).toMatch(/confirmed/i);

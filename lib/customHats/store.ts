@@ -1,7 +1,11 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { AdminError, adminStore, digest } from "../admin/store";
 import { reviewNamespace } from "../reviewNamespace";
-import { assertReviewCustomWritable, reviewCustomDatabase, reviewCustomStore } from "../reviewCustomPersistence";
+import {
+  assertReviewCustomWritable,
+  reviewCustomDatabase,
+  reviewCustomStore,
+} from "../reviewCustomPersistence";
 import { customHatDomain } from "../db/custom-hat-domain";
 import {
   CUSTOM_HAT_FILE_TYPES,
@@ -39,18 +43,32 @@ export interface StoredRequest {
 function parse<T>(value: unknown): T | null {
   if (!value) return null;
   if (typeof value !== "string") return value as T;
-  try { return JSON.parse(value) as T; } catch { return null; }
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
 }
 
-const clean = (value: unknown, max: number) => typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, max) : "";
+const clean = (value: unknown, max: number) =>
+  typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, max) : "";
 
 export const customHatUrl = (origin: string, token: string) => `${origin}/custom/${token}`;
 
-export async function createCustomHatRequest(input: { name: unknown; email?: unknown; phone?: unknown }) {
+export async function createCustomHatRequest(input: {
+  name: unknown;
+  email?: unknown;
+  phone?: unknown;
+}) {
   assertReviewCustomWritable();
-  const customer = { name: clean(input.name, 120), email: clean(input.email, 200).toLowerCase(), phone: clean(input.phone, 40) };
+  const customer = {
+    name: clean(input.name, 120),
+    email: clean(input.email, 200).toLowerCase(),
+    phone: clean(input.phone, 40),
+  };
   if (!customer.name) throw new AdminError("Add the customer's name.");
-  if (customer.email && !looksLikeEmail(customer.email)) throw new AdminError("Check the email address.");
+  if (customer.email && !looksLikeEmail(customer.email))
+    throw new AdminError("Check the email address.");
   const request: StoredRequest = {
     id: randomUUID(),
     token: randomBytes(24).toString("base64url"),
@@ -86,53 +104,82 @@ async function requestForToken(token: string) {
 async function signedFiles(submission: CustomHatSubmission | null, requestId: string) {
   const files: Record<string, string> = {};
   if (!submission || !isR2Configured()) return files;
-  const owned = reviewCustomStore() === "postgres" ? new Set(await (await pgRequests()).files(requestId)) : null;
+  const owned =
+    reviewCustomStore() === "postgres"
+      ? new Set(await (await pgRequests()).files(requestId))
+      : null;
   const names = new Map<string, string>();
-  for (const hat of submission.hats) for (const side of [hat.front, hat.back]) if (side.fileKey && (!owned || owned.has(side.fileKey))) names.set(side.fileKey, side.fileName || "logo");
-  await Promise.all([...names].map(async ([key, name]) => { files[key] = await r2().downloadUrl(key, name); }));
+  for (const hat of submission.hats)
+    for (const side of [hat.front, hat.back])
+      if (side.fileKey && (!owned || owned.has(side.fileKey)))
+        names.set(side.fileKey, side.fileName || "logo");
+  await Promise.all(
+    [...names].map(async ([key, name]) => {
+      files[key] = await r2().downloadUrl(key, name);
+    }),
+  );
   return files;
 }
 
 export async function listCustomHatRequests(origin: string): Promise<AdminCustomHatRequest[]> {
-  const requests = reviewCustomStore() === "postgres" ? await (await pgRequests()).list()
-    : Object.values(await adminStore().hgetall<Record<string, unknown>>(requestsKey()) || {}).map(value => parse<StoredRequest>(value)).filter((r): r is StoredRequest => !!r);
+  const requests =
+    reviewCustomStore() === "postgres"
+      ? await (await pgRequests()).list()
+      : Object.values((await adminStore().hgetall<Record<string, unknown>>(requestsKey())) || {})
+          .map((value) => parse<StoredRequest>(value))
+          .filter((r): r is StoredRequest => !!r);
   // Newest activity first: submissions jump to the top.
-  requests.sort((a, b) => (b.submittedAt || b.createdAt).localeCompare(a.submittedAt || a.createdAt));
-  return Promise.all(requests.map(async r => ({
-    id: r.id,
-    url: customHatUrl(origin, r.token),
-    customer: r.customer,
-    createdAt: r.createdAt,
-    submittedAt: r.submittedAt,
-    revision: r.revision,
-    submission: r.submission,
-    files: await signedFiles(r.submission, r.id).catch(() => ({})),
-  })));
+  requests.sort((a, b) =>
+    (b.submittedAt || b.createdAt).localeCompare(a.submittedAt || a.createdAt),
+  );
+  return Promise.all(
+    requests.map(async (r) => ({
+      id: r.id,
+      url: customHatUrl(origin, r.token),
+      customer: r.customer,
+      createdAt: r.createdAt,
+      submittedAt: r.submittedAt,
+      revision: r.revision,
+      submission: r.submission,
+      files: await signedFiles(r.submission, r.id).catch(() => ({})),
+    })),
+  );
 }
 
 export async function deleteCustomHatRequest(id: unknown) {
   assertReviewCustomWritable();
   if (typeof id !== "string" || !id) throw new AdminError("Choose a request to delete.");
-  if (reviewCustomStore() === "postgres") return (await pgRequests()).remove(id, async keys => {
-    if (keys.length && !isR2Configured()) throw new AdminError("Logo storage is temporarily unavailable. Please retry deletion later.", 503);
-    // Preserve ownership for retry if a provider delete fails.
-    if (keys.length) {
-      const removed = await Promise.allSettled(keys.map(key => r2().remove(key)));
-      if (removed.some(result => result.status === "rejected")) throw new AdminError("Some logo files could not be removed. Please retry deletion.", 503);
-    }
-  });
+  if (reviewCustomStore() === "postgres")
+    return (await pgRequests()).remove(id, async (keys) => {
+      if (keys.length && !isR2Configured())
+        throw new AdminError(
+          "Logo storage is temporarily unavailable. Please retry deletion later.",
+          503,
+        );
+      // Preserve ownership for retry if a provider delete fails.
+      if (keys.length) {
+        const removed = await Promise.allSettled(keys.map((key) => r2().remove(key)));
+        if (removed.some((result) => result.status === "rejected"))
+          throw new AdminError("Some logo files could not be removed. Please retry deletion.", 503);
+      }
+    });
   const request = await getRequest(id);
   if (!request) return;
   const db = adminStore();
   const keys = (await db.smembers(filesKey(id))) as string[];
-  if (keys.length && isR2Configured()) await Promise.allSettled(keys.map(key => r2().remove(key)));
+  if (keys.length && isR2Configured())
+    await Promise.allSettled(keys.map((key) => r2().remove(key)));
   await db.del(tokenKey(request.token), filesKey(id));
   await db.hdel(requestsKey(), id);
 }
 
 export async function customHatInvite(token: string): Promise<CustomHatInvite> {
   const request = await requestForToken(token);
-  if (!request) return { valid: false, error: "This design link is invalid or has been closed. Ask us for a new one." };
+  if (!request)
+    return {
+      valid: false,
+      error: "This design link is invalid or has been closed. Ask us for a new one.",
+    };
   return {
     valid: true,
     customer: request.customer,
@@ -144,22 +191,34 @@ export async function customHatInvite(token: string): Promise<CustomHatInvite> {
 }
 
 /** Issues a signed R2 PUT URL for one artwork file. */
-export async function reserveCustomHatUpload(token: string, input: { contentType: unknown; size: unknown }) {
+export async function reserveCustomHatUpload(
+  token: string,
+  input: { contentType: unknown; size: unknown },
+) {
   assertReviewCustomWritable();
   const request = await requestForToken(token);
   if (!request) throw new AdminError("This design link is no longer valid.", 404);
-  if (!isR2Configured()) throw new AdminError("Logo uploads are temporarily unavailable. You can describe your logo instead.", 503);
+  if (!isR2Configured())
+    throw new AdminError(
+      "Logo uploads are temporarily unavailable. You can describe your logo instead.",
+      503,
+    );
   const contentType = typeof input.contentType === "string" ? input.contentType : "";
   const extension = CUSTOM_HAT_FILE_TYPES[contentType];
   if (!extension) throw new AdminError("Logos must be PNG, JPEG, WebP, SVG or PDF files.", 415);
   const size = Number(input.size);
-  if (!Number.isFinite(size) || size <= 0 || size > CUSTOM_HAT_MAX_FILE_BYTES) throw new AdminError("Each logo file must be 15 MB or smaller.", 413);
+  if (!Number.isFinite(size) || size <= 0 || size > CUSTOM_HAT_MAX_FILE_BYTES)
+    throw new AdminError("Each logo file must be 15 MB or smaller.", 413);
   const key = `custom-hats/${reviewNamespace()}/${request.id}/${randomUUID()}.${extension}`;
   if (reviewCustomStore() === "postgres") {
     await (await pgRequests()).reserve(request.id, key);
   } else {
     const db = adminStore();
-    if (await db.scard(filesKey(request.id)) >= CUSTOM_HAT_MAX_UPLOADS) throw new AdminError("Upload limit reached for this link. Send any remaining files to us directly.", 429);
+    if ((await db.scard(filesKey(request.id))) >= CUSTOM_HAT_MAX_UPLOADS)
+      throw new AdminError(
+        "Upload limit reached for this link. Send any remaining files to us directly.",
+        429,
+      );
     await db.sadd(filesKey(request.id), key);
   }
   const upload = await r2().uploadUrl(key, contentType);
@@ -170,19 +229,34 @@ export async function submitCustomHatRequest(token: string, raw: unknown) {
   assertReviewCustomWritable();
   const request = await requestForToken(token);
   if (!request) throw new AdminError("This design link is no longer valid.", 404);
-  const owned = new Set(reviewCustomStore() === "postgres" ? await (await pgRequests()).files(request.id) : (await adminStore().smembers(filesKey(request.id))) as string[]);
+  const owned = new Set(
+    reviewCustomStore() === "postgres"
+      ? await (await pgRequests()).files(request.id)
+      : ((await adminStore().smembers(filesKey(request.id))) as string[]),
+  );
   let submission: CustomHatSubmission;
-  try { submission = validateSubmission(raw, key => owned.has(key)); }
-  catch (error) { if (error instanceof CustomHatValidationError) throw new AdminError(error.message); throw error; }
+  try {
+    submission = validateSubmission(raw, (key) => owned.has(key));
+  } catch (error) {
+    if (error instanceof CustomHatValidationError) throw new AdminError(error.message);
+    throw error;
+  }
   const previous = new Set(fileKeysOf(request.submission));
-  const fresh = fileKeysOf(submission).filter(key => !previous.has(key));
+  const fresh = fileKeysOf(submission).filter((key) => !previous.has(key));
   if (fresh.length) {
     if (!isR2Configured()) throw new AdminError("Logo uploads are temporarily unavailable.", 503);
-    const present = await Promise.all(fresh.map(key => r2().exists(key)));
-    if (present.includes(false)) throw new AdminError("A logo did not finish uploading. Remove it and upload it again.");
+    const present = await Promise.all(fresh.map((key) => r2().exists(key)));
+    if (present.includes(false))
+      throw new AdminError("A logo did not finish uploading. Remove it and upload it again.");
   }
-  if (reviewCustomStore() === "postgres") return (await pgRequests()).submit(request.id, request.revision, submission);
-  const saved: StoredRequest = { ...request, submission, submittedAt: new Date().toISOString(), revision: request.revision + 1 };
+  if (reviewCustomStore() === "postgres")
+    return (await pgRequests()).submit(request.id, request.revision, submission);
+  const saved: StoredRequest = {
+    ...request,
+    submission,
+    submittedAt: new Date().toISOString(),
+    revision: request.revision + 1,
+  };
   await adminStore().hset(requestsKey(), { [request.id]: JSON.stringify(saved) });
   return saved;
 }

@@ -39,7 +39,8 @@ it("ignores unpaid, invalid, or incomplete verifier responses", () => {
     { ...paid, amountRand: NaN },
     { ...paid, amountRand: Infinity },
     { ...paid, currency: "USD" },
-  ]) trackPurchase(input);
+  ])
+    trackPurchase(input);
   expect(browser.gtag).not.toHaveBeenCalled();
 });
 
@@ -67,10 +68,16 @@ it("waits for tag initialization and sends once even if verification repeats", (
 
 it("tolerates blocked storage and tracking errors without breaking confirmation", () => {
   vi.stubGlobal("sessionStorage", {
-    getItem: () => { throw Error("denied"); },
-    setItem: () => { throw Error("denied"); },
+    getItem: () => {
+      throw Error("denied");
+    },
+    setItem: () => {
+      throw Error("denied");
+    },
   });
-  browser.gtag!.mockImplementationOnce(() => { throw Error("blocked"); });
+  browser.gtag!.mockImplementationOnce(() => {
+    throw Error("blocked");
+  });
   expect(() => trackPurchase(paid)).not.toThrow();
   trackPurchase(paid);
   trackPurchase(paid);

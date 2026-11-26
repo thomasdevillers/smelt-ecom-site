@@ -7,38 +7,66 @@ const mocks = vi.hoisted(() => {
   const uploadPaths = new Map<string, Set<string>>();
   const db = {
     get: vi.fn(async (key: string) => strings.get(key) ?? null),
-    set: vi.fn(async (key: string, value: unknown) => { strings.set(key, value); return "OK"; }),
+    set: vi.fn(async (key: string, value: unknown) => {
+      strings.set(key, value);
+      return "OK";
+    }),
     hget: vi.fn(async (key: string, field: string) => hashes.get(key)?.get(field) ?? null),
     hset: vi.fn(async (key: string, values: Record<string, unknown>) => {
       const hash = hashes.get(key) || new Map<string, unknown>();
       Object.entries(values).forEach(([field, value]) => hash.set(field, value));
-      hashes.set(key, hash); return Object.keys(values).length;
+      hashes.set(key, hash);
+      return Object.keys(values).length;
     }),
     hgetall: vi.fn(async (key: string) => Object.fromEntries(hashes.get(key) || [])),
-    zadd: vi.fn(async () => 1), zrem: vi.fn(async () => 1),
+    zadd: vi.fn(async () => 1),
+    zrem: vi.fn(async () => 1),
     eval: vi.fn(async (script: string, keys: string[], args: string[]) => {
       if (script.includes("local ipCount")) return 1;
       if (script.includes("SISMEMBER")) {
         const paths = uploadPaths.get(keys[0]) ?? new Set<string>();
         if (paths.has(args[0])) return 1;
         if (paths.size >= 12) return 0;
-        paths.add(args[0]); uploadPaths.set(keys[0], paths); return 1;
+        paths.add(args[0]);
+        uploadPaths.set(keys[0], paths);
+        return 1;
       }
       if (!strings.has(keys[0]) || strings.get(keys[1]) !== args[0]) return -1;
       if (strings.has(keys[2]) || strings.has(keys[5])) return 0;
       strings.set(keys[2], args[1]);
       strings.set(keys[5], args[1]);
       const hash = hashes.get(keys[3]) || new Map<string, unknown>();
-      hash.set(args[1], args[2]); hashes.set(keys[3], hash);
+      hash.set(args[1], args[2]);
+      hashes.set(keys[3], hash);
       return 1;
     }),
   };
-  return { strings, hashes, counts, uploadPaths, db, paidOrder: vi.fn(), paidOrdersByEmail: vi.fn(), blobDelete: vi.fn(), blobHead: vi.fn() };
+  return {
+    strings,
+    hashes,
+    counts,
+    uploadPaths,
+    db,
+    paidOrder: vi.fn(),
+    paidOrdersByEmail: vi.fn(),
+    blobDelete: vi.fn(),
+    blobHead: vi.fn(),
+  };
 });
 
-vi.mock("@upstash/redis", () => ({ Redis: class { constructor() { return mocks.db; } } }));
+vi.mock("@upstash/redis", () => ({
+  Redis: class {
+    constructor() {
+      return mocks.db;
+    }
+  },
+}));
 vi.mock("@vercel/blob", () => ({ del: mocks.blobDelete, head: mocks.blobHead }));
-vi.mock("./admin/orders", () => ({ completionKey: () => "orders:completed", getPaidOrder: mocks.paidOrder, findPaidOrdersByEmail: mocks.paidOrdersByEmail }));
+vi.mock("./admin/orders", () => ({
+  completionKey: () => "orders:completed",
+  getPaidOrder: mocks.paidOrder,
+  findPaidOrdersByEmail: mocks.paidOrdersByEmail,
+}));
 
 import {
   createReviewInvitation,
@@ -52,19 +80,31 @@ import {
   submitReview,
   listReviewRecords,
 } from "./reviewStore";
-import { photoFromInvitation, reviewSummary, validateReviewSubmission, type PublicReview, type ReviewRecord } from "./reviews";
+import {
+  photoFromInvitation,
+  reviewSummary,
+  validateReviewSubmission,
+  type PublicReview,
+  type ReviewRecord,
+} from "./reviews";
 import { reviewFingerprint, REVIEW_RUBRIC_VERSION, weightedReviewScore } from "./reviewRanking";
 import { POST as reviewAccessPOST } from "@/app/api/reviews/access/route";
 import { POST as reviewPOST } from "@/app/api/reviews/route";
 import { digest } from "./admin/store";
 
 const order = {
-  reference: "order-1", email: "customer@example.com", name: "Tumi Customer",
+  reference: "order-1",
+  email: "customer@example.com",
+  name: "Tumi Customer",
   items: [{ colour: "green", name: "Forest Green", qty: 1 }],
 };
 
 beforeEach(() => {
-  vi.clearAllMocks(); mocks.strings.clear(); mocks.hashes.clear(); mocks.counts.clear(); mocks.uploadPaths.clear();
+  vi.clearAllMocks();
+  mocks.strings.clear();
+  mocks.hashes.clear();
+  mocks.counts.clear();
+  mocks.uploadPaths.clear();
   vi.stubEnv("UPSTASH_REDIS_REST_URL", "https://redis.example.com");
   vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "test");
   vi.stubEnv("PAYSTACK_SECRET_KEY", "sk_test_example");
@@ -74,7 +114,11 @@ beforeEach(() => {
   vi.stubEnv("REVIEW_RANKING_ENABLED", "false");
   vi.stubEnv("REVIEW_RANKING_SORT_ENABLED", "false");
   mocks.paidOrder.mockResolvedValue(order);
-  mocks.blobHead.mockImplementation(async (url: string) => ({ pathname: new URL(url).pathname.slice(1), size: 1000, contentType: url.endsWith(".jpg") ? "image/jpeg" : "image/webp" }));
+  mocks.blobHead.mockImplementation(async (url: string) => ({
+    pathname: new URL(url).pathname.slice(1),
+    size: 1000,
+    contentType: url.endsWith(".jpg") ? "image/jpeg" : "image/webp",
+  }));
   mocks.paidOrdersByEmail.mockResolvedValue([order]);
   mocks.hashes.set("orders:completed", new Map([["order-1", "2026-09-17T12:00:00.000Z"]]));
 });
@@ -82,44 +126,71 @@ beforeEach(() => {
 async function invitation() {
   const created = await createReviewInvitation("order-1");
   const visible = await getPublicInvitation(created.token);
-  expect(visible).toMatchObject({ valid: true, used: false, suggestedName: "Tumi", colours: ["green"] });
+  expect(visible).toMatchObject({
+    valid: true,
+    used: false,
+    suggestedName: "Tumi",
+    colours: ["green"],
+  });
   return { ...created, visible };
 }
 
-const photoUrl = (uploadKey: string) => `https://store.public.blob.vercel-storage.com/reviews/pending/${uploadKey}/photo.webp`;
+const photoUrl = (uploadKey: string) =>
+  `https://store.public.blob.vercel-storage.com/reviews/pending/${uploadKey}/photo.webp`;
 
 describe("review invitations and verified submission", () => {
   it("opens the existing review form for a completed order email", async () => {
     const created = await createReviewInvitationForEmail(" Customer@Example.com ", "127.0.0.1");
     expect(mocks.paidOrdersByEmail).toHaveBeenCalledWith("customer@example.com");
     expect(created.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
-    expect(await getPublicInvitation(created.token)).toMatchObject({ valid: true, suggestedName: "Tumi" });
+    expect(await getPublicInvitation(created.token)).toMatchObject({
+      valid: true,
+      suggestedName: "Tumi",
+    });
   });
 
   it("does not issue public review access for incomplete, reviewed or rate-limited orders", async () => {
     mocks.hashes.get("orders:completed")?.clear();
-    await expect(createReviewInvitationForEmail("customer@example.com", "127.0.0.1")).rejects.toThrow("completed Smelt order");
+    await expect(
+      createReviewInvitationForEmail("customer@example.com", "127.0.0.1"),
+    ).rejects.toThrow("completed Smelt order");
     mocks.hashes.set("orders:completed", new Map([["order-1", "done"]]));
     const { token, visible } = await invitation();
-    await submitReview(token, { rating: 5, body: "Already reviewed.", displayName: "Tumi", photoUrls: [photoUrl(visible.uploadKey!)], consent: true });
-    await expect(createReviewInvitationForEmail("customer@example.com", "127.0.0.1")).rejects.toThrow("already been submitted");
+    await submitReview(token, {
+      rating: 5,
+      body: "Already reviewed.",
+      displayName: "Tumi",
+      photoUrls: [photoUrl(visible.uploadKey!)],
+      consent: true,
+    });
+    await expect(
+      createReviewInvitationForEmail("customer@example.com", "127.0.0.1"),
+    ).rejects.toThrow("already been submitted");
     mocks.db.eval.mockResolvedValueOnce(0);
-    await expect(createReviewInvitationForEmail("another@example.com", "127.0.0.1")).rejects.toThrow("Too many attempts");
+    await expect(
+      createReviewInvitationForEmail("another@example.com", "127.0.0.1"),
+    ).rejects.toThrow("Too many attempts");
   });
 
   it("protects the public email lookup by origin and returns only an opaque review URL", async () => {
     const crossOrigin = new Request("https://saunahat.co.za/api/reviews/access", {
-      method: "POST", headers: { origin: "https://evil.example", "content-type": "application/json" }, body: JSON.stringify({ email: "customer@example.com" }),
+      method: "POST",
+      headers: { origin: "https://evil.example", "content-type": "application/json" },
+      body: JSON.stringify({ email: "customer@example.com" }),
     });
     expect((await reviewAccessPOST(crossOrigin)).status).toBe(403);
     expect(mocks.paidOrdersByEmail).not.toHaveBeenCalled();
 
     const request = new Request("https://saunahat.co.za/api/reviews/access", {
-      method: "POST", headers: { origin: "https://saunahat.co.za", "content-type": "application/json" }, body: JSON.stringify({ email: "customer@example.com" }),
+      method: "POST",
+      headers: { origin: "https://saunahat.co.za", "content-type": "application/json" },
+      body: JSON.stringify({ email: "customer@example.com" }),
     });
     const response = await reviewAccessPOST(request);
     expect(response.status).toBe(201);
-    expect(await response.json()).toEqual({ reviewUrl: expect.stringMatching(/^\/review\/[A-Za-z0-9_-]{43}$/) });
+    expect(await response.json()).toEqual({
+      reviewUrl: expect.stringMatching(/^\/review\/[A-Za-z0-9_-]{43}$/),
+    });
   });
 
   it("requires a completed Paystack order and invalidates replaced invitations", async () => {
@@ -134,22 +205,45 @@ describe("review invitations and verified submission", () => {
 
   it("rechecks Paystack and atomically prevents token reuse", async () => {
     const { token, visible } = await invitation();
-    await expect(submitReview(token, { rating: 5, body: "Love the fit.", displayName: "Tumi", anonymous: false, photoUrls: [photoUrl(visible.uploadKey!)], consent: true })).resolves.toEqual({ id: expect.any(String), status: "pending" });
+    await expect(
+      submitReview(token, {
+        rating: 5,
+        body: "Love the fit.",
+        displayName: "Tumi",
+        anonymous: false,
+        photoUrls: [photoUrl(visible.uploadKey!)],
+        consent: true,
+      }),
+    ).resolves.toEqual({ id: expect.any(String), status: "pending" });
     expect(mocks.paidOrder).toHaveBeenCalledTimes(2);
-    await expect(submitReview(token, { rating: 5, body: "Again", displayName: "Tumi", consent: true })).rejects.toThrow("already been used");
+    await expect(
+      submitReview(token, { rating: 5, body: "Again", displayName: "Tumi", consent: true }),
+    ).rejects.toThrow("already been used");
     expect((await getPublicInvitation(token)).used).toBe(true);
   });
 
   it("does not create a replacement invitation after an order has been reviewed", async () => {
     const { token, visible } = await invitation();
-    await submitReview(token, { rating: 5, body: "Love the fit.", displayName: "Tumi", photoUrls: [photoUrl(visible.uploadKey!)], consent: true });
+    await submitReview(token, {
+      rating: 5,
+      body: "Love the fit.",
+      displayName: "Tumi",
+      photoUrls: [photoUrl(visible.uploadKey!)],
+      consent: true,
+    });
     await expect(createReviewInvitation("order-1")).rejects.toThrow("already been submitted");
     expect(await listReviewRecords()).toHaveLength(1);
   });
 
   it("protects existing review records that predate order-level duplicate claims", async () => {
     const { token, visible } = await invitation();
-    const input = { rating: 5, body: "Love the fit.", displayName: "Tumi", photoUrls: [photoUrl(visible.uploadKey!)], consent: true };
+    const input = {
+      rating: 5,
+      body: "Love the fit.",
+      displayName: "Tumi",
+      photoUrls: [photoUrl(visible.uploadKey!)],
+      consent: true,
+    };
     await submitReview(token, input);
     mocks.strings.delete(`smelt:reviews:v1:test:claim:${digest(token)}`);
     mocks.strings.delete(`smelt:reviews:v1:test:order:${digest("order-1")}:review`);
@@ -160,65 +254,142 @@ describe("review invitations and verified submission", () => {
   it("rejects a second order claim that arrives while payment is being rechecked", async () => {
     const { token, visible } = await invitation();
     mocks.paidOrder.mockImplementationOnce(async () => {
-      mocks.strings.set(`smelt:reviews:v1:test:order:${digest("order-1")}:review`, "concurrent-review");
+      mocks.strings.set(
+        `smelt:reviews:v1:test:order:${digest("order-1")}:review`,
+        "concurrent-review",
+      );
       return order;
     });
-    await expect(submitReview(token, { rating: 5, body: "Love the fit.", displayName: "Tumi", photoUrls: [photoUrl(visible.uploadKey!)], consent: true })).rejects.toThrow("already been used");
+    await expect(
+      submitReview(token, {
+        rating: 5,
+        body: "Love the fit.",
+        displayName: "Tumi",
+        photoUrls: [photoUrl(visible.uploadKey!)],
+        consent: true,
+      }),
+    ).rejects.toThrow("already been used");
     expect(await listReviewRecords()).toHaveLength(0);
   });
 
   it("does not accept missing or oversized photos or consume the invitation", async () => {
     const { token, visible } = await invitation();
-    const input = { rating: 5, body: "Great hat", displayName: "Tumi", photoUrls: [photoUrl(visible.uploadKey!)], consent: true };
+    const input = {
+      rating: 5,
+      body: "Great hat",
+      displayName: "Tumi",
+      photoUrls: [photoUrl(visible.uploadKey!)],
+      consent: true,
+    };
     mocks.blobHead.mockRejectedValueOnce(new Error("Blob not found"));
     await expect(submitReview(token, input)).rejects.toThrow("photo");
-    mocks.blobHead.mockResolvedValueOnce({ pathname: `reviews/pending/${visible.uploadKey}/photo.webp`, size: 6 * 1024 * 1024, contentType: "image/webp" });
+    mocks.blobHead.mockResolvedValueOnce({
+      pathname: `reviews/pending/${visible.uploadKey}/photo.webp`,
+      size: 6 * 1024 * 1024,
+      contentType: "image/webp",
+    });
     await expect(submitReview(token, input)).rejects.toThrow("photo");
     expect((await getPublicInvitation(token)).used).toBe(false);
     expect(await listReviewRecords()).toHaveLength(0);
     await expect(submitReview(token, input)).resolves.toMatchObject({ status: "pending" });
   });
 
-  it.each(["null", "[]", "{invalid"])("returns a validation error for malformed JSON input: %s", async raw => {
-    const response = await reviewPOST(new Request("https://saunahat.co.za/api/reviews", {
-      method: "POST", headers: { origin: "https://saunahat.co.za", "content-type": "application/json" }, body: raw,
-    }));
-    expect(response.status).toBe(400);
-  });
+  it.each(["null", "[]", "{invalid"])(
+    "returns a validation error for malformed JSON input: %s",
+    async (raw) => {
+      const response = await reviewPOST(
+        new Request("https://saunahat.co.za/api/reviews", {
+          method: "POST",
+          headers: { origin: "https://saunahat.co.za", "content-type": "application/json" },
+          body: raw,
+        }),
+      );
+      expect(response.status).toBe(400);
+    },
+  );
 
   it("does not accept the verified label when Paystack no longer confirms the order", async () => {
     const { token, visible } = await invitation();
     mocks.paidOrder.mockRejectedValueOnce(new Error("payment reversed"));
-    await expect(submitReview(token, { rating: 4, body: "Good hat", displayName: "Tumi", photoUrls: [photoUrl(visible.uploadKey!)], consent: true })).rejects.toThrow("payment reversed");
+    await expect(
+      submitReview(token, {
+        rating: 4,
+        body: "Good hat",
+        displayName: "Tumi",
+        photoUrls: [photoUrl(visible.uploadKey!)],
+        consent: true,
+      }),
+    ).rejects.toThrow("payment reversed");
   });
 
   it("requires hat photos without consuming the invitation", async () => {
     const { token } = await invitation();
-    await expect(submitReview(token, { rating: 1, body: "Not for me.", displayName: "Tumi", photoUrls: [], consent: true })).rejects.toThrow("at least one photo");
+    await expect(
+      submitReview(token, {
+        rating: 1,
+        body: "Not for me.",
+        displayName: "Tumi",
+        photoUrls: [],
+        consent: true,
+      }),
+    ).rejects.toThrow("at least one photo");
     expect((await getPublicInvitation(token)).used).toBe(false);
     expect(await listReviewRecords()).toEqual([]);
   });
 
-  it.each([1, 5])("accepts a %i-star review without photos only for a custom optional-photo invitation", async rating => {
-    const created = await createReviewInvitation("order-1", { photosRequired: false });
-    vi.stubEnv("BLOB_READ_WRITE_TOKEN", "");
-    expect(await getPublicInvitation(created.token)).toMatchObject({ valid: true, photosRequired: false, photoUploadsEnabled: false });
-    const response = await reviewPOST(new Request("https://saunahat.co.za/api/reviews", {
-      method: "POST", headers: { origin: "https://saunahat.co.za", "content-type": "application/json" },
-      body: JSON.stringify({ token: created.token, rating, body: "My honest experience.", anonymous: true, photoUrls: [], consent: true }),
-    }));
-    expect(response.status).toBe(201);
-    expect(mocks.blobHead).not.toHaveBeenCalled();
-    expect((await listReviewRecords())[0]).toMatchObject({ rating, photos: [], rewardType: "manual_refund", status: "pending" });
-    expect((await getPublicInvitation(created.token)).used).toBe(true);
-  });
+  it.each([1, 5])(
+    "accepts a %i-star review without photos only for a custom optional-photo invitation",
+    async (rating) => {
+      const created = await createReviewInvitation("order-1", { photosRequired: false });
+      vi.stubEnv("BLOB_READ_WRITE_TOKEN", "");
+      expect(await getPublicInvitation(created.token)).toMatchObject({
+        valid: true,
+        photosRequired: false,
+        photoUploadsEnabled: false,
+      });
+      const response = await reviewPOST(
+        new Request("https://saunahat.co.za/api/reviews", {
+          method: "POST",
+          headers: { origin: "https://saunahat.co.za", "content-type": "application/json" },
+          body: JSON.stringify({
+            token: created.token,
+            rating,
+            body: "My honest experience.",
+            anonymous: true,
+            photoUrls: [],
+            consent: true,
+          }),
+        }),
+      );
+      expect(response.status).toBe(201);
+      expect(mocks.blobHead).not.toHaveBeenCalled();
+      expect((await listReviewRecords())[0]).toMatchObject({
+        rating,
+        photos: [],
+        rewardType: "manual_refund",
+        status: "pending",
+      });
+      expect((await getPublicInvitation(created.token)).used).toBe(true);
+    },
+  );
 
   it("keeps photos required for old invitations and ignores attempts to waive them in a submission", async () => {
     const { token } = await invitation();
-    const stored = mocks.strings.get(`smelt:reviews:v1:test:invite:${digest(token)}`) as { photosRequired?: boolean };
+    const stored = mocks.strings.get(`smelt:reviews:v1:test:invite:${digest(token)}`) as {
+      photosRequired?: boolean;
+    };
     delete stored.photosRequired;
     expect(await getPublicInvitation(token)).toMatchObject({ photosRequired: true });
-    await expect(submitReview(token, { rating: 5, body: "Great hat", displayName: "Tumi", photoUrls: [], consent: true, photosRequired: false })).rejects.toThrow("at least one photo");
+    await expect(
+      submitReview(token, {
+        rating: 5,
+        body: "Great hat",
+        displayName: "Tumi",
+        photoUrls: [],
+        consent: true,
+        photosRequired: false,
+      }),
+    ).rejects.toThrow("at least one photo");
     expect((await getPublicInvitation(token)).used).toBe(false);
   });
 
@@ -226,7 +397,13 @@ describe("review invitations and verified submission", () => {
     const created = await createReviewInvitation("order-1", { photosRequired: false });
     const visible = await getPublicInvitation(created.token);
     const url = photoUrl(visible.uploadKey!);
-    await submitReview(created.token, { rating: 4, body: "Good hat", displayName: "Tumi", photoUrls: [url], consent: true });
+    await submitReview(created.token, {
+      rating: 4,
+      body: "Good hat",
+      displayName: "Tumi",
+      photoUrls: [url],
+      consent: true,
+    });
     expect(mocks.blobHead).toHaveBeenCalledWith(url, expect.any(Object));
     expect((await listReviewRecords())[0].photos).toHaveLength(1);
   });
@@ -235,24 +412,52 @@ describe("review invitations and verified submission", () => {
     const optional = await createReviewInvitation("order-1", { photosRequired: false });
     const standard = await createReviewInvitation("order-1");
     expect((await getPublicInvitation(optional.token)).valid).toBe(false);
-    expect(await getPublicInvitation(standard.token)).toMatchObject({ valid: true, photosRequired: true });
+    expect(await getPublicInvitation(standard.token)).toMatchObject({
+      valid: true,
+      photosRequired: true,
+    });
   });
 
-  it.each([1, 3, 5])("records a manual refund review for a %i-star rating without issuing or queuing a voucher", async rating => {
-    const { token, visible } = await invitation();
-    const result = await submitReview(token, { rating, body: "My honest experience.", displayName: "Tumi", photoUrls: [photoUrl(visible.uploadKey!)], consent: true });
-    expect(result).not.toHaveProperty("voucher");
-    expect((await listReviewRecords())[0]).toMatchObject({ rating, rewardType: "manual_refund", status: "pending", incentivized: true });
-    expect([...mocks.strings.keys()]).not.toEqual(expect.arrayContaining([expect.stringContaining("smelt:vouchers:")]));
-    expect(mocks.db.eval.mock.calls.at(-1)?.[1]).toHaveLength(6);
-  });
+  it.each([1, 3, 5])(
+    "records a manual refund review for a %i-star rating without issuing or queuing a voucher",
+    async (rating) => {
+      const { token, visible } = await invitation();
+      const result = await submitReview(token, {
+        rating,
+        body: "My honest experience.",
+        displayName: "Tumi",
+        photoUrls: [photoUrl(visible.uploadKey!)],
+        consent: true,
+      });
+      expect(result).not.toHaveProperty("voucher");
+      expect((await listReviewRecords())[0]).toMatchObject({
+        rating,
+        rewardType: "manual_refund",
+        status: "pending",
+        incentivized: true,
+      });
+      expect([...mocks.strings.keys()]).not.toEqual(
+        expect.arrayContaining([expect.stringContaining("smelt:vouchers:")]),
+      );
+      expect(mocks.db.eval.mock.calls.at(-1)?.[1]).toHaveLength(6);
+    },
+  );
 
   it("rejects photo-free API submissions and accepts a review with photos without returning a voucher", async () => {
     const { token, visible } = await invitation();
-    const request = (photoUrls: string[]) => new Request("https://saunahat.co.za/api/reviews", {
-      method: "POST", headers: { origin: "https://saunahat.co.za", "content-type": "application/json" },
-      body: JSON.stringify({ token, rating: 1, body: "My honest experience.", displayName: "Tumi", photoUrls, consent: true }),
-    });
+    const request = (photoUrls: string[]) =>
+      new Request("https://saunahat.co.za/api/reviews", {
+        method: "POST",
+        headers: { origin: "https://saunahat.co.za", "content-type": "application/json" },
+        body: JSON.stringify({
+          token,
+          rating: 1,
+          body: "My honest experience.",
+          displayName: "Tumi",
+          photoUrls,
+          consent: true,
+        }),
+      });
     expect((await reviewPOST(request([]))).status).toBe(400);
     const response = await reviewPOST(request([photoUrl(visible.uploadKey!)]));
     expect(response.status).toBe(201);
@@ -274,30 +479,44 @@ describe("review photos and moderation", () => {
     const pathname = `reviews/pending/${visible.uploadKey}/photo.webp`;
     const url = `https://store.public.blob.vercel-storage.com/${pathname}`;
     expect(photoFromInvitation(url, visible.uploadKey!)).toMatchObject({ pathname });
-    expect(photoFromInvitation(
-      `https://store.public.blob.vercel-storage.com/${pathname}-providerSuffix`,
-      visible.uploadKey!,
-    )).toMatchObject({ pathname: `${pathname}-providerSuffix` });
-    expect(photoFromInvitation(
-      `https://store.public.blob.vercel-storage.com/reviews/pending/${visible.uploadKey}/photo-providerSuffix.webp`,
-      visible.uploadKey!,
-    )).toMatchObject({ pathname: `reviews/pending/${visible.uploadKey}/photo-providerSuffix.webp` });
+    expect(
+      photoFromInvitation(
+        `https://store.public.blob.vercel-storage.com/${pathname}-providerSuffix`,
+        visible.uploadKey!,
+      ),
+    ).toMatchObject({ pathname: `${pathname}-providerSuffix` });
+    expect(
+      photoFromInvitation(
+        `https://store.public.blob.vercel-storage.com/reviews/pending/${visible.uploadKey}/photo-providerSuffix.webp`,
+        visible.uploadKey!,
+      ),
+    ).toMatchObject({ pathname: `reviews/pending/${visible.uploadKey}/photo-providerSuffix.webp` });
     expect(photoFromInvitation("https://evil.example/photo.webp", visible.uploadKey!)).toBeNull();
-    expect(photoFromInvitation(
-      `https://store.public.blob.vercel-storage.com/reviews/pending/${visible.uploadKey}/photo.svg`,
-      visible.uploadKey!,
-    )).toBeNull();
-    expect(photoFromInvitation(
-      `https://store.public.blob.vercel-storage.com/reviews/pending/${visible.uploadKey}/nested/photo.webp`,
-      visible.uploadKey!,
-    )).toBeNull();
+    expect(
+      photoFromInvitation(
+        `https://store.public.blob.vercel-storage.com/reviews/pending/${visible.uploadKey}/photo.svg`,
+        visible.uploadKey!,
+      ),
+    ).toBeNull();
+    expect(
+      photoFromInvitation(
+        `https://store.public.blob.vercel-storage.com/reviews/pending/${visible.uploadKey}/nested/photo.webp`,
+        visible.uploadKey!,
+      ),
+    ).toBeNull();
     await expect(reservePhotoUpload(token, pathname)).resolves.toBe(visible.uploadKey);
-    await reservePhotoUpload(token, pathname); await reservePhotoUpload(token, pathname);
+    await reservePhotoUpload(token, pathname);
+    await reservePhotoUpload(token, pathname);
     await reservePhotoUpload(token, pathname.replace("photo.webp", "second.webp"));
     await reservePhotoUpload(token, pathname.replace("photo.webp", "third.webp"));
-    await expect(reservePhotoUpload(token, pathname.replace("photo.webp", "fourth.webp"))).resolves.toBe(visible.uploadKey);
-    for (let i = 5; i <= 12; i++) await reservePhotoUpload(token, pathname.replace("photo.webp", `${i}.webp`));
-    await expect(reservePhotoUpload(token, pathname.replace("photo.webp", "13.webp"))).rejects.toThrow("Too many photo upload attempts");
+    await expect(
+      reservePhotoUpload(token, pathname.replace("photo.webp", "fourth.webp")),
+    ).resolves.toBe(visible.uploadKey);
+    for (let i = 5; i <= 12; i++)
+      await reservePhotoUpload(token, pathname.replace("photo.webp", `${i}.webp`));
+    await expect(
+      reservePhotoUpload(token, pathname.replace("photo.webp", "13.webp")),
+    ).rejects.toThrow("Too many photo upload attempts");
     await expect(reservePhotoUpload(token, pathname)).resolves.toBe(visible.uploadKey);
   });
 
@@ -306,13 +525,23 @@ describe("review photos and moderation", () => {
     const url = `https://store_example.private.blob.vercel-storage.com/reviews/pending/${visible.uploadKey}/photo.webp`;
     expect(photoFromInvitation(url, visible.uploadKey!)).not.toBeNull();
     expect(photoFromInvitation(url, "different-invitation")).toBeNull();
-    expect(photoFromInvitation(url.replace(".com/", ".com.evil.example/"), visible.uploadKey!)).toBeNull();
-    const submitted = await submitReview(token, { rating: 5, body: "Great hat", displayName: "Tumi", photoUrls: [url], consent: true });
+    expect(
+      photoFromInvitation(url.replace(".com/", ".com.evil.example/"), visible.uploadKey!),
+    ).toBeNull();
+    const submitted = await submitReview(token, {
+      rating: 5,
+      body: "Great hat",
+      displayName: "Tumi",
+      photoUrls: [url],
+      consent: true,
+    });
     expect(await getReviewPhoto(submitted.id, 0)).toBeNull();
     expect(await getReviewPhoto(submitted.id, 0, true)).toMatchObject({ url });
     await moderateReview(submitted.id, "published");
     expect(await getReviewPhoto(submitted.id, 0)).toMatchObject({ url });
-    expect((await listPublishedReviews()).reviews[0].photos[0].url).toBe(`/api/reviews/photos/${submitted.id}/0`);
+    expect((await listPublishedReviews()).reviews[0].photos[0].url).toBe(
+      `/api/reviews/photos/${submitted.id}/0`,
+    );
     await moderateReview(submitted.id, "rejected");
     expect(await getReviewPhoto(submitted.id, 0)).toBeNull();
   });
@@ -324,14 +553,28 @@ describe("review photos and moderation", () => {
     await expect(reservePhotoUpload(token, pathname)).resolves.toBe(visible.uploadKey);
     expect(photoFromInvitation(url, visible.uploadKey!)).toMatchObject({ pathname });
     expect(photoFromInvitation(url, "another-invitation")).toBeNull();
-    await expect(reservePhotoUpload(token, pathname.replace("photo.jpg", "nested/photo.jpg"))).rejects.toThrow("Invalid photo path");
-    const submitted = await submitReview(token, { rating: 5, body: "Great hat", displayName: "Tumi", photoUrls: [url], consent: true });
+    await expect(
+      reservePhotoUpload(token, pathname.replace("photo.jpg", "nested/photo.jpg")),
+    ).rejects.toThrow("Invalid photo path");
+    const submitted = await submitReview(token, {
+      rating: 5,
+      body: "Great hat",
+      displayName: "Tumi",
+      photoUrls: [url],
+      consent: true,
+    });
     expect(await getReviewPhoto(submitted.id, 0, true)).toMatchObject({ url, pathname });
   });
 
   it("saves review text without approving or changing other fields, then publishes the edited text", async () => {
     const { token, visible } = await invitation();
-    const submitted = await submitReview(token, { rating: 4, body: "Mixed up text", displayName: "Tumi", photoUrls: [photoUrl(visible.uploadKey!)], consent: true });
+    const submitted = await submitReview(token, {
+      rating: 4,
+      body: "Mixed up text",
+      displayName: "Tumi",
+      photoUrls: [photoUrl(visible.uploadKey!)],
+      consent: true,
+    });
     const original = (await listReviewRecords())[0];
     const edited = await editReviewText(submitted.id, "  Corrected review text.  ");
     expect(edited).toEqual({ ...original, body: "Corrected review text." });
@@ -340,25 +583,47 @@ describe("review photos and moderation", () => {
     await moderateReview(submitted.id, "published");
     expect((await listPublishedReviews()).reviews[0].body).toBe("Corrected review text.");
     const published = (await listReviewRecords())[0];
-    expect(await editReviewText(submitted.id, "Another correction.")).toEqual({ ...published, body: "Another correction." });
+    expect(await editReviewText(submitted.id, "Another correction.")).toEqual({
+      ...published,
+      body: "Another correction.",
+    });
   });
 
   it("rejects invalid review text and missing reviews without changing stored text", async () => {
     const { token, visible } = await invitation();
-    const submitted = await submitReview(token, { rating: 5, body: "Original text", displayName: "Tumi", photoUrls: [photoUrl(visible.uploadKey!)], consent: true });
+    const submitted = await submitReview(token, {
+      rating: 5,
+      body: "Original text",
+      displayName: "Tumi",
+      photoUrls: [photoUrl(visible.uploadKey!)],
+      consent: true,
+    });
     for (const body of [undefined, null, 123, "", "  ", "ab", "x".repeat(1601)]) {
-      await expect(editReviewText(submitted.id, body)).rejects.toThrow("between 3 and 1,600 characters");
+      await expect(editReviewText(submitted.id, body)).rejects.toThrow(
+        "between 3 and 1,600 characters",
+      );
     }
     await expect(editReviewText("bad-id", "Valid text")).rejects.toThrow("Invalid review");
-    await expect(editReviewText("00000000-0000-0000-0000-000000000000", "Valid text")).rejects.toThrow("Review not found");
+    await expect(
+      editReviewText("00000000-0000-0000-0000-000000000000", "Valid text"),
+    ).rejects.toThrow("Review not found");
     expect((await listReviewRecords())[0].body).toBe("Original text");
-    await expect(editReviewText(submitted.id, "x".repeat(1600))).resolves.toMatchObject({ body: "x".repeat(1600) });
+    await expect(editReviewText(submitted.id, "x".repeat(1600))).resolves.toMatchObject({
+      body: "x".repeat(1600),
+    });
   });
 
   it("publishes approved reviews, calculates aggregates and deletes rejected media", async () => {
     const { token, visible } = await invitation();
     const url = `https://store.public.blob.vercel-storage.com/reviews/pending/${visible.uploadKey}/photo.webp`;
-    const submitted = await submitReview(token, { rating: 5, body: "Warm head, longer session.", displayName: "Tumi", anonymous: false, photoUrls: [url], consent: true });
+    const submitted = await submitReview(token, {
+      rating: 5,
+      body: "Warm head, longer session.",
+      displayName: "Tumi",
+      anonymous: false,
+      photoUrls: [url],
+      consent: true,
+    });
     expect((await listPublishedReviews()).summary.total).toBe(0);
     await moderateReview(submitted.id, "published");
     const published = await listPublishedReviews();
@@ -373,9 +638,23 @@ describe("review photos and moderation", () => {
 
 describe("stored helpfulness ordering", () => {
   it("reads an explicitly selected namespace without changing default reads or payment credentials", async () => {
-    const liveRecord: ReviewRecord = { id: "live-review", productId: "smelt-sauna-hat", orderReference: "private", customerEmail: "private@example.com", displayName: "A", anonymous: false,
-      rating: 4, body: "Specific live review", colours: ["green"], photos: [], verifiedPurchase: true,
-      status: "published", submittedAt: "2026-11-01", publishedAt: "2026-11-01", consentVersion: "2026-09-17" };
+    const liveRecord: ReviewRecord = {
+      id: "live-review",
+      productId: "smelt-sauna-hat",
+      orderReference: "private",
+      customerEmail: "private@example.com",
+      displayName: "A",
+      anonymous: false,
+      rating: 4,
+      body: "Specific live review",
+      colours: ["green"],
+      photos: [],
+      verifiedPurchase: true,
+      status: "published",
+      submittedAt: "2026-11-01",
+      publishedAt: "2026-11-01",
+      consentVersion: "2026-09-17",
+    };
     mocks.hashes.set("smelt:reviews:v1:live:records", new Map([[liveRecord.id, liveRecord]]));
     expect(await listReviewRecords("published")).toEqual([]);
     expect((await listReviewRecords("published", "live"))[0].id).toBe("live-review");
@@ -383,13 +662,62 @@ describe("stored helpfulness ordering", () => {
     expect((await listPublishedReviews()).reviews).toEqual([]);
   });
   function seed() {
-    const useful: ReviewRecord = { id: "useful", productId: "smelt-sauna-hat", orderReference: "private", customerEmail: "secret@example.com", displayName: "A", anonymous: false,
-      rating: 2, body: "Fits over my long hair and dries overnight.", colours: ["green"], photos: [], verifiedPurchase: true,
-      status: "published", submittedAt: "2026-10-01", publishedAt: "2026-10-01", consentVersion: "2026-09-17" };
-    const praise = { ...useful, id: "praise", rating: 5, body: "Love it", submittedAt: "2026-11-01", publishedAt: "2026-11-01" };
-    mocks.hashes.set("smelt:reviews:v1:test:records", new Map([[useful.id, useful], [praise.id, praise]]));
-    const scores = { usefulness: 9, specificity: 8, context: 7, clarity: 8, imageEvidence: 0, reason: "Practical fit and care information." };
-    mocks.hashes.set("smelt:reviews:v1:test:ranking:scores", new Map([[useful.id, { ...scores, score: weightedReviewScore(scores, false), fingerprint: reviewFingerprint(useful), rubricVersion: REVIEW_RUBRIC_VERSION, model: "gpt-4.1-mini", scoredAt: "2026-11-02" }]]));
+    const useful: ReviewRecord = {
+      id: "useful",
+      productId: "smelt-sauna-hat",
+      orderReference: "private",
+      customerEmail: "secret@example.com",
+      displayName: "A",
+      anonymous: false,
+      rating: 2,
+      body: "Fits over my long hair and dries overnight.",
+      colours: ["green"],
+      photos: [],
+      verifiedPurchase: true,
+      status: "published",
+      submittedAt: "2026-10-01",
+      publishedAt: "2026-10-01",
+      consentVersion: "2026-09-17",
+    };
+    const praise = {
+      ...useful,
+      id: "praise",
+      rating: 5,
+      body: "Love it",
+      submittedAt: "2026-11-01",
+      publishedAt: "2026-11-01",
+    };
+    mocks.hashes.set(
+      "smelt:reviews:v1:test:records",
+      new Map([
+        [useful.id, useful],
+        [praise.id, praise],
+      ]),
+    );
+    const scores = {
+      usefulness: 9,
+      specificity: 8,
+      context: 7,
+      clarity: 8,
+      imageEvidence: 0,
+      reason: "Practical fit and care information.",
+    };
+    mocks.hashes.set(
+      "smelt:reviews:v1:test:ranking:scores",
+      new Map([
+        [
+          useful.id,
+          {
+            ...scores,
+            score: weightedReviewScore(scores, false),
+            fingerprint: reviewFingerprint(useful),
+            rubricVersion: REVIEW_RUBRIC_VERSION,
+            model: "gpt-4.1-mini",
+            scoredAt: "2026-11-02",
+          },
+        ],
+      ]),
+    );
     return useful;
   }
   it("defaults to saved helpfulness scores even with rollout flags off, exposes no scores and preserves honest aggregates", async () => {
@@ -397,37 +725,89 @@ describe("stored helpfulness ordering", () => {
     vi.stubEnv("REVIEW_RANKING_ENABLED", "false");
     vi.stubEnv("REVIEW_RANKING_SORT_ENABLED", "false");
     const result = await listPublishedReviews();
-    expect(result.sort).toBe("helpful"); expect(result.reviews[0].id).toBe("useful");
+    expect(result.sort).toBe("helpful");
+    expect(result.reviews[0].id).toBe("useful");
     expect(result.summary).toMatchObject({ total: 2, average: 3.5, distribution: { 2: 1, 5: 1 } });
-    expect(result.reviews[0]).not.toHaveProperty("score"); expect(result.reviews[0]).not.toHaveProperty("reason");
+    expect(result.reviews[0]).not.toHaveProperty("score");
+    expect(result.reviews[0]).not.toHaveProperty("reason");
   });
   it("falls back to newest when scores are stale or storage is unavailable", async () => {
     const useful = seed();
-    vi.stubEnv("REVIEW_RANKING_ENABLED", "true"); vi.stubEnv("REVIEW_RANKING_SORT_ENABLED", "true");
-    mocks.hashes.get("smelt:reviews:v1:test:records")!.set(useful.id, { ...useful, body: "Edited text" });
+    vi.stubEnv("REVIEW_RANKING_ENABLED", "true");
+    vi.stubEnv("REVIEW_RANKING_SORT_ENABLED", "true");
+    mocks.hashes
+      .get("smelt:reviews:v1:test:records")!
+      .set(useful.id, { ...useful, body: "Edited text" });
     expect((await listPublishedReviews()).sort).toBe("newest");
-    mocks.db.hgetall.mockImplementationOnce(async (key: string) => Object.fromEntries(mocks.hashes.get(key) || []));
+    mocks.db.hgetall.mockImplementationOnce(async (key: string) =>
+      Object.fromEntries(mocks.hashes.get(key) || []),
+    );
     mocks.db.hgetall.mockRejectedValueOnce(new Error("Ranking storage unavailable"));
     const result = await listPublishedReviews();
-    expect(result.sort).toBe("newest"); expect(result.reviews).toHaveLength(2);
+    expect(result.sort).toBe("newest");
+    expect(result.reviews).toHaveLength(2);
   });
 });
 
 describe("review validation and aggregate calculations", () => {
   it("rejects missing consent, invalid ratings and too many photos", () => {
-    expect(() => validateReviewSubmission({ rating: 0, body: "Great", displayName: "Tumi", consent: true })).toThrow("rating");
-    expect(() => validateReviewSubmission({ rating: 5, body: "Great", displayName: "Tumi", consent: false })).toThrow("confirm");
-    expect(() => validateReviewSubmission({ rating: 5, body: "Great", displayName: "Tumi", consent: true, photoUrls: ["1", "2", "3", "4"] })).toThrow("no more than 3");
+    expect(() =>
+      validateReviewSubmission({ rating: 0, body: "Great", displayName: "Tumi", consent: true }),
+    ).toThrow("rating");
+    expect(() =>
+      validateReviewSubmission({ rating: 5, body: "Great", displayName: "Tumi", consent: false }),
+    ).toThrow("confirm");
+    expect(() =>
+      validateReviewSubmission({
+        rating: 5,
+        body: "Great",
+        displayName: "Tumi",
+        consent: true,
+        photoUrls: ["1", "2", "3", "4"],
+      }),
+    ).toThrow("no more than 3");
   });
 
   it("requires at least one photo, including for anonymous reviews", () => {
-    expect(() => validateReviewSubmission({ rating: 1, body: "My experience", anonymous: true, photoUrls: [" "], consent: true })).toThrow("at least one photo");
-    expect(validateReviewSubmission({ rating: 1, body: "My experience", anonymous: true, photoUrls: ["photo"], consent: true }).rating).toBe(1);
+    expect(() =>
+      validateReviewSubmission({
+        rating: 1,
+        body: "My experience",
+        anonymous: true,
+        photoUrls: [" "],
+        consent: true,
+      }),
+    ).toThrow("at least one photo");
+    expect(
+      validateReviewSubmission({
+        rating: 1,
+        body: "My experience",
+        anonymous: true,
+        photoUrls: ["photo"],
+        consent: true,
+      }).rating,
+    ).toBe(1);
   });
 
   it("calculates an honest one-decimal average and rating distribution", () => {
-    const base: Omit<PublicReview, "rating"> = { id: "1", displayName: "A", body: "Good", colours: ["green"], photos: [], verifiedPurchase: true, publishedAt: "2026-09-17T00:00:00.000Z" };
-    const reviews: PublicReview[] = [{ ...base, rating: 5 }, { ...base, id: "2", rating: 4 }, { ...base, id: "3", rating: 4 }];
-    expect(reviewSummary(reviews)).toEqual({ total: 3, average: 4.3, distribution: { 1: 0, 2: 0, 3: 0, 4: 2, 5: 1 } });
+    const base: Omit<PublicReview, "rating"> = {
+      id: "1",
+      displayName: "A",
+      body: "Good",
+      colours: ["green"],
+      photos: [],
+      verifiedPurchase: true,
+      publishedAt: "2026-09-17T00:00:00.000Z",
+    };
+    const reviews: PublicReview[] = [
+      { ...base, rating: 5 },
+      { ...base, id: "2", rating: 4 },
+      { ...base, id: "3", rating: 4 },
+    ];
+    expect(reviewSummary(reviews)).toEqual({
+      total: 3,
+      average: 4.3,
+      distribution: { 1: 0, 2: 0, 3: 0, 4: 2, 5: 1 },
+    });
   });
 });

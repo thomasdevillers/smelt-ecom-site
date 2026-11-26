@@ -1,11 +1,16 @@
-vi.mock("../salesMode", async original => ({ ...await original<typeof import("../salesMode")>(), PREORDER_MODE: false }));
+vi.mock("../salesMode", async (original) => ({
+  ...(await original<typeof import("../salesMode")>()),
+  PREORDER_MODE: false,
+}));
 import { describe, it, expect, vi } from "vitest";
 import { abandonedCartEmail } from "./abandonedCart";
 
 describe("abandonedCartEmail", () => {
   const e = abandonedCartEmail({
-    name: "Sam", items: [{ colour: "green", name: "Forest Green", qty: 1 }],
-    total: "R550", cartUrl: "https://saunahat.co.za/cart",
+    name: "Sam",
+    items: [{ colour: "green", name: "Forest Green", qty: 1 }],
+    total: "R550",
+    cartUrl: "https://saunahat.co.za/cart",
   });
   it("uses normal sales copy after restocking", () => {
     expect(e.subject).not.toMatch(/pre-order/i);

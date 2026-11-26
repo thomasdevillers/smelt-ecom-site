@@ -24,19 +24,32 @@ export function getDeliveryAddress(input: unknown): DeliveryAddress | null {
 }
 
 export function getDeliveryMap(address: DeliveryAddress, apiKey?: string) {
-  const hasCoordinates = typeof address.lat === "number" && Number.isFinite(address.lat)
-    && Math.abs(address.lat) <= 90 && typeof address.lng === "number"
-    && Number.isFinite(address.lng) && Math.abs(address.lng) <= 180;
+  const hasCoordinates =
+    typeof address.lat === "number" &&
+    Number.isFinite(address.lat) &&
+    Math.abs(address.lat) <= 90 &&
+    typeof address.lng === "number" &&
+    Number.isFinite(address.lng) &&
+    Math.abs(address.lng) <= 180;
   const coordinates = hasCoordinates ? `${address.lat},${address.lng}` : undefined;
   const locality = [address.suburb, address.city, address.province, address.postalCode]
-    .filter(Boolean).join(", ");
+    .filter(Boolean)
+    .join(", ");
   // Checkout stores Google's full formatted address in line1 for the courier.
   // Avoid repeating the city/province beneath that same address.
-  const hasFullAddress = Boolean(address.formattedAddress)
-    || Boolean(address.city && address.line1.split(",")
-      .some((part) => part.trim().toLowerCase() === address.city.toLowerCase()));
-  const fullAddress = address.formattedAddress || (hasFullAddress ? address.line1
-    : [address.line1, locality, address.country].filter(Boolean).join(", "));
+  const hasFullAddress =
+    Boolean(address.formattedAddress) ||
+    Boolean(
+      address.city &&
+      address.line1
+        .split(",")
+        .some((part) => part.trim().toLowerCase() === address.city.toLowerCase()),
+    );
+  const fullAddress =
+    address.formattedAddress ||
+    (hasFullAddress
+      ? address.line1
+      : [address.line1, locality, address.country].filter(Boolean).join(", "));
   const addressLines = [
     address.company,
     address.addressLine2,

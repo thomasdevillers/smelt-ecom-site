@@ -9,10 +9,17 @@ export interface CompletedCustomerOrder {
 export function customerThankYouAudience(orders: CompletedCustomerOrder[]) {
   const customers = new Map<string, { email: string; name: string; references: string[] }>();
   let invalidEmails = 0;
-  for (const order of [...orders].sort((a, b) => (a.completedAt || "").localeCompare(b.completedAt || "") || a.reference.localeCompare(b.reference))) {
+  for (const order of [...orders].sort(
+    (a, b) =>
+      (a.completedAt || "").localeCompare(b.completedAt || "") ||
+      a.reference.localeCompare(b.reference),
+  )) {
     if (!order.completedAt) continue;
     const email = order.email.trim().toLowerCase();
-    if (email.length > 254 || !/^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(email)) { invalidEmails++; continue; }
+    if (email.length > 254 || !/^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(email)) {
+      invalidEmails++;
+      continue;
+    }
     const customer = customers.get(email);
     if (customer) {
       if (!customer.references.includes(order.reference)) customer.references.push(order.reference);

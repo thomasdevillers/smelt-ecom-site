@@ -5,7 +5,11 @@ import type { OrderItem } from "../orderTypes";
 import type { ShippingAddress } from "../address";
 
 export function ownerAlertEmail(d: {
-  reference: string; email: string; total: string; items: OrderItem[]; address?: ShippingAddress | null;
+  reference: string;
+  email: string;
+  total: string;
+  items: OrderItem[];
+  address?: ShippingAddress | null;
 }): { subject: string; html: string; text: string } {
   const blocks = [
     `<p>New paid order.</p>`,

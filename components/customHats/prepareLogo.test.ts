@@ -14,6 +14,8 @@ describe("prepareLogoFile", () => {
   });
 
   it("rejects files that are not images or documents we accept", async () => {
-    await expect(prepareLogoFile(new File(["x"], "logo.ai", { type: "application/postscript" }))).rejects.toThrow("Logos must be");
+    await expect(
+      prepareLogoFile(new File(["x"], "logo.ai", { type: "application/postscript" })),
+    ).rejects.toThrow("Logos must be");
   });
 });

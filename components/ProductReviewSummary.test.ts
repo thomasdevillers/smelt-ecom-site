@@ -19,17 +19,23 @@ describe("product title review summary", () => {
   });
 
   it("uses the supplied average and singular review label", () => {
-    const html = renderToStaticMarkup(createElement(ProductReviewSummary, {
-      summary: { ...summary, total: 1, average: 4.2 },
-    }));
+    const html = renderToStaticMarkup(
+      createElement(ProductReviewSummary, {
+        summary: { ...summary, total: 1, average: 4.2 },
+      }),
+    );
     expect(html).toContain("4.2/5");
     expect(html).toContain("from 1 verified review</span>");
   });
 
   it("does not invent a rating while loading or when there are no reviews", () => {
     expect(renderToStaticMarkup(createElement(ProductReviewSummary, { summary: null }))).toBe("");
-    expect(renderToStaticMarkup(createElement(ProductReviewSummary, {
-      summary: { ...summary, total: 0, average: 0 },
-    }))).toBe("");
+    expect(
+      renderToStaticMarkup(
+        createElement(ProductReviewSummary, {
+          summary: { ...summary, total: 0, average: 0 },
+        }),
+      ),
+    ).toBe("");
   });
 });

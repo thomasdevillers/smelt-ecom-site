@@ -18,7 +18,9 @@ export async function notifyCustomHatSubmission(submission: CustomHatSubmission,
       hat.front.enabled && "front logo",
       hat.back.enabled && "back logo",
       hat.tag.enabled && `tag “${hat.tag.text}”`,
-    ].filter(Boolean).join(", ");
+    ]
+      .filter(Boolean)
+      .join(", ");
     return `Hat ${index + 1}: ${hat.quantity} × ${colour ? `${colour.name} (${colour.code})` : hat.colour}${extras ? ` · ${extras}` : ""}`;
   });
   const { html, text } = renderEmail({
@@ -35,7 +37,11 @@ export async function notifyCustomHatSubmission(submission: CustomHatSubmission,
   });
   try {
     await new Resend(process.env.RESEND_API_KEY).emails.send({
-      from: process.env.ORDER_FROM_EMAIL, to, subject: `Custom hats: ${who} · ${totalHats(submission)} hats`, html, text,
+      from: process.env.ORDER_FROM_EMAIL,
+      to,
+      subject: `Custom hats: ${who} · ${totalHats(submission)} hats`,
+      html,
+      text,
       ...(contact.email ? { replyTo: contact.email } : {}),
     });
   } catch (error) {

@@ -35,8 +35,7 @@ export const CARE = {
     "Never wring or twist it, press the water out instead.",
     "Never store it damp in a sealed bag.",
   ],
-  note:
-    "The embroidery is stitched, not printed, so it won't crack or peel. Follow the above and it'll stay sharp for the life of the hat.",
+  note: "The embroidery is stitched, not printed, so it won't crack or peel. Follow the above and it'll stay sharp for the life of the hat.",
   signoff: "Warm regards, and a well-kept hat.",
 
   /**

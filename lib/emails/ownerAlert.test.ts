@@ -3,7 +3,9 @@ import { ownerAlertEmail } from "./ownerAlert";
 
 describe("ownerAlertEmail", () => {
   const e = ownerAlertEmail({
-    reference: "ref_9", email: "buyer@example.com", total: "R540",
+    reference: "ref_9",
+    email: "buyer@example.com",
+    total: "R540",
     items: [{ colour: "cream", name: "Natural Cream", qty: 1 }],
   });
   it("subject carries total and reference", () => {

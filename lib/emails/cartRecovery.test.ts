@@ -1,10 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 const salesMode = vi.hoisted(() => ({ preorder: true }));
 vi.mock("../salesMode", async (original) => ({
-  ...await original<typeof import("../salesMode")>(),
-  get PREORDER_MODE() { return salesMode.preorder; },
+  ...(await original<typeof import("../salesMode")>()),
+  get PREORDER_MODE() {
+    return salesMode.preorder;
+  },
 }));
-afterEach(() => { salesMode.preorder = true; });
+afterEach(() => {
+  salesMode.preorder = true;
+});
 
 import { cartRecoveryEmail } from "./cartRecovery";
 
@@ -40,15 +44,18 @@ describe("cart recovery emails", () => {
     expect(email.html).not.toContain("Tumi &lt;Customer&gt;");
   });
 
-  it.each([0, 1, 2] as const)("returns to standard recovery copy when pre-orders end, step %s", (step) => {
-    salesMode.preorder = false;
-    const email = cartRecoveryEmail({ ...input, step });
-    expect(email.subject).not.toContain("pre-order");
-    expect(email.text).not.toContain("22 October");
-    expect(email.text).not.toContain("R450");
-    expect(email.text).toContain("Return to my checkout");
-    expect(email.text).toContain("Current stock is confirmed again before payment.");
-  });
+  it.each([0, 1, 2] as const)(
+    "returns to standard recovery copy when pre-orders end, step %s",
+    (step) => {
+      salesMode.preorder = false;
+      const email = cartRecoveryEmail({ ...input, step });
+      expect(email.subject).not.toContain("pre-order");
+      expect(email.text).not.toContain("22 October");
+      expect(email.text).not.toContain("R450");
+      expect(email.text).toContain("Return to my checkout");
+      expect(email.text).toContain("Current stock is confirmed again before payment.");
+    },
+  );
 
   it("makes the final message explicitly final", () => {
     expect(cartRecoveryEmail({ ...input, step: 2 }).text).toContain("last email");

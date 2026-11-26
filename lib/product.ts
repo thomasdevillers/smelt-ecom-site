@@ -3,9 +3,9 @@ export type Face = "front" | "back";
 
 export interface Variant {
   colour: Colour;
-  name: string;        // "Forest Green"
-  swatch: string;      // hex for the colourway dot
-  images: Record<Face, string>;  // transparent-bg product shots
+  name: string; // "Forest Green"
+  swatch: string; // hex for the colourway dot
+  images: Record<Face, string>; // transparent-bg product shots
 }
 
 export const PRODUCT = {

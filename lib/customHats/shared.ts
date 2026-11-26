@@ -75,14 +75,31 @@ export interface AdminCustomHatRequest {
   files: Record<string, string>;
 }
 
-export const emptyPlacement = (): LogoPlacement => ({ enabled: false, fileKey: null, fileName: null, fileType: null, notes: "" });
+export const emptyPlacement = (): LogoPlacement => ({
+  enabled: false,
+  fileKey: null,
+  fileName: null,
+  fileType: null,
+  notes: "",
+});
 export const newHatDesign = (id: string, colour: string | null = null): HatDesign => ({
-  id, colour, quantity: 10, front: emptyPlacement(), back: emptyPlacement(), tag: { enabled: false, text: "" }, notes: "",
+  id,
+  colour,
+  quantity: 10,
+  front: emptyPlacement(),
+  back: emptyPlacement(),
+  tag: { enabled: false, text: "" },
+  notes: "",
 });
 
-const text = (value: unknown, max: number) => typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, max) : "";
-const longText = (value: unknown, max: number) => typeof value === "string" ? value.replace(/\r\n?/g, "\n").trim().slice(0, max) : "";
-const record = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+const text = (value: unknown, max: number) =>
+  typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, max) : "";
+const longText = (value: unknown, max: number) =>
+  typeof value === "string" ? value.replace(/\r\n?/g, "\n").trim().slice(0, max) : "";
+const record = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 
 export class CustomHatValidationError extends Error {}
 
@@ -92,7 +109,10 @@ export const looksLikeEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
  * Cleans a submission from the browser. `ownsFile` confirms an artwork key was
  * issued to this request, so a submission cannot reference other customers' files.
  */
-export function validateSubmission(raw: unknown, ownsFile: (key: string) => boolean): CustomHatSubmission {
+export function validateSubmission(
+  raw: unknown,
+  ownsFile: (key: string) => boolean,
+): CustomHatSubmission {
   const input = record(raw);
   const contactInput = record(input.contact);
   const contact: CustomHatContact = {
@@ -102,11 +122,17 @@ export function validateSubmission(raw: unknown, ownsFile: (key: string) => bool
     phone: text(contactInput.phone, 40),
   };
   if (!contact.name) throw new CustomHatValidationError("Add a contact name.");
-  if (contact.email && !looksLikeEmail(contact.email)) throw new CustomHatValidationError("Check the email address.");
-  if (!contact.email && !contact.phone) throw new CustomHatValidationError("Add an email address or phone number so we can reach you.");
+  if (contact.email && !looksLikeEmail(contact.email))
+    throw new CustomHatValidationError("Check the email address.");
+  if (!contact.email && !contact.phone)
+    throw new CustomHatValidationError("Add an email address or phone number so we can reach you.");
 
-  if (!Array.isArray(input.hats) || input.hats.length === 0) throw new CustomHatValidationError("Design at least one hat.");
-  if (input.hats.length > CUSTOM_HAT_MAX_DESIGNS) throw new CustomHatValidationError(`You can submit up to ${CUSTOM_HAT_MAX_DESIGNS} designs at a time.`);
+  if (!Array.isArray(input.hats) || input.hats.length === 0)
+    throw new CustomHatValidationError("Design at least one hat.");
+  if (input.hats.length > CUSTOM_HAT_MAX_DESIGNS)
+    throw new CustomHatValidationError(
+      `You can submit up to ${CUSTOM_HAT_MAX_DESIGNS} designs at a time.`,
+    );
 
   const hats = input.hats.map((rawHat, index): HatDesign => {
     const hat = record(rawHat);
@@ -115,27 +141,42 @@ export function validateSubmission(raw: unknown, ownsFile: (key: string) => bool
     if (!feltColour(colour)) throw new CustomHatValidationError(`${label}: choose a felt colour.`);
     const quantity = Number(hat.quantity);
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > CUSTOM_HAT_MAX_QUANTITY)
-      throw new CustomHatValidationError(`${label}: quantity must be a whole number from 1 to ${CUSTOM_HAT_MAX_QUANTITY}.`);
+      throw new CustomHatValidationError(
+        `${label}: quantity must be a whole number from 1 to ${CUSTOM_HAT_MAX_QUANTITY}.`,
+      );
     const placement = (value: unknown, side: LogoSide): LogoPlacement => {
       const p = record(value);
       if (p.enabled !== true) return emptyPlacement();
       const fileKey = typeof p.fileKey === "string" && p.fileKey ? p.fileKey : null;
-      if (fileKey && !ownsFile(fileKey)) throw new CustomHatValidationError(`${label}: re-upload the ${side} logo.`);
+      if (fileKey && !ownsFile(fileKey))
+        throw new CustomHatValidationError(`${label}: re-upload the ${side} logo.`);
       const notes = longText(p.notes, CUSTOM_HAT_NOTES_MAX);
-      if (!fileKey && !notes) throw new CustomHatValidationError(`${label}: upload the ${side} logo, or describe it.`);
-      const fileType = fileKey && typeof p.fileType === "string" && p.fileType in CUSTOM_HAT_FILE_TYPES ? p.fileType : null;
-      return { enabled: true, fileKey, fileName: fileKey ? text(p.fileName, 160) || "logo" : null, fileType, notes };
+      if (!fileKey && !notes)
+        throw new CustomHatValidationError(`${label}: upload the ${side} logo, or describe it.`);
+      const fileType =
+        fileKey && typeof p.fileType === "string" && p.fileType in CUSTOM_HAT_FILE_TYPES
+          ? p.fileType
+          : null;
+      return {
+        enabled: true,
+        fileKey,
+        fileName: fileKey ? text(p.fileName, 160) || "logo" : null,
+        fileType,
+        notes,
+      };
     };
     const tagInput = record(hat.tag);
     const tagText = text(tagInput.text, CUSTOM_HAT_TAG_MAX);
-    if (tagInput.enabled === true && !tagText) throw new CustomHatValidationError(`${label}: type the text for the tag.`);
+    if (tagInput.enabled === true && !tagText)
+      throw new CustomHatValidationError(`${label}: type the text for the tag.`);
     return {
       id: text(hat.id, 40) || `hat-${index + 1}`,
       colour,
       quantity,
       front: placement(hat.front, "front"),
       back: placement(hat.back, "back"),
-      tag: tagInput.enabled === true ? { enabled: true, text: tagText } : { enabled: false, text: "" },
+      tag:
+        tagInput.enabled === true ? { enabled: true, text: tagText } : { enabled: false, text: "" },
       notes: longText(hat.notes, CUSTOM_HAT_NOTES_MAX),
     };
   });
@@ -144,7 +185,9 @@ export function validateSubmission(raw: unknown, ownsFile: (key: string) => bool
 
 export function fileKeysOf(submission: CustomHatSubmission | null | undefined): string[] {
   if (!submission) return [];
-  return submission.hats.flatMap(hat => [hat.front.fileKey, hat.back.fileKey]).filter((key): key is string => !!key);
+  return submission.hats
+    .flatMap((hat) => [hat.front.fileKey, hat.back.fileKey])
+    .filter((key): key is string => !!key);
 }
 
 export const totalHats = (submission: CustomHatSubmission | null | undefined) =>

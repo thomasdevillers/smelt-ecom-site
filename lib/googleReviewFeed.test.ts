@@ -3,11 +3,21 @@ import { googleReviewFeed } from "./googleReviewFeed";
 import { REVIEW_PRODUCT_ID, type ReviewRecord } from "./reviews";
 
 const review: ReviewRecord = {
-  id: "review-1", productId: REVIEW_PRODUCT_ID, orderReference: "private-order",
-  customerEmail: "private@example.com", displayName: "Jane & Jo", anonymous: false,
-  rating: 1, body: 'Warm <hat> & "soft" 🧖', colours: ["green", "cream"],
-  photos: [], verifiedPurchase: true, incentivized: true, status: "published",
-  submittedAt: "2026-10-01T12:00:00Z", publishedAt: "2026-10-02T12:00:00Z",
+  id: "review-1",
+  productId: REVIEW_PRODUCT_ID,
+  orderReference: "private-order",
+  customerEmail: "private@example.com",
+  displayName: "Jane & Jo",
+  anonymous: false,
+  rating: 1,
+  body: 'Warm <hat> & "soft" 🧖',
+  colours: ["green", "cream"],
+  photos: [],
+  verifiedPurchase: true,
+  incentivized: true,
+  status: "published",
+  submittedAt: "2026-10-01T12:00:00Z",
+  publishedAt: "2026-10-02T12:00:00Z",
   consentVersion: "2026-09-17",
 };
 
@@ -26,7 +36,9 @@ describe("Google product review feed", () => {
   });
 
   it("honours anonymity and legacy refund disclosures", () => {
-    const feed = googleReviewFeed([{ ...review, anonymous: true, incentivized: undefined, rewardType: "manual_refund" }]);
+    const feed = googleReviewFeed([
+      { ...review, anonymous: true, incentivized: undefined, rewardType: "manual_refund" },
+    ]);
     expect(feed.xml).toContain('<name is_anonymous="true">Anonymous</name>');
     expect(feed.xml).not.toContain("Jane");
     expect(feed.xml).toContain("<is_incentivized_review>true</is_incentivized_review>");
@@ -35,7 +47,13 @@ describe("Google product review feed", () => {
   it("refuses empty, duplicate, malformed or synthetic feeds instead of silently dropping reviews", () => {
     expect(() => googleReviewFeed([])).toThrow();
     expect(() => googleReviewFeed([review, review])).toThrow();
-    for (const changes of [{ rating: 6 }, { submittedAt: "invalid" }, { body: "\u0000" }, { id: "dev-1" }, { colours: [] }])
+    for (const changes of [
+      { rating: 6 },
+      { submittedAt: "invalid" },
+      { body: "\u0000" },
+      { id: "dev-1" },
+      { colours: [] },
+    ])
       expect(() => googleReviewFeed([{ ...review, ...changes }])).toThrow();
   });
 });

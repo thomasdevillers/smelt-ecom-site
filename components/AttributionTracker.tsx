@@ -7,6 +7,8 @@ import { captureBrowserAttribution } from "@/lib/attributionClient";
 export default function AttributionTracker() {
   const pathname = usePathname();
   const query = useSearchParams().toString();
-  useEffect(() => { captureBrowserAttribution(); }, [pathname, query]);
+  useEffect(() => {
+    captureBrowserAttribution();
+  }, [pathname, query]);
   return null;
 }

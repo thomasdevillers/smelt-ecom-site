@@ -29,7 +29,7 @@ describe("earlyShippingEmail", () => {
     expect(html).toContain("prefers-color-scheme:dark");
     expect(html).toContain(EMAIL_QUESTION.title);
     for (const option of EMAIL_QUESTION.options!) {
-      const line = text.split("\n").find(line => line.startsWith(`${option}: `));
+      const line = text.split("\n").find((line) => line.startsWith(`${option}: `));
       expect(line).toBeDefined();
       const url = new URL(line!.slice(option.length + 2));
       expect(url.pathname).toBe("/help-shape-smelt");

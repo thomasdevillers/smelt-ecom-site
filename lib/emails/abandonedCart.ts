@@ -5,7 +5,10 @@ import { escapeHtml } from "./theme";
 import type { OrderItem } from "../orderTypes";
 
 export function abandonedCartEmail(d: {
-  name?: string | null; items: OrderItem[]; total: string; cartUrl: string;
+  name?: string | null;
+  items: OrderItem[];
+  total: string;
+  cartUrl: string;
 }): { subject: string; html: string; text: string } {
   const greeting = d.name ? `Hi ${escapeHtml(d.name)},` : "Hi there,";
   const blocks = [
@@ -16,10 +19,18 @@ export function abandonedCartEmail(d: {
     `<p style="font-size:12px;">Not interested? No trouble — just reply to this email and we'll leave you be.</p>`,
   ];
   const { html, text } = renderEmail({
-    preheader: PREORDER_MODE ? `Reserve yours from the incoming batch. ${PREORDER_COPY}` : "Your Smelt hat is still warming up.",
+    preheader: PREORDER_MODE
+      ? `Reserve yours from the incoming batch. ${PREORDER_COPY}`
+      : "Your Smelt hat is still warming up.",
     heading: PREORDER_MODE ? "Your Smelt pre-order is waiting" : "Your hat is still warming up",
     blocks,
     cta: { label: PREORDER_MODE ? "Complete my pre-order" : "Finish your order", url: d.cartUrl },
   });
-  return { subject: PREORDER_MODE ? "Your Smelt pre-order is waiting" : "Your Smelt hat is still warming up", html, text };
+  return {
+    subject: PREORDER_MODE
+      ? "Your Smelt pre-order is waiting"
+      : "Your Smelt hat is still warming up",
+    html,
+    text,
+  };
 }

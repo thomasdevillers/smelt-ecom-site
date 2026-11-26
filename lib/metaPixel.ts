@@ -2,12 +2,7 @@
 
 import type { MetaClientContext } from "./meta";
 
-type MetaEventName =
-  | "PageView"
-  | "ViewContent"
-  | "AddToCart"
-  | "InitiateCheckout"
-  | "Purchase";
+type MetaEventName = "PageView" | "ViewContent" | "AddToCart" | "InitiateCheckout" | "Purchase";
 
 declare global {
   interface Window {

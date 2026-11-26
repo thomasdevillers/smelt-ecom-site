@@ -6,12 +6,20 @@ afterEach(() => vi.unstubAllEnvs());
 describe("ranking command namespace selection", () => {
   it("selects live reviews without changing test payment credentials", () => {
     vi.stubEnv("PAYSTACK_SECRET_KEY", "sk_test_unchanged");
-    expect(reviewRankingOptions(["--live", "--score"])).toEqual({ mode: "live", score: true, check: false });
+    expect(reviewRankingOptions(["--live", "--score"])).toEqual({
+      mode: "live",
+      score: true,
+      check: false,
+    });
     expect(process.env.PAYSTACK_SECRET_KEY).toBe("sk_test_unchanged");
   });
   it("can select test reviews even with live payment credentials", () => {
     vi.stubEnv("PAYSTACK_SECRET_KEY", "sk_live_unchanged");
-    expect(reviewRankingOptions(["--test", "--check"])).toEqual({ mode: "test", score: false, check: true });
+    expect(reviewRankingOptions(["--test", "--check"])).toEqual({
+      mode: "test",
+      score: false,
+      check: true,
+    });
     expect(process.env.PAYSTACK_SECRET_KEY).toBe("sk_live_unchanged");
   });
   it("defaults to the existing payment-selected namespace", () => {
@@ -20,9 +28,12 @@ describe("ranking command namespace selection", () => {
     vi.stubEnv("PAYSTACK_SECRET_KEY", "sk_live_example");
     expect(reviewRankingOptions([]).mode).toBe("live");
   });
-  it.each([["--live", "--test"], ["--score", "--check"], ["--lvie"], ["--mode=live"]])("rejects conflicting or misspelled arguments %j", (...args) => {
-    expect(() => reviewRankingOptions(args)).toThrow();
-  });
+  it.each([["--live", "--test"], ["--score", "--check"], ["--lvie"], ["--mode=live"]])(
+    "rejects conflicting or misspelled arguments %j",
+    (...args) => {
+      expect(() => reviewRankingOptions(args)).toThrow();
+    },
+  );
 });
 
 describe("ranking command credential preflight", () => {

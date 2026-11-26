@@ -1,5 +1,10 @@
 import { issueSignedToken } from "@vercel/blob";
-import { handleUpload, handleUploadPresigned, type HandleUploadBody, type HandleUploadPresignedBody } from "@vercel/blob/client";
+import {
+  handleUpload,
+  handleUploadPresigned,
+  type HandleUploadBody,
+  type HandleUploadPresignedBody,
+} from "@vercel/blob/client";
 import { AdminError, readAdminBody, requireSameOrigin } from "@/lib/admin/store";
 import { reservePhotoUpload } from "@/lib/reviewStore";
 import { REVIEW_MAX_PHOTO_BYTES, REVIEW_UPLOAD_PHOTO_TYPES } from "@/lib/reviews";
@@ -13,66 +18,87 @@ export async function POST(request: Request) {
     if (input.type !== "blob.generate-client-token" && input.type !== "blob.generate-presigned-url")
       throw new AdminError("Invalid upload request.");
     const payload = input.payload;
-    if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new AdminError("Invalid upload request.");
+    if (!payload || typeof payload !== "object" || Array.isArray(payload))
+      throw new AdminError("Invalid upload request.");
     const fields = payload as Record<string, unknown>;
-    if (typeof fields.pathname !== "string" || typeof fields.multipart !== "boolean" ||
-      !(fields.clientPayload === null || typeof fields.clientPayload === "string")) throw new AdminError("Invalid upload request.");
+    if (
+      typeof fields.pathname !== "string" ||
+      typeof fields.multipart !== "boolean" ||
+      !(fields.clientPayload === null || typeof fields.clientPayload === "string")
+    )
+      throw new AdminError("Invalid upload request.");
     const body: HandleUploadBody | HandleUploadPresignedBody = {
       type: input.type,
-      payload: { pathname: fields.pathname, multipart: fields.multipart, clientPayload: fields.clientPayload },
+      payload: {
+        pathname: fields.pathname,
+        multipart: fields.multipart,
+        clientPayload: fields.clientPayload,
+      },
     };
 
     const readReviewToken = (clientPayload: string | null) => {
       try {
         const token: unknown = JSON.parse(clientPayload || "{}")?.token;
         return typeof token === "string" ? token : "";
+      } catch {
+        return "";
       }
-      catch { return ""; }
     };
 
-    const result = body.type === "blob.generate-presigned-url"
-      ? await handleUploadPresigned({
-          request,
-          body,
-          getSignedToken: async (pathname, clientPayload) => {
-            await reservePhotoUpload(readReviewToken(clientPayload), pathname);
-            const validUntil = Date.now() + 10 * 60 * 1000;
-            return {
-              token: await issueSignedToken({
-                pathname,
-                operations: ["put"],
+    const result =
+      body.type === "blob.generate-presigned-url"
+        ? await handleUploadPresigned({
+            request,
+            body,
+            getSignedToken: async (pathname, clientPayload) => {
+              await reservePhotoUpload(readReviewToken(clientPayload), pathname);
+              const validUntil = Date.now() + 10 * 60 * 1000;
+              return {
+                token: await issueSignedToken({
+                  pathname,
+                  operations: ["put"],
+                  allowedContentTypes: REVIEW_UPLOAD_PHOTO_TYPES,
+                  maximumSizeInBytes: REVIEW_MAX_PHOTO_BYTES,
+                  validUntil,
+                }),
+                urlOptions: {
+                  allowedContentTypes: REVIEW_UPLOAD_PHOTO_TYPES,
+                  maximumSizeInBytes: REVIEW_MAX_PHOTO_BYTES,
+                  // ReviewForm already uses a crypto.randomUUID() filename. Keep
+                  // the stored pathname stable so submission validation does not
+                  // have to reconstruct provider-added filename variants.
+                  addRandomSuffix: false,
+                  validUntil,
+                },
+              };
+            },
+          })
+        : await handleUpload({
+            request,
+            body,
+            onBeforeGenerateToken: async (pathname, clientPayload) => {
+              await reservePhotoUpload(readReviewToken(clientPayload), pathname);
+              return {
                 allowedContentTypes: REVIEW_UPLOAD_PHOTO_TYPES,
                 maximumSizeInBytes: REVIEW_MAX_PHOTO_BYTES,
-                validUntil,
-              }),
-              urlOptions: {
-                allowedContentTypes: REVIEW_UPLOAD_PHOTO_TYPES,
-                maximumSizeInBytes: REVIEW_MAX_PHOTO_BYTES,
-                // ReviewForm already uses a crypto.randomUUID() filename. Keep
-                // the stored pathname stable so submission validation does not
-                // have to reconstruct provider-added filename variants.
                 addRandomSuffix: false,
-                validUntil,
-              },
-            };
-          },
-        })
-      : await handleUpload({
-          request,
-          body,
-          onBeforeGenerateToken: async (pathname, clientPayload) => {
-            await reservePhotoUpload(readReviewToken(clientPayload), pathname);
-            return {
-              allowedContentTypes: REVIEW_UPLOAD_PHOTO_TYPES,
-              maximumSizeInBytes: REVIEW_MAX_PHOTO_BYTES,
-              addRandomSuffix: false,
-            };
-          },
-        });
+              };
+            },
+          });
     return Response.json(result, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
-    if (error instanceof AdminError) return Response.json({ error: error.message }, { status: error.status, headers: { "Cache-Control": "no-store" } });
-    console.error("Review photo upload failed", error instanceof Error ? error.name : "Unknown error");
-    return Response.json({ error: "Photo upload is temporarily unavailable." }, { status: 503, headers: { "Cache-Control": "no-store" } });
+    if (error instanceof AdminError)
+      return Response.json(
+        { error: error.message },
+        { status: error.status, headers: { "Cache-Control": "no-store" } },
+      );
+    console.error(
+      "Review photo upload failed",
+      error instanceof Error ? error.name : "Unknown error",
+    );
+    return Response.json(
+      { error: "Photo upload is temporarily unavailable." },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
+    );
   }
 }

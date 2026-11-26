@@ -1,7 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 // Pins the pre-order campaign: these expectations (R450 bundles, consent, pre-order copy)
 // must not follow the live storefront switch. Normal-mode pricing: salesMode.test.ts.
-vi.mock("./salesMode", async original => ({ ...await original<typeof import("./salesMode")>(), PREORDER_MODE: true }));
+vi.mock("./salesMode", async (original) => ({
+  ...(await original<typeof import("./salesMode")>()),
+  PREORDER_MODE: true,
+}));
 import {
   bundleSubtotal,
   bundleDiscount,
@@ -30,14 +33,29 @@ describe("pricing", () => {
     expect(lineTotal(qty)).toBe(450 * qty);
   });
 
-  it.each([[3, 1200, 150, 240], [4, 1600, 200, 290]])("prices a %i-hat pack and separates item savings from delivery", (qty, total, discount, saving) => {
-    expect(bundleSubtotal(qty)).toBe(total);
-    expect(bundleDiscount(qty)).toBe(discount);
-    expect(bundleDeliveredSaving(qty)).toBe(saving);
-    expect(grandTotal(total, qty)).toBe(total);
-  });
+  it.each([
+    [3, 1200, 150, 240],
+    [4, 1600, 200, 290],
+  ])(
+    "prices a %i-hat pack and separates item savings from delivery",
+    (qty, total, discount, saving) => {
+      expect(bundleSubtotal(qty)).toBe(total);
+      expect(bundleDiscount(qty)).toBe(discount);
+      expect(bundleDeliveredSaving(qty)).toBe(saving);
+      expect(grandTotal(total, qty)).toBe(total);
+    },
+  );
 
-  it.each([[0, 0], [1, 450], [2, 900], [5, 2000], [6, 2400], [7, 2800], [8, 3200], [11, 4400]])("extends the bundle rate at quantity %i", (qty, total) => {
+  it.each([
+    [0, 0],
+    [1, 450],
+    [2, 900],
+    [5, 2000],
+    [6, 2400],
+    [7, 2800],
+    [8, 3200],
+    [11, 4400],
+  ])("extends the bundle rate at quantity %i", (qty, total) => {
     expect(bundleSubtotal(qty)).toBe(total);
   });
 

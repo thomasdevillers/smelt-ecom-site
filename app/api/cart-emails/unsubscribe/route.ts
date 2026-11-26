@@ -10,5 +10,7 @@ export async function POST(request: Request) {
     await unsubscribeCartEmails(typeof body.token === "string" ? body.token : "");
     // A generic success response prevents this endpoint becoming a token oracle.
     return adminJson({ ok: true });
-  } catch (error) { return adminFailure(error); }
+  } catch (error) {
+    return adminFailure(error);
+  }
 }

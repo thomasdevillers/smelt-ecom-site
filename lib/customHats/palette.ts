@@ -85,7 +85,7 @@ export const FELT_COLOURS: FeltColour[] = [
   { code: "D-601", name: "Aubergine", hex: "#23121c", family: "purple" },
 ];
 
-const byCode = new Map(FELT_COLOURS.map(colour => [colour.code, colour]));
+const byCode = new Map(FELT_COLOURS.map((colour) => [colour.code, colour]));
 export const feltColour = (code: string | null | undefined) => (code && byCode.get(code)) || null;
 export const feltTile = (code: string) => `/custom-hats/felt/${code.toLowerCase()}.webp`;
-export const SWATCH_BOOK_PHOTOS = [1, 2, 3].map(page => `/custom-hats/swatch-book-${page}.jpg`);
+export const SWATCH_BOOK_PHOTOS = [1, 2, 3].map((page) => `/custom-hats/swatch-book-${page}.jpg`);

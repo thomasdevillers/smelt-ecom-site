@@ -11,7 +11,13 @@ describe("questionnaire email entry", () => {
   });
 
   it("ignores missing, empty and invalid answers", () => {
-    for (const query of ["", "frequency=", "frequency=invalid", "frequency=%3Cscript%3E", "frequency=0"]) {
+    for (const query of [
+      "",
+      "frequency=",
+      "frequency=invalid",
+      "frequency=%3Cscript%3E",
+      "frequency=0",
+    ]) {
       expect(emailEntryAnswer(new URLSearchParams(query))).toBeNull();
     }
   });

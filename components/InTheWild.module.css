@@ -14,7 +14,7 @@
   font-weight: 800;
   font-size: clamp(28px, 6vw, 44px);
   line-height: 1.04;
-  letter-spacing: -.02em;
+  letter-spacing: -0.02em;
   color: var(--ink);
   margin: 12px 0 14px;
 }
@@ -38,7 +38,10 @@
   border-radius: var(--radius-card, 20px);
   border: var(--border-ink-soft, 1px solid rgba(14, 59, 42, 0.15));
   background: var(--paper-warm, #f7f2ea);
-  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease,
+    border-color 0.3s ease;
 }
 
 .card:hover {
@@ -100,4 +103,6 @@
   }
 }
 
-.social { margin-top: 24px; }
+.social {
+  margin-top: 24px;
+}

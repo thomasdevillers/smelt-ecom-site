@@ -12,7 +12,9 @@ export async function GET(_request: Request, context: Context) {
     const { token } = await context.params;
     const invite = await customHatInvite(token);
     return adminJson(invite, invite.valid ? 200 : 404);
-  } catch (error) { return customHatFailure(error); }
+  } catch (error) {
+    return customHatFailure(error);
+  }
 }
 
 // Thirty designs with notes fit comfortably; anything larger is not a real submission.
@@ -21,14 +23,21 @@ const MAX_BODY = 96 * 1024;
 export async function POST(request: Request, context: Context) {
   try {
     requireSameOrigin(request);
-    if (!request.headers.get("content-type")?.startsWith("application/json")) throw new AdminError("Expected JSON.", 415);
+    if (!request.headers.get("content-type")?.startsWith("application/json"))
+      throw new AdminError("Expected JSON.", 415);
     const text = await request.text();
     if (text.length > MAX_BODY) throw new AdminError("Request is too large.", 413);
     let body: unknown;
-    try { body = JSON.parse(text); } catch { throw new AdminError("Invalid request."); }
+    try {
+      body = JSON.parse(text);
+    } catch {
+      throw new AdminError("Invalid request.");
+    }
     const { token } = await context.params;
     const saved = await submitCustomHatRequest(token, body);
     if (saved.submission) await notifyCustomHatSubmission(saved.submission, saved.revision);
     return adminJson({ submittedAt: saved.submittedAt });
-  } catch (error) { return customHatFailure(error); }
+  } catch (error) {
+    return customHatFailure(error);
+  }
 }

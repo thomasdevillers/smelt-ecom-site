@@ -1,9 +1,11 @@
 import { renderEmail } from "./layout";
 import { absoluteUrl, escapeHtml } from "./theme";
 
-export function deliveredEmail(d: {
-  name?: string | null;
-}): { subject: string; html: string; text: string } {
+export function deliveredEmail(d: { name?: string | null }): {
+  subject: string;
+  html: string;
+  text: string;
+} {
   const greeting = d.name ? `Hi ${escapeHtml(d.name)},` : "Hi there,";
   const blocks = [
     `<p>${greeting}</p>`,

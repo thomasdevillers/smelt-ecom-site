@@ -20,11 +20,21 @@ export default function DeliveryMap({ address }: { address: DeliveryAddress }) {
         </div>
         <div className={styles.addressDetails}>
           <p className={styles.eyebrow}>Delivery destination</p>
-          <h2 id="delivery-map-heading" className={styles.heading}>Your hat is headed here.</h2>
+          <h2 id="delivery-map-heading" className={styles.heading}>
+            Your hat is headed here.
+          </h2>
           <address className={styles.address}>
-            {addressLines.map((line, index) => <span key={index}>{line}</span>)}
+            {addressLines.map((line, index) => (
+              <span key={index}>{line}</span>
+            ))}
           </address>
-          <a href={mapsUrl} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" className={styles.link}>
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            referrerPolicy="no-referrer"
+            className={styles.link}
+          >
             View in Google Maps <span aria-hidden="true">↗</span>
             <span className={styles.srOnly}> (opens in a new tab)</span>
           </a>

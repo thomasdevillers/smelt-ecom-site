@@ -24,7 +24,7 @@ describe("review photo encoding", () => {
     expect(file.type).toBe("image/jpeg");
     expect(file.name).toMatch(/\.jpg$/);
     expect(file.size).toBe(300_000);
-    expect(canvas.toBlob).toHaveBeenNthCalledWith(2, expect.any(Function), "image/jpeg", .8);
+    expect(canvas.toBlob).toHaveBeenNthCalledWith(2, expect.any(Function), "image/jpeg", 0.8);
   });
 
   it("reduces oversized compressed photos while keeping the real format", async () => {
@@ -33,12 +33,14 @@ describe("review photo encoding", () => {
       new Blob([new Uint8Array(400_000)], { type: "image/webp" }),
     );
     expect((await encodeReviewPhoto(canvas)).size).toBe(400_000);
-    expect(canvas.toBlob).toHaveBeenNthCalledWith(2, expect.any(Function), "image/webp", .65);
+    expect(canvas.toBlob).toHaveBeenNthCalledWith(2, expect.any(Function), "image/webp", 0.65);
   });
 
   it("does not mislabel a PNG when neither compressed format is available", async () => {
     const png = new Blob(["png"], { type: "image/png" });
     await expect(encodeReviewPhoto(canvasReturning(png, png))).rejects.toThrow("could not prepare");
-    await expect(encodeReviewPhoto(canvasReturning(null, null))).rejects.toThrow("could not prepare");
+    await expect(encodeReviewPhoto(canvasReturning(null, null))).rejects.toThrow(
+      "could not prepare",
+    );
   });
 });

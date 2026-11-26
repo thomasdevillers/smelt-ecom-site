@@ -6,15 +6,26 @@
 //   R2_BUCKET – the bucket name, or the bucket's S3 API URL from the dashboard.
 import { AwsClient } from "aws4fetch";
 
-interface R2Settings { host?: string; bucket?: string; accessKeyId?: string; secretAccessKey?: string }
+interface R2Settings {
+  host?: string;
+  bucket?: string;
+  accessKeyId?: string;
+  secretAccessKey?: string;
+}
 
 export function r2Settings(env: Record<string, string | undefined> = process.env): R2Settings {
   let account = env.R2_ACCOUNT_ID?.trim();
   let bucket = env.R2_BUCKET?.trim();
   // EU-jurisdiction buckets live under <account>.eu.r2.cloudflarestorage.com.
-  const url = bucket?.match(/^https:\/\/([a-f0-9]+)\.((?:[a-z]+\.)?)r2\.cloudflarestorage\.com\/([^/]+)\/?$/);
+  const url = bucket?.match(
+    /^https:\/\/([a-f0-9]+)\.((?:[a-z]+\.)?)r2\.cloudflarestorage\.com\/([^/]+)\/?$/,
+  );
   let jurisdiction = "";
-  if (url) { account ||= url[1]; jurisdiction = url[2]; bucket = url[3]; }
+  if (url) {
+    account ||= url[1];
+    jurisdiction = url[2];
+    bucket = url[3];
+  }
   return {
     host: account ? `${account}.${jurisdiction}r2.cloudflarestorage.com` : undefined,
     bucket,
@@ -25,7 +36,13 @@ export function r2Settings(env: Record<string, string | undefined> = process.env
 
 export function isR2Configured() {
   const s = r2Settings();
-  return !!(s.host && s.bucket && s.accessKeyId && s.secretAccessKey && /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(s.bucket));
+  return !!(
+    s.host &&
+    s.bucket &&
+    s.accessKeyId &&
+    s.secretAccessKey &&
+    /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(s.bucket)
+  );
 }
 
 function disposition(fileName: string, inline: boolean) {
@@ -36,13 +53,24 @@ function disposition(fileName: string, inline: boolean) {
 let shared: ReturnType<typeof createClient> | null = null;
 function createClient() {
   const { host, bucket, accessKeyId, secretAccessKey } = r2Settings();
-  if (!isR2Configured() || !host || !bucket || !accessKeyId || !secretAccessKey) throw new Error("R2 is not configured.");
+  if (!isR2Configured() || !host || !bucket || !accessKeyId || !secretAccessKey)
+    throw new Error("R2 is not configured.");
   const aws = new AwsClient({ accessKeyId, secretAccessKey, service: "s3", region: "auto" });
-  const objectUrl = (key: string) => new URL(`https://${host}/${bucket}/${key.split("/").map(encodeURIComponent).join("/")}`);
-  const presign = async (url: URL, method: string, headers: Record<string, string>, seconds: number) => {
+  const objectUrl = (key: string) =>
+    new URL(`https://${host}/${bucket}/${key.split("/").map(encodeURIComponent).join("/")}`);
+  const presign = async (
+    url: URL,
+    method: string,
+    headers: Record<string, string>,
+    seconds: number,
+  ) => {
     url.searchParams.set("X-Amz-Expires", String(seconds));
     // allHeaders: also sign Content-Type, which aws4fetch skips by default.
-    return (await aws.sign(new Request(url, { method, headers }), { aws: { signQuery: true, allHeaders: true } })).url;
+    return (
+      await aws.sign(new Request(url, { method, headers }), {
+        aws: { signQuery: true, allHeaders: true },
+      })
+    ).url;
   };
   return {
     /** The browser must send exactly these headers with its PUT. */
@@ -56,14 +84,21 @@ function createClient() {
       return presign(url, "GET", {}, seconds);
     },
     async exists(key: string) {
-      const response = await aws.fetch(objectUrl(key), { method: "HEAD", signal: AbortSignal.timeout(10_000) });
+      const response = await aws.fetch(objectUrl(key), {
+        method: "HEAD",
+        signal: AbortSignal.timeout(10_000),
+      });
       if (response.status === 404) return false;
       if (!response.ok) throw new Error(`R2 HEAD failed with ${response.status}`);
       return true;
     },
     async remove(key: string) {
-      const response = await aws.fetch(objectUrl(key), { method: "DELETE", signal: AbortSignal.timeout(10_000) });
-      if (!response.ok && response.status !== 404) throw new Error(`R2 DELETE failed with ${response.status}`);
+      const response = await aws.fetch(objectUrl(key), {
+        method: "DELETE",
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!response.ok && response.status !== 404)
+        throw new Error(`R2 DELETE failed with ${response.status}`);
     },
   };
 }

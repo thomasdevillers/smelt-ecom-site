@@ -3,12 +3,23 @@ import { randomUUID } from "node:crypto";
 import { adminStore } from "./admin/store";
 import { listReviewRecords } from "./reviewStore";
 import { reviewNamespace, type ReviewNamespace } from "./reviewNamespace";
-import { assertReviewCustomWritable, reviewCustomDatabase, reviewCustomStore } from "./reviewCustomPersistence";
+import {
+  assertReviewCustomWritable,
+  reviewCustomDatabase,
+  reviewCustomStore,
+} from "./reviewCustomPersistence";
 import { reviewDomain } from "./db/review-domain";
 import { REVIEW_MAX_PHOTO_BYTES, REVIEW_MAX_PHOTOS, type ReviewRecord } from "./reviews";
 import {
-  currentReviewRanking, parseReviewScores, reviewFingerprint, reviewRankingEnabled,
-  reviewRankingModel, reviewRankingPrefix, REVIEW_RUBRIC_VERSION, weightedReviewScore, type ReviewRanking,
+  currentReviewRanking,
+  parseReviewScores,
+  reviewFingerprint,
+  reviewRankingEnabled,
+  reviewRankingModel,
+  reviewRankingPrefix,
+  REVIEW_RUBRIC_VERSION,
+  weightedReviewScore,
+  type ReviewRanking,
 } from "./reviewRanking";
 
 const instructions = `Evaluate how helpful this sauna-hat review is to a shopper, NOT how persuasive or positive it is.
@@ -27,18 +38,29 @@ Product context: Smelt sauna hat, available in Forest Green and Natural Cream. E
 
 async function imageData(photo: ReviewRecord["photos"][number]): Promise<string> {
   const url = new URL(photo.url);
-  if (url.protocol !== "https:" || url.username || url.password || url.port || !/^[a-z0-9_-]+\.(?:public|private)\.blob\.vercel-storage\.com$/i.test(url.hostname))
+  if (
+    url.protocol !== "https:" ||
+    url.username ||
+    url.password ||
+    url.port ||
+    !/^[a-z0-9_-]+\.(?:public|private)\.blob\.vercel-storage\.com$/i.test(url.hostname)
+  )
     throw new Error("Invalid review image host.");
   const signal = AbortSignal.timeout(10_000);
   // Explicit tokens take precedence over ambient (potentially expired) Vercel
   // OIDC credentials. Without this option the SDK prefers OIDC from the env.
-  const blob = await get(photo.url, { access: url.hostname.includes(".private.") ? "private" : "public",
-    token: process.env.BLOB_READ_WRITE_TOKEN || undefined, abortSignal: signal });
+  const blob = await get(photo.url, {
+    access: url.hostname.includes(".private.") ? "private" : "public",
+    token: process.env.BLOB_READ_WRITE_TOKEN || undefined,
+    abortSignal: signal,
+  });
   if (!blob || blob.statusCode !== 200) throw new Error("Review image unavailable.");
   const reader = blob.stream.getReader();
   const chunks: Buffer[] = [];
   let size = 0;
-  const abort = () => { void reader.cancel().catch(() => {}); };
+  const abort = () => {
+    void reader.cancel().catch(() => {});
+  };
   signal.addEventListener("abort", abort, { once: true });
   try {
     while (true) {
@@ -66,31 +88,71 @@ export async function scoreReview(review: ReviewRecord): Promise<ReviewRanking> 
   if (review.photos.length > REVIEW_MAX_PHOTOS) throw new Error("Too many review photos.");
   const images = await Promise.all(review.photos.map(imageData));
   const model = reviewRankingModel();
-  const properties = Object.fromEntries(["usefulness", "specificity", "context", "clarity", "imageEvidence"].map(name => [name, { type: "integer", minimum: 0, maximum: 10 }]));
+  const properties = Object.fromEntries(
+    ["usefulness", "specificity", "context", "clarity", "imageEvidence"].map((name) => [
+      name,
+      { type: "integer", minimum: 0, maximum: 10 },
+    ]),
+  );
   const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    cache: "no-store", signal: AbortSignal.timeout(30_000),
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    cache: "no-store",
+    signal: AbortSignal.timeout(30_000),
     body: JSON.stringify({
-      model, store: false, max_output_tokens: 600, instructions,
-      input: [{ role: "user", content: [
-        { type: "input_text", text: JSON.stringify({ review: review.body, colours: review.colours }) },
-        ...images.map(image_url => ({ type: "input_image", image_url, detail: "auto" })),
-      ] }],
-      text: { format: { type: "json_schema", name: "review_helpfulness", strict: true, schema: {
-        type: "object", additionalProperties: false,
-        properties: { ...properties, reason: { type: "string" } }, required: [...Object.keys(properties), "reason"],
-      } } },
+      model,
+      store: false,
+      max_output_tokens: 600,
+      instructions,
+      input: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: JSON.stringify({ review: review.body, colours: review.colours }),
+            },
+            ...images.map((image_url) => ({ type: "input_image", image_url, detail: "auto" })),
+          ],
+        },
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "review_helpfulness",
+          strict: true,
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            properties: { ...properties, reason: { type: "string" } },
+            required: [...Object.keys(properties), "reason"],
+          },
+        },
+      },
     }),
   });
   if (!response.ok) throw new Error(`Review scoring provider status ${response.status}.`);
-  const data = await response.json() as { status?: string; output?: { type?: string; role?: string; content?: { type?: string; text?: string }[] }[] };
+  const data = (await response.json()) as {
+    status?: string;
+    output?: { type?: string; role?: string; content?: { type?: string; text?: string }[] }[];
+  };
   if (data.status !== "completed") throw new Error("Incomplete review scoring response.");
-  const text = data.output?.filter(item => item.type === "message" && item.role === "assistant")
-    .flatMap(item => item.content ?? []).filter(part => part.type === "output_text").map(part => part.text ?? "").join("");
+  const text = data.output
+    ?.filter((item) => item.type === "message" && item.role === "assistant")
+    .flatMap((item) => item.content ?? [])
+    .filter((part) => part.type === "output_text")
+    .map((part) => part.text ?? "")
+    .join("");
   const scores = parseReviewScores(JSON.parse(text || ""));
   if (!images.length) scores.imageEvidence = 0;
-  return { ...scores, score: weightedReviewScore(scores, images.length > 0), fingerprint: reviewFingerprint(review),
-    rubricVersion: REVIEW_RUBRIC_VERSION, model, scoredAt: new Date().toISOString() };
+  return {
+    ...scores,
+    score: weightedReviewScore(scores, images.length > 0),
+    fingerprint: reviewFingerprint(review),
+    rubricVersion: REVIEW_RUBRIC_VERSION,
+    model,
+    scoredAt: new Date().toISOString(),
+  };
 }
 
 // A lease prevents approval hooks and cron retries from scoring the same review concurrently.
@@ -102,7 +164,8 @@ export function reviewScoringFailure(error: unknown): string {
   const provider = /^Review scoring provider status (\d{3})\.$/.exec(error.message);
   if (provider) return `openai_http_${provider[1]}`;
   if (error.message.startsWith("No blob credentials found.")) return "blob_credentials_missing";
-  if (error.message.startsWith("oidcToken was passed, but no storeId was found.")) return "blob_store_id_missing";
+  if (error.message.startsWith("oidcToken was passed, but no storeId was found."))
+    return "blob_store_id_missing";
   if (/^Blob[A-Za-z]+Error$/.test(error.name)) return error.name;
   // The SDK's base BlobError inherits name="Error"; checking name alone
   // hides image access failures behind unexpected_scoring_error.
@@ -125,31 +188,48 @@ export function reviewScoringFailure(error: unknown): string {
   return safeMessages[error.message] || "unexpected_scoring_error";
 }
 
-export async function processReviewRankings(options: { id?: string; limit?: number; mode?: ReviewNamespace; ignoreRetryBackoff?: boolean } = {}) {
+export async function processReviewRankings(
+  options: {
+    id?: string;
+    limit?: number;
+    mode?: ReviewNamespace;
+    ignoreRetryBackoff?: boolean;
+  } = {},
+) {
   assertReviewCustomWritable();
-  if (!reviewRankingEnabled() || !process.env.OPENAI_API_KEY) return { enabled: false, scored: 0, failed: 0 };
+  if (!reviewRankingEnabled() || !process.env.OPENAI_API_KEY)
+    return { enabled: false, scored: 0, failed: 0 };
   const db = adminStore();
   const mode = options.mode ?? reviewNamespace();
-  const pg = reviewCustomStore() === "postgres" ? reviewDomain(await reviewCustomDatabase(), mode) : null;
+  const pg =
+    reviewCustomStore() === "postgres" ? reviewDomain(await reviewCustomDatabase(), mode) : null;
   const prefix = reviewRankingPrefix(mode);
-  const reviews = (await listReviewRecords("published", mode)).filter(review => !options.id || review.id === options.id);
-  const rankings = pg ? await pg.rankings() : await db.hgetall<Record<string, ReviewRanking>>(`${prefix}:scores`) || {};
+  const reviews = (await listReviewRecords("published", mode)).filter(
+    (review) => !options.id || review.id === options.id,
+  );
+  const rankings = pg
+    ? await pg.rankings()
+    : (await db.hgetall<Record<string, ReviewRanking>>(`${prefix}:scores`)) || {};
   let scored = 0;
   let failed = 0;
   let attempted = 0;
   // At most three 60-second attempts per cron run, within its 240-second budget.
-  for (const review of reviews.filter(item => !currentReviewRanking(item, rankings[item.id]))) {
+  for (const review of reviews.filter((item) => !currentReviewRanking(item, rankings[item.id]))) {
     if (attempted >= Math.min(options.limit ?? 3, 3)) break;
     const retryKey = `${prefix}:retry:${review.id}`;
-    const retry = pg ? await pg.retry(review.id) : await db.get<{ fingerprint: string; attempts: number; nextAttemptAt: number }>(retryKey);
+    const retry = pg
+      ? await pg.retry(review.id)
+      : await db.get<{ fingerprint: string; attempts: number; nextAttemptAt: number }>(retryKey);
     const sameInput = retry?.fingerprint === reviewFingerprint(review);
     if (!options.ignoreRetryBackoff && sameInput && retry.nextAttemptAt > Date.now()) continue;
     const lock = `${prefix}:lock:${review.id}`;
     const token = randomUUID();
-    if (!await db.set(lock, token, { nx: true, ex: 180 })) continue;
+    if (!(await db.set(lock, token, { nx: true, ex: 180 }))) continue;
     try {
       // Recheck after acquiring the lease; another worker may have just finished.
-      const existing = pg ? (await pg.rankings())[review.id] : await db.hget<ReviewRanking>(`${prefix}:scores`, review.id);
+      const existing = pg
+        ? (await pg.rankings())[review.id]
+        : await db.hget<ReviewRanking>(`${prefix}:scores`, review.id);
       if (currentReviewRanking(review, existing ?? undefined)) continue;
       attempted++;
       const ranking = await scoreReview(review);
@@ -164,13 +244,25 @@ export async function processReviewRankings(options: { id?: string; limit?: numb
       scored++;
     } catch (error) {
       failed++;
-      console.error("Review helpfulness scoring failed", { reviewId: review.id, reason: reviewScoringFailure(error) });
+      console.error("Review helpfulness scoring failed", {
+        reviewId: review.id,
+        reason: reviewScoringFailure(error),
+      });
       const attempts = sameInput ? retry.attempts + 1 : 1;
-      const nextRetry = { fingerprint: reviewFingerprint(review), attempts,
-        nextAttemptAt: Date.now() + Math.min(24, 2 ** Math.min(attempts - 1, 5)) * 3_600_000 };
-      if (pg) await pg.saveRetry(review.id, { ...nextRetry, sourceExpiresAt: new Date(Date.now() + 7 * 86400_000).toISOString() });
+      const nextRetry = {
+        fingerprint: reviewFingerprint(review),
+        attempts,
+        nextAttemptAt: Date.now() + Math.min(24, 2 ** Math.min(attempts - 1, 5)) * 3_600_000,
+      };
+      if (pg)
+        await pg.saveRetry(review.id, {
+          ...nextRetry,
+          sourceExpiresAt: new Date(Date.now() + 7 * 86400_000).toISOString(),
+        });
       else await db.set(retryKey, nextRetry, { ex: 7 * 86400 });
-    } finally { await db.eval(RELEASE_LOCK, [lock], [token]); }
+    } finally {
+      await db.eval(RELEASE_LOCK, [lock], [token]);
+    }
   }
   return { enabled: true, scored, failed };
 }

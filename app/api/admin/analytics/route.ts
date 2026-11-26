@@ -9,7 +9,8 @@ export async function GET(request: Request) {
   try {
     await requireAdmin();
     const days = Number(new URL(request.url).searchParams.get("days") || 28);
-    if (days !== 7 && days !== 28 && days !== 90) throw new AdminError("Choose a 7, 28, or 90 day report.");
+    if (days !== 7 && days !== 28 && days !== 90)
+      throw new AdminError("Choose a 7, 28, or 90 day report.");
     return adminJson(await getConversionAnalytics(days as AnalyticsDays));
   } catch (error) {
     return adminFailure(error);

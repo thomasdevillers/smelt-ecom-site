@@ -10,7 +10,10 @@ export function welcomeEmail(): { subject: string; html: string; text: string } 
     preheader: "Warm regards from Smelt.",
     heading: "Warm regards from Smelt",
     blocks,
-    cta: { label: "Shop the hats", url: escapeHtml(marketingEmailUrl(absoluteUrl("/product"), "welcome")) },
+    cta: {
+      label: "Shop the hats",
+      url: escapeHtml(marketingEmailUrl(absoluteUrl("/product"), "welcome")),
+    },
   });
   return { subject: "Warm regards from Smelt", html, text };
 }

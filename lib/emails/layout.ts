@@ -63,7 +63,9 @@ export function renderEmail(input: EmailInput): { html: string; text: string } {
     `</td></tr>` +
     `<tr><td class="email-card email-text" bgcolor="${COLORS.paperWarm}" style="background-color:${COLORS.paperWarm};border:1px solid ${COLORS.border};border-radius:24px;padding:28px;color:${COLORS.ink};font-family:${FONT_STACK};font-size:16px;line-height:1.6;">` +
     `<h1 class="email-heading" style="margin:0 0 12px;font-family:${FONT_STACK};font-weight:800;font-size:26px;line-height:1.1;letter-spacing:-0.02em;color:${COLORS.ink};">${heading}</h1>` +
-    (intro ? `<p class="email-muted" style="margin:0 0 16px;font-family:${FONT_STACK};font-size:16px;line-height:1.6;color:${COLORS.inkSoft};">${intro}</p>` : "") +
+    (intro
+      ? `<p class="email-muted" style="margin:0 0 16px;font-family:${FONT_STACK};font-size:16px;line-height:1.6;color:${COLORS.inkSoft};">${intro}</p>`
+      : "") +
     blocks.join("") +
     (cta ? ctaHtml(cta) : "") +
     afterCtaBlocks.join("") +

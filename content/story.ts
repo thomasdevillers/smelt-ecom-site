@@ -32,7 +32,6 @@ export const STORY = {
   },
   closing: {
     title: "Warm regards, always.",
-    body:
-      "It's stitched onto every hat, and it's how we want to run Smelt: with care for the thing we make and the people who wear it. Thanks for being here, for supporting a small Cape Town business, and for making us part of your ritual.",
+    body: "It's stitched onto every hat, and it's how we want to run Smelt: with care for the thing we make and the people who wear it. Thanks for being here, for supporting a small Cape Town business, and for making us part of your ritual.",
   },
 };

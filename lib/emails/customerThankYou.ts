@@ -25,8 +25,10 @@ export function customerThankYouEmail(firstName = "there") {
   ];
   return {
     subject: "We'd rather give you R100 than Instagram.",
-    text: paragraphs.map(paragraph => paragraph === linkLabel ? `${paragraph}: ${claimUrl}` : paragraph).join("\n\n"),
+    text: paragraphs
+      .map((paragraph) => (paragraph === linkLabel ? `${paragraph}: ${claimUrl}` : paragraph))
+      .join("\n\n"),
     // Deliberately no branded layout, images, buttons, or promotional typography.
-    html: `<!doctype html><html lang="en"><head><meta charset="utf-8"></head><body style="font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:#222;background:#fff;">${paragraphs.map(paragraph => `<p style="margin:0 0 16px;">${paragraph === linkLabel ? `<a href="${escapeHtml(claimUrl)}">${escapeHtml(paragraph)}</a>` : escapeHtml(paragraph).replaceAll("\n", "<br>")}</p>`).join("")}</body></html>`,
+    html: `<!doctype html><html lang="en"><head><meta charset="utf-8"></head><body style="font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:#222;background:#fff;">${paragraphs.map((paragraph) => `<p style="margin:0 0 16px;">${paragraph === linkLabel ? `<a href="${escapeHtml(claimUrl)}">${escapeHtml(paragraph)}</a>` : escapeHtml(paragraph).replaceAll("\n", "<br>")}</p>`).join("")}</body></html>`,
   };
 }

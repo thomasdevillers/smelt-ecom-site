@@ -1,7 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 // Pins the pre-order campaign: these expectations (R450 bundles, consent, pre-order copy)
 // must not follow the live storefront switch. Normal-mode pricing: salesMode.test.ts.
-vi.mock("./salesMode", async original => ({ ...await original<typeof import("./salesMode")>(), PREORDER_MODE: true }));
+vi.mock("./salesMode", async (original) => ({
+  ...(await original<typeof import("./salesMode")>()),
+  PREORDER_MODE: true,
+}));
 import { cartReducer, emptyCart, cartCount, cartSubtotal, type CartState } from "./cartReducer";
 
 describe("cartReducer", () => {
@@ -29,7 +32,10 @@ describe("cartReducer", () => {
     s = cartReducer(s, increment);
     expect(s).toEqual({ green: 2, cream: 2 });
     expect(cartReducer(s, increment)).toBe(s);
-    expect(cartReducer(s, { ...increment, colour: "cream", maxQuantity: 3 })).toEqual({ green: 2, cream: 3 });
+    expect(cartReducer(s, { ...increment, colour: "cream", maxQuantity: 3 })).toEqual({
+      green: 2,
+      cream: 3,
+    });
   });
 
   it("blocks increases when stock is unavailable or has fallen below the bag quantity", () => {
@@ -37,7 +43,10 @@ describe("cartReducer", () => {
     for (const maxQuantity of [0, 2]) {
       expect(cartReducer(s, { type: "add", colour: "green", qty: 1, maxQuantity })).toBe(s);
     }
-    expect(cartReducer(s, { type: "set", colour: "green", qty: 2 })).toEqual({ green: 2, cream: 1 });
+    expect(cartReducer(s, { type: "set", colour: "green", qty: 2 })).toEqual({
+      green: 2,
+      cream: 1,
+    });
     expect(cartReducer(s, { type: "remove", colour: "green" })).toEqual({ green: 0, cream: 1 });
   });
 
@@ -71,5 +80,4 @@ describe("cartReducer", () => {
     s = cartReducer(s, { type: "set", colour: "green", qty: 1 });
     expect(cartSubtotal(s)).toBe(450);
   });
-
 });
